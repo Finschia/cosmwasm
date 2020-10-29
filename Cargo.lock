@@ -118,6 +118,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
+name = "cosmwasm-ext"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 0.10.1",
+ "cosmwasm-std 0.10.1",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cosmwasm-schema"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2196586ea197eaa21129d09c84a19e2eb80bdce239eec8e6a4f108cb644c295f"
+dependencies = [
+ "schemars",
+ "serde_json",
+]
+
+[[package]]
 name = "cosmwasm-schema"
 version = "0.11.2"
 dependencies = [
@@ -127,11 +147,24 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-std"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f85908a2696117c8f2c1b3ce201d34a1aa9a6b3c1583a65cfb794ec66e1cfde4"
+dependencies = [
+ "base64",
+ "schemars",
+ "serde",
+ "serde-json-wasm",
+ "snafu",
+]
+
+[[package]]
+name = "cosmwasm-std"
 version = "0.11.2"
 dependencies = [
  "base64",
  "chrono",
- "cosmwasm-schema",
+ "cosmwasm-schema 0.11.2",
  "schemars",
  "serde",
  "serde-json-wasm",
@@ -142,7 +175,7 @@ dependencies = [
 name = "cosmwasm-storage"
 version = "0.11.2"
 dependencies = [
- "cosmwasm-std",
+ "cosmwasm-std 0.11.2",
  "serde",
 ]
 
@@ -150,7 +183,7 @@ dependencies = [
 name = "cosmwasm-vm"
 version = "0.11.2"
 dependencies = [
- "cosmwasm-std",
+ "cosmwasm-std 0.11.2",
  "hex",
  "memmap",
  "parity-wasm",
@@ -307,6 +340,12 @@ checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
  "generic-array 0.14.3",
 ]
+
+[[package]]
+name = "doc-comment"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
 name = "dynasm"
@@ -857,6 +896,27 @@ name = "smallvec"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c2fb2ec9bcd216a5b0d0ccf31ab17b5ed1d627960edff65bbe95d3ce221cefc"
+
+[[package]]
+name = "snafu"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c4e6046e4691afe918fd1b603fd6e515bcda5388a1092a9edbada307d159f09"
+dependencies = [
+ "doc-comment",
+ "snafu-derive",
+]
+
+[[package]]
+name = "snafu-derive"
+version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7073448732a89f2f3e6581989106067f403d378faeafb4a50812eb814170d3e5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "stable_deref_trait"

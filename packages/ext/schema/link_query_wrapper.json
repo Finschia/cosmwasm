@@ -1,0 +1,239 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LinkQueryWrapper",
+  "type": "object",
+  "required": [
+    "module",
+    "query_data"
+  ],
+  "properties": {
+    "module": {
+      "$ref": "#/definitions/Module"
+    },
+    "query_data": {
+      "$ref": "#/definitions/QueryData"
+    }
+  },
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    },
+    "LinkQuery": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "query_token_param"
+          ],
+          "properties": {
+            "query_token_param": {
+              "type": "object",
+              "required": [
+                "contract_id"
+              ],
+              "properties": {
+                "contract_id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "query_token_balance_param"
+          ],
+          "properties": {
+            "query_token_balance_param": {
+              "type": "object",
+              "required": [
+                "address",
+                "contract_id"
+              ],
+              "properties": {
+                "address": {
+                  "$ref": "#/definitions/HumanAddr"
+                },
+                "contract_id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "query_total_param"
+          ],
+          "properties": {
+            "query_total_param": {
+              "type": "object",
+              "required": [
+                "contract_id",
+                "target"
+              ],
+              "properties": {
+                "contract_id": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "query_perm_param"
+          ],
+          "properties": {
+            "query_perm_param": {
+              "type": "object",
+              "required": [
+                "address",
+                "contract_id"
+              ],
+              "properties": {
+                "address": {
+                  "$ref": "#/definitions/HumanAddr"
+                },
+                "contract_id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "query_collection_param"
+          ],
+          "properties": {
+            "query_collection_param": {
+              "type": "object",
+              "required": [
+                "contract_id"
+              ],
+              "properties": {
+                "contract_id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "query_collection_balance_param"
+          ],
+          "properties": {
+            "query_collection_balance_param": {
+              "type": "object",
+              "required": [
+                "addr",
+                "contract_id",
+                "token_id"
+              ],
+              "properties": {
+                "addr": {
+                  "$ref": "#/definitions/HumanAddr"
+                },
+                "contract_id": {
+                  "type": "string"
+                },
+                "token_id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "query_tokentypes_param"
+          ],
+          "properties": {
+            "query_tokentypes_param": {
+              "type": "object",
+              "required": [
+                "contract_id",
+                "token_id"
+              ],
+              "properties": {
+                "contract_id": {
+                  "type": "string"
+                },
+                "token_id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "query_tokens_with_collection_param"
+          ],
+          "properties": {
+            "query_tokens_with_collection_param": {
+              "type": "object",
+              "required": [
+                "contract_id",
+                "token_id"
+              ],
+              "properties": {
+                "contract_id": {
+                  "type": "string"
+                },
+                "token_id": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Module": {
+      "type": "string",
+      "enum": [
+        "tokenencode",
+        "collectionencode"
+      ]
+    },
+    "QueryData": {
+      "type": "object",
+      "required": [
+        "data",
+        "route"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/LinkQuery"
+        },
+        "route": {
+          "$ref": "#/definitions/QueryRoute"
+        }
+      }
+    },
+    "QueryRoute": {
+      "type": "string",
+      "enum": [
+        "tokens",
+        "balance",
+        "supply",
+        "perms",
+        "collections",
+        "tokentypes"
+      ]
+    }
+  }
+}
