@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "get_token"
+      ],
+      "properties": {
+        "get_token": {
+          "type": "object",
+          "required": [
+            "contract_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
