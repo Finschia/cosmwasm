@@ -3,40 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{HumanAddr, Uint128};
 
-use crate::collection::{Coin, CollectionPerm, MintNFTParam};
-use crate::msg::Change;
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct InitMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum CollectionRoute {
-    Create,
-    IssueNft,
-    IssueFt,
-    MintNft,
-    MintFt,
-    BurnNft,
-    BurnNftFrom,
-    BurnFt,
-    BurnFtFrom,
-    TransferNft,
-    TransferNftFrom,
-    TransferFt,
-    TransferFtFrom,
-    Approve,
-    Disapprove,
-    Attach,
-    Detach,
-    AttachFrom,
-    DetachFrom,
-    GrantPerm,
-    RevokePerm,
-    Modify,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-#[serde(untagged)]
-pub enum CollectionMsg {
+pub enum HandleMsg {
     Create {
         owner: HumanAddr,
         name: String,
@@ -63,18 +35,18 @@ pub enum CollectionMsg {
         from: HumanAddr,
         contract_id: String,
         to: HumanAddr,
-        params: Vec<MintNFTParam>,
+        token_types: Vec<String>,
     },
     MintFt {
         from: HumanAddr,
         contract_id: String,
         to: HumanAddr,
-        amount: Vec<Coin>,
+        tokens: Vec<String>,
     },
     BurnNft {
         from: HumanAddr,
         contract_id: String,
-        token_ids: Vec<String>,
+        token_id: String,
     },
     BurnNftFrom {
         proxy: HumanAddr,
@@ -85,21 +57,21 @@ pub enum CollectionMsg {
     BurnFt {
         from: HumanAddr,
         contract_id: String,
-        amount: Vec<Coin>,
+        amounts: Vec<String>,
     },
     BurnFtFrom {
         proxy: HumanAddr,
         contract_id: String,
         from: HumanAddr,
-        amount: Vec<Coin>,
+        amounts: Vec<String>,
     },
-    TransferNft {
+    TransferNFT {
         from: HumanAddr,
         contract_id: String,
         to: HumanAddr,
         token_ids: Vec<String>,
     },
-    TransferNftFrom {
+    TransferNFTFrom {
         proxy: HumanAddr,
         contract_id: String,
         from: HumanAddr,
@@ -110,25 +82,22 @@ pub enum CollectionMsg {
         from: HumanAddr,
         contract_id: String,
         to: HumanAddr,
-        amount: Vec<Coin>,
+        tokens: Vec<String>,
     },
-    TransferFtFrom {
+    TransferFTFrom {
         proxy: HumanAddr,
         contract_id: String,
         from: HumanAddr,
         to: HumanAddr,
-        amount: Vec<Coin>,
+        tokens: Vec<String>,
     },
-    GrantPerm {
-        from: HumanAddr,
+    Modify {
+        owner: HumanAddr,
         contract_id: String,
-        to: HumanAddr,
-        permission: CollectionPerm,
-    },
-    RevokePerm {
-        from: HumanAddr,
-        contract_id: String,
-        permission: CollectionPerm,
+        token_type: String,
+        token_index: String,
+        key: String,
+        value: String,
     },
     Approve {
         approver: HumanAddr,
@@ -139,6 +108,17 @@ pub enum CollectionMsg {
         approver: HumanAddr,
         contract_id: String,
         proxy: HumanAddr,
+    },
+    GrantPerm {
+        from: HumanAddr,
+        contract_id: String,
+        to: HumanAddr,
+        permission: String,
+    },
+    RevokePerm {
+        from: HumanAddr,
+        contract_id: String,
+        permission: String,
     },
     Attach {
         from: HumanAddr,
@@ -164,11 +144,56 @@ pub enum CollectionMsg {
         from: HumanAddr,
         token_id: String,
     },
-    Modify {
-        owner: HumanAddr,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum QueryMsg {
+    // GetCount returns the current count as a json-encoded number
+    GetCollection {
         contract_id: String,
-        token_type: String,
-        token_index: String,
-        changes: Vec<Change>,
+    },
+    GetBalance {
+        contract_id: String,
+        token_id: String,
+        addr: HumanAddr,
+    },
+    GetTokenType {
+        contract_id: String,
+        token_id: String,
+    },
+    GetTokenTypes {
+        contract_id: String,
+    },
+    GetToken {
+        contract_id: String,
+        token_id: String,
+    },
+    GetTokens {
+        contract_id: String,
+    },
+    GetNft {
+        contract_id: String,
+        token_id: String,
+        target: String,
+    },
+    GetTotal {
+        contract_id: String,
+        token_id: String,
+        target: String,
+    },
+    GetRootOrParentOrChildren {
+        contract_id: String,
+        token_id: String,
+        target: String,
+    },
+    GetPerms {
+        contract_id: String,
+        addr: HumanAddr,
+    },
+    GetApproved {
+        contract_id: String,
+        proxy: HumanAddr,
+        approver: HumanAddr,
     },
 }

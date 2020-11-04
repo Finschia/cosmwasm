@@ -1,0 +1,229 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "get_token"
+      ],
+      "properties": {
+        "get_token": {
+          "type": "object",
+          "required": [
+            "contract_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_token_balance"
+      ],
+      "properties": {
+        "get_token_balance": {
+          "type": "object",
+          "required": [
+            "address",
+            "contract_id"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_total"
+      ],
+      "properties": {
+        "get_total": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "target"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_token_perm"
+      ],
+      "properties": {
+        "get_token_perm": {
+          "type": "object",
+          "required": [
+            "address",
+            "contract_id"
+          ],
+          "properties": {
+            "address": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_collection"
+      ],
+      "properties": {
+        "get_collection": {
+          "type": "object",
+          "required": [
+            "contract_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_collection_balance"
+      ],
+      "properties": {
+        "get_collection_balance": {
+          "type": "object",
+          "required": [
+            "addr",
+            "contract_id",
+            "token_id"
+          ],
+          "properties": {
+            "addr": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_token_type"
+      ],
+      "properties": {
+        "get_token_type": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_token_types"
+      ],
+      "properties": {
+        "get_token_types": {
+          "type": "object",
+          "required": [
+            "contract_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_token_with_collection"
+      ],
+      "properties": {
+        "get_token_with_collection": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_tokens"
+      ],
+      "properties": {
+        "get_tokens": {
+          "type": "object",
+          "required": [
+            "contract_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    }
+  }
+}
