@@ -15,6 +15,21 @@
     }
   },
   "definitions": {
+    "Change": {
+      "type": "object",
+      "required": [
+        "field",
+        "value"
+      ],
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
     "HumanAddr": {
       "type": "string"
     },
@@ -44,51 +59,172 @@
         {
           "type": "object",
           "required": [
-            "issue"
+            "amount",
+            "decimals",
+            "img_uri",
+            "meta",
+            "mintable",
+            "name",
+            "owner",
+            "symbol",
+            "to"
           ],
           "properties": {
-            "issue": {
-              "type": "object",
-              "required": [
-                "amount",
-                "decimals",
-                "img_uri",
-                "meta",
-                "mintable",
-                "name",
-                "owner",
-                "symbol",
-                "to"
-              ],
-              "properties": {
-                "amount": {
-                  "$ref": "#/definitions/Uint128"
-                },
-                "decimals": {
-                  "$ref": "#/definitions/Uint128"
-                },
-                "img_uri": {
-                  "type": "string"
-                },
-                "meta": {
-                  "type": "string"
-                },
-                "mintable": {
-                  "type": "boolean"
-                },
-                "name": {
-                  "type": "string"
-                },
-                "owner": {
-                  "$ref": "#/definitions/HumanAddr"
-                },
-                "symbol": {
-                  "type": "string"
-                },
-                "to": {
-                  "$ref": "#/definitions/HumanAddr"
-                }
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "decimals": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "img_uri": {
+              "type": "string"
+            },
+            "meta": {
+              "type": "string"
+            },
+            "mintable": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "owner": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "symbol": {
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "permission",
+            "to"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "permission": {
+              "$ref": "#/definitions/permission"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "permission"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "permission": {
+              "$ref": "#/definitions/permission"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "changes",
+            "contract_id",
+            "owner"
+          ],
+          "properties": {
+            "changes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Change"
               }
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "owner": {
+              "$ref": "#/definitions/HumanAddr"
             }
           }
         }
@@ -107,6 +243,13 @@
     },
     "Uint128": {
       "type": "string"
+    },
+    "permission": {
+      "enum": [
+        "mint",
+        "burn",
+        "modify"
+      ]
     }
   }
 }

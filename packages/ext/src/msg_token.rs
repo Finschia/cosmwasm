@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{HumanAddr, Uint128};
 
+use crate::msg::Change;
+use crate::token::TokenPerm;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TokenRoute {
@@ -17,6 +20,7 @@ pub enum TokenRoute {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum TokenMsg {
     Issue {
         owner: HumanAddr,
@@ -28,6 +32,39 @@ pub enum TokenMsg {
         amount: Uint128,
         mintable: bool,
         decimals: Uint128,
+    },
+    Transfer {
+        from: HumanAddr,
+        contract_id: String,
+        to: HumanAddr,
+        amount: Uint128,
+    },
+    Mint {
+        from: HumanAddr,
+        contract_id: String,
+        to: HumanAddr,
+        amount: Uint128,
+    },
+    Burn {
+        from: HumanAddr,
+        contract_id: String,
+        amount: Uint128,
+    },
+    GrantPerm {
+        from: HumanAddr,
+        contract_id: String,
+        to: HumanAddr,
+        permission: TokenPerm,
+    },
+    RevokePerm {
+        from: HumanAddr,
+        contract_id: String,
+        permission: TokenPerm,
+    },
+    Modify {
+        owner: HumanAddr,
+        contract_id: String,
+        changes: Vec<Change>,
     },
 }
 
