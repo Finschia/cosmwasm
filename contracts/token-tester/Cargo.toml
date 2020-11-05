@@ -9,7 +9,7 @@ description = "simple tester for cosmwasm/ext"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["cranelift"]
+default = ["singlepass"]
 # For quicker tests, cargo test --lib. for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
 cranelift = ["cosmwasm-vm/default-cranelift"]
