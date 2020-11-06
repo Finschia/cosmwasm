@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 use cosmwasm_std::{HumanAddr, Querier, StdResult, Uint128};
 
@@ -8,6 +9,27 @@ use crate::token::{Token, TokenPerm};
 
 pub struct LinkTokenQuerier<'a, Q: Querier> {
     querier: &'a Q,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename = "target")]
+#[serde(rename_all = "snake_case")]
+pub enum TokenTarget {
+    Mint,
+    Burn,
+    Supply,
+}
+
+impl FromStr for TokenTarget {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "mint" => Ok(TokenTarget::Mint),
+            "burn" => Ok(TokenTarget::Burn),
+            "supply" => Ok(TokenTarget::Supply),
+            _ => Err("Unknown target type"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -31,7 +53,7 @@ pub enum TokenQuery {
     },
     QueryTotalParam {
         contract_id: String,
-        target: String,
+        target: TokenTarget,
     },
     QueryPermParam {
         contract_id: String,
@@ -73,7 +95,7 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_supply(&self, contract_id: String, target: String) -> StdResult<Uint128> {
+    pub fn query_supply(&self, contract_id: String, target: TokenTarget) -> StdResult<Uint128> {
         let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
             module: Module::Tokenencode,
             query_data: QueryData {

@@ -7,7 +7,7 @@ use cosmwasm_std::{
 
 use cosmwasm_ext::{
     Change, LinkMsgWrapper, LinkTokenQuerier, Module, MsgData, Response, Token, TokenMsg,
-    TokenPerm, TokenRoute,
+    TokenPerm, TokenRoute, TokenTarget,
 };
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
@@ -346,8 +346,9 @@ fn query_balance<S: Storage, A: Api, Q: Querier>(
 fn query_supply<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     contract_id: String,
-    target: String,
+    target_str: String,
 ) -> StdResult<Binary> {
+    let target = TokenTarget::from_str(&target_str).unwrap();
     let res = LinkTokenQuerier::new(&deps.querier)
         .query_supply(contract_id, target)
         .unwrap();

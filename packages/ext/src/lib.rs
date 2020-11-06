@@ -8,7 +8,7 @@ mod token;
 pub use msg::{Change, LinkMsgWrapper, Module, MsgData};
 pub use msg_collection::{CollectionMsg, CollectionRoute};
 pub use msg_token::{TokenMsg, TokenRoute};
-pub use querier_token::{LinkTokenQuerier, TokenQuery, TokenQueryRoute};
+pub use querier_token::{LinkTokenQuerier, TokenQuery, TokenQueryRoute, TokenTarget};
 pub use query::{LinkQueryWrapper, QueryData, Response};
 pub use token::{Token, TokenPerm};
 
