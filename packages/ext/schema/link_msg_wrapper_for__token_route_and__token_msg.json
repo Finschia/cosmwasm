@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LinkMsgWrapper_for_TokenRoute_and_TokenMsg",
+  "type": "object",
+  "required": [
+    "module",
+    "msg_data"
+  ],
+  "properties": {
+    "module": {
+      "$ref": "#/definitions/Module"
+    },
+    "msg_data": {
+      "$ref": "#/definitions/MsgData_for_TokenRoute_and_TokenMsg"
+    }
+  },
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    },
+    "Module": {
+      "enum": [
+        "tokenencode",
+        "collectionencode"
+      ]
+    },
+    "MsgData_for_TokenRoute_and_TokenMsg": {
+      "type": "object",
+      "required": [
+        "data",
+        "route"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/TokenMsg"
+        },
+        "route": {
+          "$ref": "#/definitions/TokenRoute"
+        }
+      }
+    },
+    "TokenMsg": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "issue"
+          ],
+          "properties": {
+            "issue": {
+              "type": "object",
+              "required": [
+                "amount",
+                "decimals",
+                "img_uri",
+                "meta",
+                "mintable",
+                "name",
+                "owner",
+                "symbol",
+                "to"
+              ],
+              "properties": {
+                "amount": {
+                  "$ref": "#/definitions/Uint128"
+                },
+                "decimals": {
+                  "$ref": "#/definitions/Uint128"
+                },
+                "img_uri": {
+                  "type": "string"
+                },
+                "meta": {
+                  "type": "string"
+                },
+                "mintable": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "owner": {
+                  "$ref": "#/definitions/HumanAddr"
+                },
+                "symbol": {
+                  "type": "string"
+                },
+                "to": {
+                  "$ref": "#/definitions/HumanAddr"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "TokenRoute": {
+      "enum": [
+        "issue",
+        "transfer",
+        "mint",
+        "burn",
+        "grant_perm",
+        "revoke_perm",
+        "modify"
+      ]
+    },
+    "Uint128": {
+      "type": "string"
+    }
+  }
+}

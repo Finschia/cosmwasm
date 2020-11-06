@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LinkMsgWrapper_for_CollectionRoute_and_CollectionMsg",
+  "type": "object",
+  "required": [
+    "module",
+    "msg_data"
+  ],
+  "properties": {
+    "module": {
+      "$ref": "#/definitions/Module"
+    },
+    "msg_data": {
+      "$ref": "#/definitions/MsgData_for_CollectionRoute_and_CollectionMsg"
+    }
+  },
+  "definitions": {
+    "CollectionMsg": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "create"
+          ],
+          "properties": {
+            "create": {
+              "type": "object",
+              "required": [
+                "base_img_uri",
+                "meta",
+                "name",
+                "owner"
+              ],
+              "properties": {
+                "base_img_uri": {
+                  "type": "string"
+                },
+                "meta": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "owner": {
+                  "$ref": "#/definitions/HumanAddr"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "CollectionRoute": {
+      "enum": [
+        "create",
+        "issue_nft",
+        "issue_ft",
+        "mint_nft",
+        "mint_ft",
+        "burn_nft",
+        "burn_nft_from",
+        "burn_ft",
+        "burn_ft_from",
+        "transfer_nft",
+        "transfer_nft_from",
+        "transfer_ft",
+        "transfer_ft_from",
+        "approve",
+        "disapprove",
+        "attach",
+        "detach",
+        "attach_from",
+        "detach_from"
+      ]
+    },
+    "HumanAddr": {
+      "type": "string"
+    },
+    "Module": {
+      "enum": [
+        "tokenencode",
+        "collectionencode"
+      ]
+    },
+    "MsgData_for_CollectionRoute_and_CollectionMsg": {
+      "type": "object",
+      "required": [
+        "data",
+        "route"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/CollectionMsg"
+        },
+        "route": {
+          "$ref": "#/definitions/CollectionRoute"
+        }
+      }
+    }
+  }
+}
