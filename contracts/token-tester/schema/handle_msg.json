@@ -52,6 +52,176 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "transfer"
+      ],
+      "properties": {
+        "transfer": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "mint"
+      ],
+      "properties": {
+        "mint": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "burn"
+      ],
+      "properties": {
+        "burn": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "grant_perm"
+      ],
+      "properties": {
+        "grant_perm": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "permission",
+            "to"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "permission": {
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "revoke_perm"
+      ],
+      "properties": {
+        "revoke_perm": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "permission"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "permission": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "modify"
+      ],
+      "properties": {
+        "modify": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "owner"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "owner": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
     }
   ],
   "definitions": {
