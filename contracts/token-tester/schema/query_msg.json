@@ -89,6 +89,56 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_is_approved"
+      ],
+      "properties": {
+        "get_is_approved": {
+          "type": "object",
+          "required": [
+            "approver",
+            "contract_id",
+            "proxy"
+          ],
+          "properties": {
+            "approver": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_approvers"
+      ],
+      "properties": {
+        "get_approvers": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "proxy"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
     }
   ],
   "definitions": {

@@ -5,94 +5,6 @@
     {
       "type": "object",
       "required": [
-        "get_token"
-      ],
-      "properties": {
-        "get_token": {
-          "type": "object",
-          "required": [
-            "contract_id"
-          ],
-          "properties": {
-            "contract_id": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_token_balance"
-      ],
-      "properties": {
-        "get_token_balance": {
-          "type": "object",
-          "required": [
-            "address",
-            "contract_id"
-          ],
-          "properties": {
-            "address": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "contract_id": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_total"
-      ],
-      "properties": {
-        "get_total": {
-          "type": "object",
-          "required": [
-            "contract_id",
-            "target"
-          ],
-          "properties": {
-            "contract_id": {
-              "type": "string"
-            },
-            "target": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
-        "get_token_perm"
-      ],
-      "properties": {
-        "get_token_perm": {
-          "type": "object",
-          "required": [
-            "address",
-            "contract_id"
-          ],
-          "properties": {
-            "address": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "contract_id": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
         "get_collection"
       ],
       "properties": {
@@ -112,10 +24,10 @@
     {
       "type": "object",
       "required": [
-        "get_collection_balance"
+        "get_balance"
       ],
       "properties": {
-        "get_collection_balance": {
+        "get_balance": {
           "type": "object",
           "required": [
             "addr",
@@ -181,10 +93,10 @@
     {
       "type": "object",
       "required": [
-        "get_token_with_collection"
+        "get_token"
       ],
       "properties": {
-        "get_token_with_collection": {
+        "get_token": {
           "type": "object",
           "required": [
             "contract_id",
@@ -215,6 +127,137 @@
           "properties": {
             "contract_id": {
               "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_nft"
+      ],
+      "properties": {
+        "get_nft": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "target",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_total"
+      ],
+      "properties": {
+        "get_total": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "target",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_root_or_parent_or_children"
+      ],
+      "properties": {
+        "get_root_or_parent_or_children": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "target",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_perms"
+      ],
+      "properties": {
+        "get_perms": {
+          "type": "object",
+          "required": [
+            "addr",
+            "contract_id"
+          ],
+          "properties": {
+            "addr": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_approved"
+      ],
+      "properties": {
+        "get_approved": {
+          "type": "object",
+          "required": [
+            "approver",
+            "contract_id",
+            "proxy"
+          ],
+          "properties": {
+            "approver": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
             }
           }
         }
