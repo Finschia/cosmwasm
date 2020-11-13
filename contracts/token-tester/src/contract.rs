@@ -525,7 +525,7 @@ mod tests {
     fn create_contract(owner: String) -> (Extern<MockStorage, MockApi, MockQuerier>, Env) {
         let mut deps = mock_dependencies(20, &coins(1000, "cony"));
         let env = mock_env(owner, &coins(1000, "cony"));
-        let res = init(&mut deps, env, InitMsg {}).unwrap();
+        let res = init(&mut deps, env.clone(), InitMsg {}).unwrap();
         assert_eq!(0, res.messages.len());
         (deps, env)
     }
