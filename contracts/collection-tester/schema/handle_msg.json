@@ -1,53 +1,235 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "LinkMsgWrapper_for_CollectionRoute_and_CollectionMsg",
-  "type": "object",
-  "required": [
-    "module",
-    "msg_data"
-  ],
-  "properties": {
-    "module": {
-      "$ref": "#/definitions/Module"
-    },
-    "msg_data": {
-      "$ref": "#/definitions/MsgData_for_CollectionRoute_and_CollectionMsg"
-    }
-  },
-  "definitions": {
-    "Change": {
+  "title": "HandleMsg",
+  "anyOf": [
+    {
       "type": "object",
       "required": [
-        "field",
-        "value"
+        "issue"
       ],
       "properties": {
-        "field": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
+        "issue": {
+          "type": "object",
+          "required": [
+            "amount",
+            "decimals",
+            "img_uri",
+            "meta",
+            "mintable",
+            "name",
+            "owner",
+            "symbol",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "decimals": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "img_uri": {
+              "type": "string"
+            },
+            "meta": {
+              "type": "string"
+            },
+            "mintable": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "owner": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "symbol": {
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
         }
       }
     },
-    "Coin": {
+    {
       "type": "object",
       "required": [
-        "amount",
-        "token_id"
+        "transfer"
       ],
       "properties": {
-        "amount": {
-          "$ref": "#/definitions/Uint128"
-        },
-        "token_id": {
-          "type": "string"
+        "transfer": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
         }
       }
     },
-    "CollectionMsg": {
-      "anyOf": [
-        {
+    {
+      "type": "object",
+      "required": [
+        "mint"
+      ],
+      "properties": {
+        "mint": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "burn"
+      ],
+      "properties": {
+        "burn": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "grant_perm"
+      ],
+      "properties": {
+        "grant_perm": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "permission",
+            "to"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "permission": {
+              "type": "string"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "revoke_perm"
+      ],
+      "properties": {
+        "revoke_perm": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "permission"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "permission": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "modify_token"
+      ],
+      "properties": {
+        "modify_token": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "owner"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "owner": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "create"
+      ],
+      "properties": {
+        "create": {
           "type": "object",
           "required": [
             "base_img_uri",
@@ -69,8 +251,16 @@
               "$ref": "#/definitions/HumanAddr"
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "issue_nft"
+      ],
+      "properties": {
+        "issue_nft": {
           "type": "object",
           "required": [
             "contract_id",
@@ -92,8 +282,16 @@
               "$ref": "#/definitions/HumanAddr"
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "issue_ft"
+      ],
+      "properties": {
+        "issue_ft": {
           "type": "object",
           "required": [
             "amount",
@@ -131,48 +329,24 @@
               "$ref": "#/definitions/HumanAddr"
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "mint_nft"
+      ],
+      "properties": {
+        "mint_nft": {
           "type": "object",
           "required": [
             "contract_id",
             "from",
-            "params",
-            "to"
+            "to",
+            "token_types"
           ],
           "properties": {
-            "contract_id": {
-              "type": "string"
-            },
-            "from": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "params": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/MintNFTParam"
-              }
-            },
-            "to": {
-              "$ref": "#/definitions/HumanAddr"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "amount",
-            "contract_id",
-            "from",
-            "to"
-          ],
-          "properties": {
-            "amount": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Coin"
-              }
-            },
             "contract_id": {
               "type": "string"
             },
@@ -181,32 +355,85 @@
             },
             "to": {
               "$ref": "#/definitions/HumanAddr"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "contract_id",
-            "from",
-            "token_ids"
-          ],
-          "properties": {
-            "contract_id": {
-              "type": "string"
             },
-            "from": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "token_ids": {
+            "token_types": {
               "type": "array",
               "items": {
                 "type": "string"
               }
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "mint_ft"
+      ],
+      "properties": {
+        "mint_ft": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "to",
+            "tokens"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "tokens": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "burn_nft"
+      ],
+      "properties": {
+        "burn_nft": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "burn_nft_from"
+      ],
+      "properties": {
+        "burn_nft_from": {
           "type": "object",
           "required": [
             "contract_id",
@@ -231,19 +458,27 @@
               }
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "burn_ft"
+      ],
+      "properties": {
+        "burn_ft": {
           "type": "object",
           "required": [
-            "amount",
+            "amounts",
             "contract_id",
             "from"
           ],
           "properties": {
-            "amount": {
+            "amounts": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/Coin"
+                "type": "string"
               }
             },
             "contract_id": {
@@ -253,20 +488,28 @@
               "$ref": "#/definitions/HumanAddr"
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "burn_ft_from"
+      ],
+      "properties": {
+        "burn_ft_from": {
           "type": "object",
           "required": [
-            "amount",
+            "amounts",
             "contract_id",
             "from",
             "proxy"
           ],
           "properties": {
-            "amount": {
+            "amounts": {
               "type": "array",
               "items": {
-                "$ref": "#/definitions/Coin"
+                "type": "string"
               }
             },
             "contract_id": {
@@ -279,8 +522,16 @@
               "$ref": "#/definitions/HumanAddr"
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "transfer_n_f_t"
+      ],
+      "properties": {
+        "transfer_n_f_t": {
           "type": "object",
           "required": [
             "contract_id",
@@ -305,8 +556,16 @@
               }
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "transfer_n_f_t_from"
+      ],
+      "properties": {
+        "transfer_n_f_t_from": {
           "type": "object",
           "required": [
             "contract_id",
@@ -335,22 +594,24 @@
               }
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "transfer_ft"
+      ],
+      "properties": {
+        "transfer_ft": {
           "type": "object",
           "required": [
-            "amount",
             "contract_id",
             "from",
-            "to"
+            "to",
+            "tokens"
           ],
           "properties": {
-            "amount": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Coin"
-              }
-            },
             "contract_id": {
               "type": "string"
             },
@@ -359,25 +620,33 @@
             },
             "to": {
               "$ref": "#/definitions/HumanAddr"
+            },
+            "tokens": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "transfer_f_t_from"
+      ],
+      "properties": {
+        "transfer_f_t_from": {
           "type": "object",
           "required": [
-            "amount",
             "contract_id",
             "from",
             "proxy",
-            "to"
+            "to",
+            "tokens"
           ],
           "properties": {
-            "amount": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Coin"
-              }
-            },
             "contract_id": {
               "type": "string"
             },
@@ -389,10 +658,117 @@
             },
             "to": {
               "$ref": "#/definitions/HumanAddr"
+            },
+            "tokens": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "modify_collection"
+      ],
+      "properties": {
+        "modify_collection": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "key",
+            "owner",
+            "token_index",
+            "token_type",
+            "value"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            },
+            "owner": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "token_index": {
+              "type": "string"
+            },
+            "token_type": {
+              "type": "string"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "approve"
+      ],
+      "properties": {
+        "approve": {
+          "type": "object",
+          "required": [
+            "approver",
+            "contract_id",
+            "proxy"
+          ],
+          "properties": {
+            "approver": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "disapprove"
+      ],
+      "properties": {
+        "disapprove": {
+          "type": "object",
+          "required": [
+            "approver",
+            "contract_id",
+            "proxy"
+          ],
+          "properties": {
+            "approver": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "grant_perm_collection"
+      ],
+      "properties": {
+        "grant_perm_collection": {
           "type": "object",
           "required": [
             "contract_id",
@@ -408,14 +784,22 @@
               "$ref": "#/definitions/HumanAddr"
             },
             "permission": {
-              "$ref": "#/definitions/permission"
+              "type": "string"
             },
             "to": {
               "$ref": "#/definitions/HumanAddr"
             }
           }
-        },
-        {
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "revoke_perm_collection"
+      ],
+      "properties": {
+        "revoke_perm_collection": {
           "type": "object",
           "required": [
             "contract_id",
@@ -430,251 +814,143 @@
               "$ref": "#/definitions/HumanAddr"
             },
             "permission": {
-              "$ref": "#/definitions/permission"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "approver",
-            "contract_id",
-            "proxy"
-          ],
-          "properties": {
-            "approver": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "contract_id": {
-              "type": "string"
-            },
-            "proxy": {
-              "$ref": "#/definitions/HumanAddr"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "approver",
-            "contract_id",
-            "proxy"
-          ],
-          "properties": {
-            "approver": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "contract_id": {
-              "type": "string"
-            },
-            "proxy": {
-              "$ref": "#/definitions/HumanAddr"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "contract_id",
-            "from",
-            "to_token_id",
-            "token_id"
-          ],
-          "properties": {
-            "contract_id": {
-              "type": "string"
-            },
-            "from": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "to_token_id": {
-              "type": "string"
-            },
-            "token_id": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "contract_id",
-            "from",
-            "token_id"
-          ],
-          "properties": {
-            "contract_id": {
-              "type": "string"
-            },
-            "from": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "token_id": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "contract_id",
-            "from",
-            "proxy",
-            "to_token_id",
-            "token_id"
-          ],
-          "properties": {
-            "contract_id": {
-              "type": "string"
-            },
-            "from": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "proxy": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "to_token_id": {
-              "type": "string"
-            },
-            "token_id": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "contract_id",
-            "from",
-            "proxy",
-            "token_id"
-          ],
-          "properties": {
-            "contract_id": {
-              "type": "string"
-            },
-            "from": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "proxy": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "token_id": {
-              "type": "string"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "changes",
-            "contract_id",
-            "owner",
-            "token_index",
-            "token_type"
-          ],
-          "properties": {
-            "changes": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Change"
-              }
-            },
-            "contract_id": {
-              "type": "string"
-            },
-            "owner": {
-              "$ref": "#/definitions/HumanAddr"
-            },
-            "token_index": {
-              "type": "string"
-            },
-            "token_type": {
               "type": "string"
             }
           }
         }
-      ]
+      }
     },
-    "CollectionRoute": {
-      "enum": [
-        "create",
-        "issue_nft",
-        "issue_ft",
-        "mint_nft",
-        "mint_ft",
-        "burn_nft",
-        "burn_nft_from",
-        "burn_ft",
-        "burn_ft_from",
-        "transfer_nft",
-        "transfer_nft_from",
-        "transfer_ft",
-        "transfer_ft_from",
-        "approve",
-        "disapprove",
-        "attach",
-        "detach",
-        "attach_from",
-        "detach_from",
-        "grant_perm",
-        "revoke_perm",
-        "modify"
-      ]
+    {
+      "type": "object",
+      "required": [
+        "attach"
+      ],
+      "properties": {
+        "attach": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "to_token_id",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to_token_id": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
     },
+    {
+      "type": "object",
+      "required": [
+        "detach"
+      ],
+      "properties": {
+        "detach": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "attach_from"
+      ],
+      "properties": {
+        "attach_from": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "proxy",
+            "to_token_id",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to_token_id": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "detach_from"
+      ],
+      "properties": {
+        "detach_from": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "from",
+            "proxy",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
     "HumanAddr": {
       "type": "string"
     },
-    "MintNFTParam": {
-      "type": "object",
-      "required": [
-        "meta",
-        "name",
-        "token_type"
-      ],
-      "properties": {
-        "meta": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "token_type": {
-          "type": "string"
-        }
-      }
-    },
-    "Module": {
-      "enum": [
-        "tokenencode",
-        "collectionencode"
-      ]
-    },
-    "MsgData_for_CollectionRoute_and_CollectionMsg": {
-      "type": "object",
-      "required": [
-        "data",
-        "route"
-      ],
-      "properties": {
-        "data": {
-          "$ref": "#/definitions/CollectionMsg"
-        },
-        "route": {
-          "$ref": "#/definitions/CollectionRoute"
-        }
-      }
-    },
     "Uint128": {
       "type": "string"
-    },
-    "permission": {
-      "enum": [
-        "Mint",
-        "Burn",
-        "Issue",
-        "Modify"
-      ]
     }
   }
 }
