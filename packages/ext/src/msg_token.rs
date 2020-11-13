@@ -11,11 +11,14 @@ use crate::token::TokenPerm;
 pub enum TokenRoute {
     Issue,
     Transfer,
+    TransferFrom,
     Mint,
     Burn,
+    BurnFrom,
     GrantPerm,
     RevokePerm,
     Modify,
+    Approve,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -39,6 +42,13 @@ pub enum TokenMsg {
         to: HumanAddr,
         amount: Uint128,
     },
+    TransferFrom {
+        proxy: HumanAddr,
+        from: HumanAddr,
+        contract_id: String,
+        to: HumanAddr,
+        amount: Uint128,
+    },
     Mint {
         from: HumanAddr,
         contract_id: String,
@@ -46,6 +56,12 @@ pub enum TokenMsg {
         amount: Uint128,
     },
     Burn {
+        from: HumanAddr,
+        contract_id: String,
+        amount: Uint128,
+    },
+    BurnFrom {
+        proxy: HumanAddr,
         from: HumanAddr,
         contract_id: String,
         amount: Uint128,
@@ -65,6 +81,11 @@ pub enum TokenMsg {
         owner: HumanAddr,
         contract_id: String,
         changes: Vec<Change>,
+    },
+    Approve {
+        approver: HumanAddr,
+        contract_id: String,
+        proxy: HumanAddr,
     },
 }
 
