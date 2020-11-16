@@ -65,13 +65,13 @@ pub enum HandleMsg {
         from: HumanAddr,
         amounts: Vec<String>,
     },
-    TransferNFT {
+    TransferNft {
         from: HumanAddr,
         contract_id: String,
         to: HumanAddr,
         token_ids: Vec<String>,
     },
-    TransferNFTFrom {
+    TransferNftFrom {
         proxy: HumanAddr,
         contract_id: String,
         from: HumanAddr,
@@ -84,7 +84,7 @@ pub enum HandleMsg {
         to: HumanAddr,
         tokens: Vec<String>,
     },
-    TransferFTFrom {
+    TransferFtFrom {
         proxy: HumanAddr,
         contract_id: String,
         from: HumanAddr,

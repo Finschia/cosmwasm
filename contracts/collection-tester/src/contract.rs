@@ -101,13 +101,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             from,
             amounts,
         } => try_burn_ft_from(deps, env, proxy, contract_id, from, amounts),
-        HandleMsg::TransferNFT {
+        HandleMsg::TransferNft {
             from,
             contract_id,
             to,
             token_ids,
         } => try_transfer_nft(deps, env, from, contract_id, to, token_ids),
-        HandleMsg::TransferNFTFrom {
+        HandleMsg::TransferNftFrom {
             proxy,
             contract_id,
             from,
@@ -120,7 +120,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             to,
             tokens,
         } => try_transfer_ft(deps, env, from, contract_id, to, tokens),
-        HandleMsg::TransferFTFrom {
+        HandleMsg::TransferFtFrom {
             proxy,
             contract_id,
             from,
