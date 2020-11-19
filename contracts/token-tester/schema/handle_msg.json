@@ -87,6 +87,41 @@
     {
       "type": "object",
       "required": [
+        "transfer_from"
+      ],
+      "properties": {
+        "transfer_from": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from",
+            "proxy",
+            "to"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "to": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
         "mint"
       ],
       "properties": {
@@ -136,6 +171,37 @@
               "type": "string"
             },
             "from": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "burn_from"
+      ],
+      "properties": {
+        "burn_from": {
+          "type": "object",
+          "required": [
+            "amount",
+            "contract_id",
+            "from",
+            "proxy"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "from": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "proxy": {
               "$ref": "#/definitions/HumanAddr"
             }
           }
@@ -217,6 +283,33 @@
               "type": "string"
             },
             "owner": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "approve"
+      ],
+      "properties": {
+        "approve": {
+          "type": "object",
+          "required": [
+            "approver",
+            "contract_id",
+            "proxy"
+          ],
+          "properties": {
+            "approver": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "proxy": {
               "$ref": "#/definitions/HumanAddr"
             }
           }

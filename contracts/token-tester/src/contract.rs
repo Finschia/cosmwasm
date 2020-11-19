@@ -52,6 +52,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             to,
             amount,
         } => try_transfer(deps, env, from, contract_id, to, amount),
+        HandleMsg::TransferFrom {
+            proxy,
+            from,
+            contract_id,
+            to,
+            amount,
+        } => try_transfer_from(deps, env, proxy, from, contract_id, to, amount),
         HandleMsg::Mint {
             from,
             contract_id,
@@ -63,6 +70,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             contract_id,
             amount,
         } => try_burn(deps, env, from, contract_id, amount),
+        HandleMsg::BurnFrom {
+            proxy,
+            from,
+            contract_id,
+            amount,
+        } => try_burn_from(deps, env, proxy, from, contract_id, amount),
         HandleMsg::GrantPerm {
             from,
             contract_id,
@@ -75,6 +88,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             permission,
         } => try_revoke_perm(deps, env, from, contract_id, permission),
         HandleMsg::Modify { owner, contract_id } => try_modify(deps, env, owner, contract_id),
+        HandleMsg::Approve {
+            approver,
+            contract_id,
+            proxy,
+        } => try_approve(deps, env, approver, contract_id, proxy),
     }
 }
 
@@ -96,6 +114,12 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             contract_id,
             address,
         } => query_perm(deps, contract_id, address),
+        QueryMsg::GetIsApproved {
+            proxy,
+            contract_id,
+            approver,
+        } => query_is_approved(deps, proxy, contract_id, approver),
+        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, proxy, contract_id),
     }
 }
 
@@ -173,6 +197,40 @@ pub fn try_transfer<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
+pub fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
+    _deps: &mut Extern<S, A, Q>,
+    _env: Env,
+    proxy: HumanAddr,
+    from: HumanAddr,
+    contract_id: String,
+    to: HumanAddr,
+    amount: Uint128,
+) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+    // Some kind of logic.
+
+    let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
+        module: Module::Tokenencode,
+        msg_data: MsgData {
+            route: TokenRoute::TransferFrom,
+            data: TokenMsg::TransferFrom {
+                proxy,
+                from,
+                contract_id,
+                to,
+                amount,
+            },
+        },
+    }
+    .into();
+
+    let res = HandleResponse {
+        messages: vec![msg],
+        log: vec![log("action", "transfer_from")],
+        data: None,
+    };
+    Ok(res)
+}
+
 pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     _deps: &mut Extern<S, A, Q>,
     _env: Env,
@@ -226,6 +284,36 @@ pub fn try_burn<S: Storage, A: Api, Q: Querier>(
     let res = HandleResponse {
         messages: vec![msg],
         log: vec![log("action", "burn")],
+        data: None,
+    };
+    Ok(res)
+}
+
+pub fn try_burn_from<S: Storage, A: Api, Q: Querier>(
+    _deps: &mut Extern<S, A, Q>,
+    _env: Env,
+    proxy: HumanAddr,
+    from: HumanAddr,
+    contract_id: String,
+    amount: Uint128,
+) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+    let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
+        module: Module::Tokenencode,
+        msg_data: MsgData {
+            route: TokenRoute::BurnFrom,
+            data: TokenMsg::BurnFrom {
+                proxy,
+                from,
+                contract_id,
+                amount,
+            },
+        },
+    }
+    .into();
+
+    let res = HandleResponse {
+        messages: vec![msg],
+        log: vec![log("action", "burn_from")],
         data: None,
     };
     Ok(res)
@@ -318,6 +406,34 @@ pub fn try_modify<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
+pub fn try_approve<S: Storage, A: Api, Q: Querier>(
+    _deps: &mut Extern<S, A, Q>,
+    _env: Env,
+    approver: HumanAddr,
+    contract_id: String,
+    proxy: HumanAddr,
+) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+    let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
+        module: Module::Tokenencode,
+        msg_data: MsgData {
+            route: TokenRoute::Approve,
+            data: TokenMsg::Approve {
+                approver,
+                contract_id,
+                proxy,
+            },
+        },
+    }
+    .into();
+
+    let res = HandleResponse {
+        messages: vec![msg],
+        log: vec![log("action", "approve")],
+        data: None,
+    };
+    Ok(res)
+}
+
 fn query_token<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     contract_id: String,
@@ -369,6 +485,32 @@ fn query_perm<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
+fn query_is_approved<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    proxy: HumanAddr,
+    contract_id: String,
+    approver: HumanAddr,
+) -> StdResult<Binary> {
+    let res = LinkTokenQuerier::new(&deps.querier)
+        .query_is_approved(proxy, contract_id, approver)
+        .unwrap();
+    let out = to_binary(&res)?;
+    Ok(out)
+}
+
+fn query_approvers<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    proxy: HumanAddr,
+    contract_id: String,
+) -> StdResult<Binary> {
+    let res = match LinkTokenQuerier::new(&deps.querier).query_approvers(proxy, contract_id)? {
+        Some(approvers) => approvers,
+        None => return to_binary(&None::<Box<Vec<HumanAddr>>>),
+    };
+    let out = to_binary(&res)?;
+    Ok(out)
+}
+
 fn _query_owner<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<HumanAddr> {
     let state = config_read(&deps.storage).load()?;
     Ok(deps.api.human_address(&state.owner)?)
@@ -383,7 +525,7 @@ mod tests {
     fn create_contract(owner: String) -> (Extern<MockStorage, MockApi, MockQuerier>, Env) {
         let mut deps = mock_dependencies(20, &coins(1000, "cony"));
         let env = mock_env(owner, &coins(1000, "cony"));
-        let res = init(&mut deps, env, InitMsg {}).unwrap();
+        let res = init(&mut deps, env.clone(), InitMsg {}).unwrap();
         assert_eq!(0, res.messages.len());
         (deps, env)
     }

@@ -26,6 +26,13 @@ pub enum HandleMsg {
         to: HumanAddr,
         amount: Uint128,
     },
+    TransferFrom {
+        proxy: HumanAddr,
+        from: HumanAddr,
+        contract_id: String,
+        to: HumanAddr,
+        amount: Uint128,
+    },
     Mint {
         from: HumanAddr,
         contract_id: String,
@@ -33,6 +40,12 @@ pub enum HandleMsg {
         amount: Uint128,
     },
     Burn {
+        from: HumanAddr,
+        contract_id: String,
+        amount: Uint128,
+    },
+    BurnFrom {
+        proxy: HumanAddr,
         from: HumanAddr,
         contract_id: String,
         amount: Uint128,
@@ -51,6 +64,11 @@ pub enum HandleMsg {
     Modify {
         owner: HumanAddr,
         contract_id: String,
+    },
+    Approve {
+        approver: HumanAddr,
+        contract_id: String,
+        proxy: HumanAddr,
     },
 }
 
@@ -71,5 +89,14 @@ pub enum QueryMsg {
     GetPerm {
         contract_id: String,
         address: HumanAddr,
+    },
+    GetIsApproved {
+        proxy: HumanAddr,
+        contract_id: String,
+        approver: HumanAddr,
+    },
+    GetApprovers {
+        proxy: HumanAddr,
+        contract_id: String,
     },
 }

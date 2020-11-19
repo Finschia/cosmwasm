@@ -17,6 +17,8 @@ pub enum TokenQueryRoute {
     Balance,
     Supply,
     Perms,
+    Approved,
+    Approvers,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -36,6 +38,15 @@ pub enum TokenQuery {
     QueryPermParam {
         contract_id: String,
         address: HumanAddr,
+    },
+    QueryIsApprovedParam {
+        proxy: HumanAddr,
+        contract_id: String,
+        approver: HumanAddr,
+    },
+    QueryApproversParam {
+        proxy: HumanAddr,
+        contract_id: String,
     },
 }
 
@@ -102,6 +113,45 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
                     contract_id,
                     address,
                 },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_is_approved(
+        &self,
+        proxy: HumanAddr,
+        contract_id: String,
+        approver: HumanAddr,
+    ) -> StdResult<bool> {
+        let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
+            module: Module::Tokenencode,
+            query_data: QueryData {
+                route: TokenQueryRoute::Approved,
+                data: TokenQuery::QueryIsApprovedParam {
+                    proxy,
+                    contract_id,
+                    approver,
+                },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_approvers(
+        &self,
+        proxy: HumanAddr,
+        contract_id: String,
+    ) -> StdResult<Option<Vec<HumanAddr>>> {
+        let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
+            module: Module::Tokenencode,
+            query_data: QueryData {
+                route: TokenQueryRoute::Approvers,
+                data: TokenQuery::QueryApproversParam { proxy, contract_id },
             },
         };
 
