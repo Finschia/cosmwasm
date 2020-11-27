@@ -40,7 +40,7 @@ docker run --rm -v "$(pwd)":/code \
   cosmwasm/rust-optimizer:0.9.0 ./contracts/staking
 
 docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="devcontract_token_tester",target=/code/contracts/staking/target \
+  --mount type=volume,source="devcontract_token_tester",target=/code/contracts/token-tester/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.9.0 ./contracts/token-tester
 ```
