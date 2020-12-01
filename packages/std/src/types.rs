@@ -7,21 +7,69 @@ use crate::coins::Coin;
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
 pub struct Env {
     pub block: BlockInfo,
-    pub message: MessageInfo,
     pub contract: ContractInfo,
 }
 
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
 pub struct BlockInfo {
     pub height: u64,
-    // time is seconds since epoch begin (Jan. 1, 1970)
+    /// Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).
+    ///
+    /// The source of this is the [BFT Time in Tendermint](https://docs.tendermint.com/master/spec/consensus/bft-time.html),
+    /// converted from nanoseconds to second precision by truncating the fractioal part.
     pub time: u64,
+    /// The fractional part of the block time in nanoseconds since `time` (0 to 999999999).
+    /// Add this to `time` if you need a high precision block time.
+    ///
+    /// # Examples
+    ///
+    /// Using chrono:
+    ///
+    /// ```
+    /// # use cosmwasm_std::{BlockInfo, ContractInfo, Env, HumanAddr, MessageInfo};
+    /// # let env = Env {
+    /// #     block: BlockInfo {
+    /// #         height: 12_345,
+    /// #         time: 1_571_797_419,
+    /// #         time_nanos: 879305533,
+    /// #         chain_id: "cosmos-testnet-14002".to_string(),
+    /// #     },
+    /// #     contract: ContractInfo {
+    /// #         address: HumanAddr::from("contract"),
+    /// #     },
+    /// # };
+    /// # extern crate chrono;
+    /// use chrono::NaiveDateTime;
+    /// let dt = NaiveDateTime::from_timestamp(env.block.time as i64, env.block.time_nanos as u32);
+    /// ```
+    ///
+    /// Creating a simple millisecond-precision timestamp (as used in JavaScript):
+    ///
+    /// ```
+    /// # use cosmwasm_std::{BlockInfo, ContractInfo, Env, HumanAddr, MessageInfo};
+    /// # let env = Env {
+    /// #     block: BlockInfo {
+    /// #         height: 12_345,
+    /// #         time: 1_571_797_419,
+    /// #         time_nanos: 879305533,
+    /// #         chain_id: "cosmos-testnet-14002".to_string(),
+    /// #     },
+    /// #     contract: ContractInfo {
+    /// #         address: HumanAddr::from("contract"),
+    /// #     },
+    /// # };
+    /// let millis = (env.block.time * 1_000) + (env.block.time_nanos / 1_000_000);
+    /// ```
+    pub time_nanos: u64,
     pub chain_id: String,
 }
 
+/// MessageInfo is sent with `init`, `handle`, and `migrate` calls, but not with queries.
+/// It contains the essential info for authorization - identity of the call, and payment
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
 pub struct MessageInfo {
-    /// The `sender` field from the wasm/store-code, wasm/instantiate or wasm/execute message.
+    /// The `sender` field from the `wasm/MsgStoreCode`, `wasm/MsgInstantiateContract`, `wasm/MsgMigrateContract`
+    /// or `wasm/MsgExecuteContract` message.
     /// You can think of this as the address that initiated the action (i.e. the message). What that
     /// means exactly heavily depends on the application.
     ///

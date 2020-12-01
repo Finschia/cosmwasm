@@ -1,13 +1,17 @@
 use std::vec::Vec;
 
 use crate::addresses::{CanonicalAddr, HumanAddr};
-use crate::encoding::Binary;
-use crate::errors::{StdError, StdResult};
-#[cfg(feature = "iterator")]
-use crate::iterator::{Order, KV};
+use crate::binary::Binary;
+use crate::errors::{StdError, StdResult, SystemError};
 use crate::memory::{alloc, build_region, consume_region, Region};
+use crate::results::SystemResult;
 use crate::serde::from_slice;
-use crate::traits::{Api, Querier, QuerierResult, ReadonlyStorage, Storage};
+use crate::traits::{Api, Querier, QuerierResult, Storage};
+#[cfg(feature = "iterator")]
+use crate::{
+    iterator::{Order, KV},
+    memory::get_optional_region_address,
+};
 
 /// An upper bound for typical canonical address lengths (e.g. 20 in Cosmos SDK/Ethereum or 32 in Nano/Substrate)
 const CANONICAL_ADDRESS_BUFFER_LENGTH: usize = 32;
@@ -28,8 +32,9 @@ extern "C" {
     #[cfg(feature = "iterator")]
     fn db_next(iterator_id: u32) -> u32;
 
-    fn canonicalize_address(source: u32, destination: u32) -> u32;
-    fn humanize_address(source: u32, destination: u32) -> u32;
+    fn canonicalize_address(source_ptr: u32, destination_ptr: u32) -> u32;
+    fn humanize_address(source_ptr: u32, destination_ptr: u32) -> u32;
+    fn debug(source_ptr: u32);
 
     /// Executes a query on the chain (import). Not to be confused with the
     /// query export, which queries the state of the contract.
@@ -46,7 +51,7 @@ impl ExternalStorage {
     }
 }
 
-impl ReadonlyStorage for ExternalStorage {
+impl Storage for ExternalStorage {
     fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
         let key = build_region(key);
         let key_ptr = &*key as *const Region as u32;
@@ -62,35 +67,11 @@ impl ReadonlyStorage for ExternalStorage {
         Some(data)
     }
 
-    #[cfg(feature = "iterator")]
-    fn range(
-        &self,
-        start: Option<&[u8]>,
-        end: Option<&[u8]>,
-        order: Order,
-    ) -> Box<dyn Iterator<Item = KV>> {
-        // start and end (Regions) must remain in scope as long as the start_ptr / end_ptr do
-        // thus they are not inside a block
-        let start = start.map(|s| build_region(s));
-        let start_ptr = match start {
-            Some(reg) => &*reg as *const Region as u32,
-            None => 0,
-        };
-        let end = end.map(|e| build_region(e));
-        let end_ptr = match end {
-            Some(reg) => &*reg as *const Region as u32,
-            None => 0,
-        };
-        let order = order as i32;
-
-        let iterator_id = unsafe { db_scan(start_ptr, end_ptr, order) };
-        let iter = ExternalIterator { iterator_id };
-        Box::new(iter)
-    }
-}
-
-impl Storage for ExternalStorage {
     fn set(&mut self, key: &[u8], value: &[u8]) {
+        if value.is_empty() {
+            panic!("TL;DR: Value must not be empty in Storage::set but in most cases you can use Storage::remove instead. Long story: Getting empty values from storage is not well supported at the moment. Some of our internal interfaces cannot differentiate between a non-existent key and an empty value. Right now, you cannot rely on the behaviour of empty values. To protect you from trouble later on, we stop here. Sorry for the inconvenience! We highly welcome you to contribute to CosmWasm, making this more solid one way or the other.");
+        }
+
         // keep the boxes in scope, so we free it at the end (don't cast to pointers same line as build_region)
         let key = build_region(key);
         let key_ptr = &*key as *const Region as u32;
@@ -104,6 +85,24 @@ impl Storage for ExternalStorage {
         let key = build_region(key);
         let key_ptr = &*key as *const Region as u32;
         unsafe { db_remove(key_ptr) };
+    }
+
+    #[cfg(feature = "iterator")]
+    fn range(
+        &self,
+        start: Option<&[u8]>,
+        end: Option<&[u8]>,
+        order: Order,
+    ) -> Box<dyn Iterator<Item = KV>> {
+        // There is lots of gotchas on turning options into regions for FFI, thus this design
+        // See: https://github.com/CosmWasm/cosmwasm/pull/509
+        let start_region = start.map(build_region);
+        let end_region = end.map(build_region);
+        let start_region_addr = get_optional_region_address(&start_region.as_ref());
+        let end_region_addr = get_optional_region_address(&end_region.as_ref());
+        let iterator_id = unsafe { db_scan(start_region_addr, end_region_addr, order as i32) };
+        let iter = ExternalIterator { iterator_id };
+        Box::new(iter)
     }
 }
 
@@ -171,7 +170,7 @@ impl Api for ExternalApi {
     }
 
     fn human_address(&self, canonical: &CanonicalAddr) -> StdResult<HumanAddr> {
-        let send = build_region(canonical.as_slice());
+        let send = build_region(&canonical);
         let send_ptr = &*send as *const Region as u32;
         let human = alloc(HUMAN_ADDRESS_BUFFER_LENGTH);
 
@@ -186,6 +185,13 @@ impl Api for ExternalApi {
 
         let address = unsafe { consume_string_region_written_by_vm(human) };
         Ok(address.into())
+    }
+
+    fn debug(&self, message: &str) {
+        // keep the boxes in scope, so we free it at the end (don't cast to pointers same line as build_region)
+        let region = build_region(message.as_bytes());
+        let region_ptr = region.as_ref() as *const Region as u32;
+        unsafe { debug(region_ptr) };
     }
 }
 
@@ -212,8 +218,13 @@ impl Querier for ExternalQuerier {
         let request_ptr = &*req as *const Region as u32;
 
         let response_ptr = unsafe { query_chain(request_ptr) };
-
         let response = unsafe { consume_region(response_ptr as *mut Region) };
-        from_slice(&response).unwrap_or_else(|err| Ok(Err(err)))
+
+        from_slice(&response).unwrap_or_else(|parsing_err| {
+            SystemResult::Err(SystemError::InvalidResponse {
+                error: parsing_err.to_string(),
+                response: response.into(),
+            })
+        })
     }
 }

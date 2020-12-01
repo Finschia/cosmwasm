@@ -1,26 +1,48 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "HandleResult",
-  "oneOf": [
+  "title": "CosmosMsg",
+  "anyOf": [
     {
       "type": "object",
       "required": [
-        "Ok"
+        "bank"
       ],
       "properties": {
-        "Ok": {
-          "$ref": "#/definitions/HandleResponse_for_Empty"
+        "bank": {
+          "$ref": "#/definitions/BankMsg"
         }
       }
     },
     {
       "type": "object",
       "required": [
-        "Err"
+        "custom"
       ],
       "properties": {
-        "Err": {
-          "$ref": "#/definitions/StdError"
+        "custom": {
+          "$ref": "#/definitions/Empty"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "staking"
+      ],
+      "properties": {
+        "staking": {
+          "$ref": "#/definitions/StakingMsg"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "wasm"
+      ],
+      "properties": {
+        "wasm": {
+          "$ref": "#/definitions/WasmMsg"
         }
       }
     }
@@ -79,106 +101,12 @@
         }
       }
     },
-    "CosmosMsg_for_Empty": {
-      "anyOf": [
-        {
-          "type": "object",
-          "required": [
-            "bank"
-          ],
-          "properties": {
-            "bank": {
-              "$ref": "#/definitions/BankMsg"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "custom"
-          ],
-          "properties": {
-            "custom": {
-              "$ref": "#/definitions/Empty"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "staking"
-          ],
-          "properties": {
-            "staking": {
-              "$ref": "#/definitions/StakingMsg"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "wasm"
-          ],
-          "properties": {
-            "wasm": {
-              "$ref": "#/definitions/WasmMsg"
-            }
-          }
-        }
-      ]
-    },
     "Empty": {
       "description": "An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.\n\nIt is designed to be expressable in correct JSON and JSON Schema but contains no meaningful data. Previously we used enums without cases, but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)",
       "type": "object"
     },
-    "HandleResponse_for_Empty": {
-      "type": "object",
-      "required": [
-        "log",
-        "messages"
-      ],
-      "properties": {
-        "data": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Binary"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "log": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/LogAttribute"
-          }
-        },
-        "messages": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/CosmosMsg_for_Empty"
-          }
-        }
-      }
-    },
     "HumanAddr": {
       "type": "string"
-    },
-    "LogAttribute": {
-      "type": "object",
-      "required": [
-        "key",
-        "value"
-      ],
-      "properties": {
-        "key": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        }
-      }
     },
     "StakingMsg": {
       "anyOf": [
@@ -280,171 +208,6 @@
                 },
                 "src_validator": {
                   "$ref": "#/definitions/HumanAddr"
-                }
-              }
-            }
-          }
-        }
-      ]
-    },
-    "StdError": {
-      "description": "Structured error type for init, handle and query.\n\nThis can be serialized and passed over the Wasm/VM boundary, which allows us to use structured error types in e.g. integration tests. In that process backtraces are stripped off.\n\nThe prefix \"Std\" means \"the standard error within the standard library\". This is not the only result/error type in cosmwasm-std.\n\nWhen new cases are added, they should describe the problem rather than what was attempted (e.g. InvalidBase64 is preferred over Base64DecodingErr). In the long run this allows us to get rid of the duplication in \"StdError::FooErr\".\n\nChecklist for adding a new error: - Add enum case - Add to PartialEq implementation - Add serialize/deserialize test - Add creator function in std_error_helpers.rs - Regenerate schemas",
-      "anyOf": [
-        {
-          "description": "Whenever there is no specific error type available",
-          "type": "object",
-          "required": [
-            "generic_err"
-          ],
-          "properties": {
-            "generic_err": {
-              "type": "object",
-              "required": [
-                "msg"
-              ],
-              "properties": {
-                "msg": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "invalid_base64"
-          ],
-          "properties": {
-            "invalid_base64": {
-              "type": "object",
-              "required": [
-                "msg"
-              ],
-              "properties": {
-                "msg": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        {
-          "description": "Whenever UTF-8 bytes cannot be decoded into a unicode string, e.g. in String::from_utf8 or str::from_utf8.",
-          "type": "object",
-          "required": [
-            "invalid_utf8"
-          ],
-          "properties": {
-            "invalid_utf8": {
-              "type": "object",
-              "required": [
-                "msg"
-              ],
-              "properties": {
-                "msg": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "not_found"
-          ],
-          "properties": {
-            "not_found": {
-              "type": "object",
-              "required": [
-                "kind"
-              ],
-              "properties": {
-                "kind": {
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "parse_err"
-          ],
-          "properties": {
-            "parse_err": {
-              "type": "object",
-              "required": [
-                "msg",
-                "target"
-              ],
-              "properties": {
-                "msg": {
-                  "type": "string"
-                },
-                "target": {
-                  "description": "the target type that was attempted",
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "serialize_err"
-          ],
-          "properties": {
-            "serialize_err": {
-              "type": "object",
-              "required": [
-                "msg",
-                "source"
-              ],
-              "properties": {
-                "msg": {
-                  "type": "string"
-                },
-                "source": {
-                  "description": "the source type that was attempted",
-                  "type": "string"
-                }
-              }
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "unauthorized"
-          ],
-          "properties": {
-            "unauthorized": {
-              "type": "object"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "required": [
-            "underflow"
-          ],
-          "properties": {
-            "underflow": {
-              "type": "object",
-              "required": [
-                "minuend",
-                "subtrahend"
-              ],
-              "properties": {
-                "minuend": {
-                  "type": "string"
-                },
-                "subtrahend": {
-                  "type": "string"
                 }
               }
             }

@@ -23,6 +23,8 @@ use crate::middleware::DeterministicMiddleware;
 /// far below u64::MAX.
 const MAX_GAS_LIMIT: u64 = u64::MAX / 2;
 
+pub const BACKEND_NAME: &str = "singlepass";
+
 pub fn compile(code: &[u8]) -> VmResult<Module> {
     let module = compile_with(code, compiler().as_ref())?;
     Ok(module)
@@ -36,10 +38,6 @@ pub fn compiler() -> Box<dyn Compiler> {
         chain
     });
     Box::new(c)
-}
-
-pub fn backend() -> &'static str {
-    "singlepass"
 }
 
 /// Set the amount of gas units that can be used in the context.
@@ -65,7 +63,6 @@ pub fn get_gas_left(ctx: &Ctx) -> u64 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use wabt::wat2wasm;
     use wasmer_runtime_core::{imports, Instance as WasmerInstance};
 
     fn instantiate(code: &[u8]) -> WasmerInstance {
@@ -76,7 +73,7 @@ mod test {
 
     #[test]
     fn get_gas_left_defaults_to_constant() {
-        let wasm = wat2wasm("(module)").unwrap();
+        let wasm = wat::parse_str("(module)").unwrap();
         let instance = instantiate(&wasm);
         let gas_left = get_gas_left(instance.context());
         assert_eq!(gas_left, MAX_GAS_LIMIT);
@@ -84,7 +81,7 @@ mod test {
 
     #[test]
     fn set_gas_left_works() {
-        let wasm = wat2wasm("(module)").unwrap();
+        let wasm = wat::parse_str("(module)").unwrap();
         let mut instance = instantiate(&wasm);
 
         let limit = 3456789;
@@ -109,7 +106,7 @@ mod test {
         expected = "Attempted to set gas limit larger than max gas limit (got: 9223372036854775808; maximum: 9223372036854775807)."
     )]
     fn set_gas_left_panic_for_values_too_large() {
-        let wasm = wat2wasm("(module)").unwrap();
+        let wasm = wat::parse_str("(module)").unwrap();
         let mut instance = instantiate(&wasm);
 
         let limit = MAX_GAS_LIMIT + 1;
