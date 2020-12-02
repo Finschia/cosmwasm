@@ -1,13 +1,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, Querier, StdResult, Uint128};
+use cosmwasm_std::{HumanAddr, QuerierWrapper, StdResult, Uint128};
 
 use crate::query::{LinkQueryWrapper, Module, QueryData, Response, Target};
 use crate::token::{Token, TokenPerm};
 
-pub struct LinkTokenQuerier<'a, Q: Querier> {
-    querier: &'a Q,
+pub struct LinkTokenQuerier<'a> {
+    querier: QuerierWrapper<'a>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -50,8 +50,8 @@ pub enum TokenQuery {
     },
 }
 
-impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
-    pub fn new(querier: &'a Q) -> Self {
+impl<'a> LinkTokenQuerier<'a> {
+    pub fn new(querier: QuerierWrapper<'a>) -> Self {
         LinkTokenQuerier { querier }
     }
 
