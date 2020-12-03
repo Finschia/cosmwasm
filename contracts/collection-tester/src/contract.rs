@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
+    attr, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
     InitResponse, Querier, StdResult, Storage, Uint128,
 };
 
@@ -264,7 +264,7 @@ pub fn try_create<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "create")],
+        attributes: vec![attr("action", "create")],
         data: None,
     };
     Ok(res)
@@ -297,7 +297,7 @@ pub fn try_issue_nft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "issue_nft")],
+        attributes: vec![attr("action", "issue_nft")],
         data: None,
     };
     Ok(res)
@@ -337,7 +337,7 @@ pub fn try_issue_ft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "issue_ft")],
+        attributes: vec![attr("action", "issue_ft")],
         data: None,
     };
     Ok(res)
@@ -378,7 +378,7 @@ pub fn try_mint_nft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "mint_nft")],
+        attributes: vec![attr("action", "mint_nft")],
         data: None,
     };
     Ok(res)
@@ -416,7 +416,7 @@ pub fn try_mint_ft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "mint_ft")],
+        attributes: vec![attr("action", "mint_ft")],
         data: None,
     };
     Ok(res)
@@ -447,7 +447,7 @@ pub fn try_burn_nft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_nft")],
+        attributes: vec![attr("action", "burn_nft")],
         data: None,
     };
     Ok(res)
@@ -478,7 +478,7 @@ pub fn try_burn_nft_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_nft_from")],
+        attributes: vec![attr("action", "burn_nft_from")],
         data: None,
     };
     Ok(res)
@@ -514,7 +514,7 @@ pub fn try_burn_ft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_nft")],
+        attributes: vec![attr("action", "burn_nft")],
         data: None,
     };
     Ok(res)
@@ -552,7 +552,7 @@ pub fn try_burn_ft_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_nft_from")],
+        attributes: vec![attr("action", "burn_nft_from")],
         data: None,
     };
     Ok(res)
@@ -583,7 +583,7 @@ pub fn try_transfer_nft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_nft")],
+        attributes: vec![attr("action", "transfer_nft")],
         data: None,
     };
     Ok(res)
@@ -616,7 +616,7 @@ pub fn try_transfer_nft_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_nft_from")],
+        attributes: vec![attr("action", "transfer_nft_from")],
         data: None,
     };
     Ok(res)
@@ -654,7 +654,7 @@ pub fn try_transfer_ft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_ft")],
+        attributes: vec![attr("action", "transfer_ft")],
         data: None,
     };
     Ok(res)
@@ -694,7 +694,7 @@ pub fn try_transfer_ft_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_ft_from")],
+        attributes: vec![attr("action", "transfer_ft_from")],
         data: None,
     };
     Ok(res)
@@ -729,7 +729,7 @@ pub fn try_modify<S: Storage, A: Api, Q: Querier>(
         .into();
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "modify_collection")],
+        attributes: vec![attr("action", "modify_collection")],
         data: None,
     };
     Ok(res)
@@ -757,7 +757,7 @@ pub fn try_approve<S: Storage, A: Api, Q: Querier>(
         .into();
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "approve")],
+        attributes: vec![attr("action", "approve")],
         data: None,
     };
     Ok(res)
@@ -785,7 +785,7 @@ pub fn try_disapprove<S: Storage, A: Api, Q: Querier>(
         .into();
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "approve")],
+        attributes: vec![attr("action", "approve")],
         data: None,
     };
     Ok(res)
@@ -817,7 +817,7 @@ pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "grant_perm")],
+        attributes: vec![attr("action", "grant_perm")],
         data: None,
     };
     Ok(res)
@@ -847,7 +847,7 @@ pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "revoke_perm")],
+        attributes: vec![attr("action", "revoke_perm")],
         data: None,
     };
     Ok(res)
@@ -878,7 +878,7 @@ pub fn try_attach<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "attach")],
+        attributes: vec![attr("action", "attach")],
         data: None,
     };
     Ok(res)
@@ -907,7 +907,7 @@ pub fn try_detach<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "detach")],
+        attributes: vec![attr("action", "detach")],
         data: None,
     };
     Ok(res)
@@ -940,7 +940,7 @@ pub fn try_attach_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "attach_from")],
+        attributes: vec![attr("action", "attach_from")],
         data: None,
     };
     Ok(res)
@@ -971,7 +971,7 @@ pub fn try_detach_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "detach_from")],
+        attributes: vec![attr("action", "detach_from")],
         data: None,
     };
     Ok(res)
