@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use cosmwasm_std::{
     attr, to_binary, Api, Binary, CosmosMsg, Env, Deps, DepsMut, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, Querier, StdResult, Storage, Uint128,
+    InitResponse, Querier, MessageInfo, StdResult, Storage, Uint128,
 };
 
 use cosmwasm_ext::{
@@ -17,6 +17,7 @@ use crate::state::{config, State};
 pub fn init(
     deps: DepsMut,
     env: Env,
+    _info: MessageInfo,
     _msg: InitMsg,
 ) -> StdResult<InitResponse> {
     let state = State {
@@ -31,6 +32,7 @@ pub fn init(
 pub fn handle(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     msg: HandleMsg,
 ) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
     match msg {
@@ -39,13 +41,13 @@ pub fn handle(
             name,
             meta,
             base_img_uri,
-        } => try_create(deps, env, owner, name, meta, base_img_uri),
+        } => try_create(deps, env, info, owner, name, meta, base_img_uri),
         HandleMsg::IssueNft {
             owner,
             contract_id,
             name,
             meta,
-        } => try_issue_nft(deps, env, owner, contract_id, name, meta),
+        } => try_issue_nft(deps, env, info, owner, contract_id, name, meta),
         HandleMsg::IssueFt {
             owner,
             contract_id,
@@ -58,6 +60,7 @@ pub fn handle(
         } => try_issue_ft(
             deps,
             env,
+            info,
             owner,
             contract_id,
             to,
@@ -72,61 +75,61 @@ pub fn handle(
             contract_id,
             to,
             token_types,
-        } => try_mint_nft(deps, env, from, contract_id, to, token_types),
+        } => try_mint_nft(deps, env, info, from, contract_id, to, token_types),
         HandleMsg::MintFt {
             from,
             contract_id,
             to,
             tokens,
-        } => try_mint_ft(deps, env, from, contract_id, to, tokens),
+        } => try_mint_ft(deps, env, info, from, contract_id, to, tokens),
         HandleMsg::BurnNft {
             from,
             contract_id,
             token_id,
-        } => try_burn_nft(deps, env, from, contract_id, token_id),
+        } => try_burn_nft(deps, env, info, from, contract_id, token_id),
         HandleMsg::BurnNftFrom {
             proxy,
             contract_id,
             from,
             token_ids,
-        } => try_burn_nft_from(deps, env, proxy, contract_id, from, token_ids),
+        } => try_burn_nft_from(deps, env, info, proxy, contract_id, from, token_ids),
         HandleMsg::BurnFt {
             from,
             contract_id,
             amounts,
-        } => try_burn_ft(deps, env, from, contract_id, amounts),
+        } => try_burn_ft(deps, env, info, from, contract_id, amounts),
         HandleMsg::BurnFtFrom {
             proxy,
             contract_id,
             from,
             amounts,
-        } => try_burn_ft_from(deps, env, proxy, contract_id, from, amounts),
+        } => try_burn_ft_from(deps, env, info, proxy, contract_id, from, amounts),
         HandleMsg::TransferNft {
             from,
             contract_id,
             to,
             token_ids,
-        } => try_transfer_nft(deps, env, from, contract_id, to, token_ids),
+        } => try_transfer_nft(deps, env, info, from, contract_id, to, token_ids),
         HandleMsg::TransferNftFrom {
             proxy,
             contract_id,
             from,
             to,
             token_ids,
-        } => try_transfer_nft_from(deps, env, proxy, contract_id, from, to, token_ids),
+        } => try_transfer_nft_from(deps, env, info, proxy, contract_id, from, to, token_ids),
         HandleMsg::TransferFt {
             from,
             contract_id,
             to,
             tokens,
-        } => try_transfer_ft(deps, env, from, contract_id, to, tokens),
+        } => try_transfer_ft(deps, env, info, from, contract_id, to, tokens),
         HandleMsg::TransferFtFrom {
             proxy,
             contract_id,
             from,
             to,
             tokens,
-        } => try_transfer_ft_from(deps, env, proxy, contract_id, from, to, tokens),
+        } => try_transfer_ft_from(deps, env, info, proxy, contract_id, from, to, tokens),
         HandleMsg::Modify {
             owner,
             contract_id,
@@ -137,6 +140,7 @@ pub fn handle(
         } => try_modify(
             deps,
             env,
+            info,
             owner,
             contract_id,
             token_type,
@@ -148,47 +152,47 @@ pub fn handle(
             approver,
             contract_id,
             proxy,
-        } => try_approve(deps, env, approver, contract_id, proxy),
+        } => try_approve(deps, env, info, approver, contract_id, proxy),
         HandleMsg::Disapprove {
             approver,
             contract_id,
             proxy,
-        } => try_disapprove(deps, env, approver, contract_id, proxy),
+        } => try_disapprove(deps, env, info, approver, contract_id, proxy),
         HandleMsg::GrantPerm {
             from,
             contract_id,
             to,
             permission,
-        } => try_grant_perm(deps, env, from, contract_id, to, permission),
+        } => try_grant_perm(deps, env, info, from, contract_id, to, permission),
         HandleMsg::RevokePerm {
             from,
             contract_id,
             permission,
-        } => try_revoke_perm(deps, env, from, contract_id, permission),
+        } => try_revoke_perm(deps, env, info, from, contract_id, permission),
         HandleMsg::Attach {
             from,
             contract_id,
             to_token_id,
             token_id,
-        } => try_attach(deps, env, from, contract_id, to_token_id, token_id),
+        } => try_attach(deps, env, info, from, contract_id, to_token_id, token_id),
         HandleMsg::Detach {
             from,
             contract_id,
             token_id,
-        } => try_detach(deps, env, from, contract_id, token_id),
+        } => try_detach(deps, env, info, from, contract_id, token_id),
         HandleMsg::AttachFrom {
             proxy,
             contract_id,
             from,
             to_token_id,
             token_id,
-        } => try_attach_from(deps, env, proxy, contract_id, from, to_token_id, token_id),
+        } => try_attach_from(deps, env, info, proxy, contract_id, from, to_token_id, token_id),
         HandleMsg::DetachFrom {
             proxy,
             contract_id,
             from,
             token_id,
-        } => try_detach_from(deps, env, proxy, contract_id, from, token_id),
+        } => try_detach_from(deps, env, info, proxy, contract_id, from, token_id),
     }
 }
 
@@ -240,6 +244,7 @@ pub fn query(
 pub fn try_create(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     name: String,
     meta: String,
@@ -273,6 +278,7 @@ pub fn try_create(
 pub fn try_issue_nft(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
     name: String,
@@ -307,6 +313,7 @@ pub fn try_issue_nft(
 pub fn try_issue_ft(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -346,6 +353,7 @@ pub fn try_issue_ft(
 pub fn try_mint_nft(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -387,6 +395,7 @@ pub fn try_mint_nft(
 pub fn try_mint_ft(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -425,6 +434,7 @@ pub fn try_mint_ft(
 pub fn try_burn_nft(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     token_id: String,
@@ -456,6 +466,7 @@ pub fn try_burn_nft(
 pub fn try_burn_nft_from(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -487,6 +498,7 @@ pub fn try_burn_nft_from(
 pub fn try_burn_ft(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     tokens: Vec<String>,
@@ -523,6 +535,7 @@ pub fn try_burn_ft(
 pub fn try_burn_ft_from(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -561,6 +574,7 @@ pub fn try_burn_ft_from(
 pub fn try_transfer_nft(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -592,6 +606,7 @@ pub fn try_transfer_nft(
 pub fn try_transfer_nft_from(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -625,6 +640,7 @@ pub fn try_transfer_nft_from(
 pub fn try_transfer_ft(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -663,6 +679,7 @@ pub fn try_transfer_ft(
 pub fn try_transfer_ft_from(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -704,6 +721,7 @@ pub fn try_transfer_ft_from(
 pub fn try_modify(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
     token_type: String,
@@ -738,6 +756,7 @@ pub fn try_modify(
 pub fn try_approve(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
@@ -766,6 +785,7 @@ pub fn try_approve(
 pub fn try_disapprove(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
@@ -794,6 +814,7 @@ pub fn try_disapprove(
 pub fn try_grant_perm(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -826,6 +847,7 @@ pub fn try_grant_perm(
 pub fn try_revoke_perm(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     perm_str: String,
@@ -856,6 +878,7 @@ pub fn try_revoke_perm(
 pub fn try_attach(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to_token_id: String,
@@ -887,6 +910,7 @@ pub fn try_attach(
 pub fn try_detach(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     token_id: String,
@@ -916,6 +940,7 @@ pub fn try_detach(
 pub fn try_attach_from(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -949,6 +974,7 @@ pub fn try_attach_from(
 pub fn try_detach_from(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
