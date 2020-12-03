@@ -2,8 +2,8 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    attr, to_binary, Api, Binary, CosmosMsg, Env, Deps, DepsMut, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, Querier, MessageInfo, StdResult, Storage, Uint128,
+    attr, to_binary, Binary, CosmosMsg, Env, Deps, DepsMut, HandleResponse, HandleResult, HumanAddr,
+    InitResponse, MessageInfo, StdResult, Uint128,
 };
 
 use cosmwasm_ext::{
