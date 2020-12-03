@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    attr, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
+    attr, to_binary, Api, Binary, CosmosMsg, Env, Deps, DepsMut, HandleResponse, HandleResult, HumanAddr,
     InitResponse, Querier, StdResult, Storage, Uint128,
 };
 
@@ -14,8 +14,8 @@ use cosmwasm_ext::{
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, State};
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn init(
+    deps: DepsMut,
     env: Env,
     _msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -28,8 +28,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     Ok(InitResponse::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn handle(
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
@@ -192,8 +192,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query(
+    deps: Deps,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
@@ -237,8 +237,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn try_create<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_create(
+    _deps: DepsMut,
     _env: Env,
     owner: HumanAddr,
     name: String,
@@ -270,8 +270,8 @@ pub fn try_create<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_issue_nft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_issue_nft(
+    _deps: DepsMut,
     _env: Env,
     owner: HumanAddr,
     contract_id: String,
@@ -304,8 +304,8 @@ pub fn try_issue_nft<S: Storage, A: Api, Q: Querier>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn try_issue_ft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_issue_ft(
+    _deps: DepsMut,
     _env: Env,
     owner: HumanAddr,
     contract_id: String,
@@ -343,8 +343,8 @@ pub fn try_issue_ft<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_mint_nft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_mint_nft(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -384,8 +384,8 @@ pub fn try_mint_nft<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_mint_ft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_mint_ft(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -422,8 +422,8 @@ pub fn try_mint_ft<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_burn_nft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_nft(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -453,8 +453,8 @@ pub fn try_burn_nft<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_burn_nft_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_nft_from(
+    _deps: DepsMut,
     _env: Env,
     proxy: HumanAddr,
     contract_id: String,
@@ -484,8 +484,8 @@ pub fn try_burn_nft_from<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_burn_ft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_ft(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -520,8 +520,8 @@ pub fn try_burn_ft<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_burn_ft_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_ft_from(
+    _deps: DepsMut,
     _env: Env,
     proxy: HumanAddr,
     contract_id: String,
@@ -558,8 +558,8 @@ pub fn try_burn_ft_from<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_transfer_nft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer_nft(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -589,8 +589,8 @@ pub fn try_transfer_nft<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_transfer_nft_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer_nft_from(
+    _deps: DepsMut,
     _env: Env,
     proxy: HumanAddr,
     contract_id: String,
@@ -622,8 +622,8 @@ pub fn try_transfer_nft_from<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_transfer_ft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer_ft(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -660,8 +660,8 @@ pub fn try_transfer_ft<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_transfer_ft_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer_ft_from(
+    _deps: DepsMut,
     _env: Env,
     proxy: HumanAddr,
     contract_id: String,
@@ -701,8 +701,8 @@ pub fn try_transfer_ft_from<S: Storage, A: Api, Q: Querier>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn try_modify<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_modify(
+    _deps: DepsMut,
     _env: Env,
     owner: HumanAddr,
     contract_id: String,
@@ -735,8 +735,8 @@ pub fn try_modify<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_approve<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_approve(
+    _deps: DepsMut,
     _env: Env,
     approver: HumanAddr,
     contract_id: String,
@@ -763,8 +763,8 @@ pub fn try_approve<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_disapprove<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_disapprove(
+    _deps: DepsMut,
     _env: Env,
     approver: HumanAddr,
     contract_id: String,
@@ -791,8 +791,8 @@ pub fn try_disapprove<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_grant_perm(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -823,8 +823,8 @@ pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_revoke_perm(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -853,8 +853,8 @@ pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_attach<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_attach(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -884,8 +884,8 @@ pub fn try_attach<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_detach<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_detach(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -913,8 +913,8 @@ pub fn try_detach<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_attach_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_attach_from(
+    _deps: DepsMut,
     _env: Env,
     proxy: HumanAddr,
     contract_id: String,
@@ -946,8 +946,8 @@ pub fn try_attach_from<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_detach_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_detach_from(
+    _deps: DepsMut,
     _env: Env,
     proxy: HumanAddr,
     contract_id: String,
@@ -977,8 +977,8 @@ pub fn try_detach_from<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-fn query_collection<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_collection(
+    deps: Deps,
     contract_id: String,
 ) -> StdResult<Binary> {
     let res = match LinkCollectionQuerier::new(&deps.querier).query_collection(contract_id)? {
@@ -989,8 +989,8 @@ fn query_collection<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_balance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_balance(
+    deps: Deps,
     contract_id: String,
     token_id: String,
     addr: HumanAddr,
@@ -1002,8 +1002,8 @@ fn query_balance<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_token_type<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_token_type(
+    deps: Deps,
     contract_id: String,
     token_id: String,
 ) -> StdResult<Binary> {
@@ -1014,8 +1014,8 @@ fn query_token_type<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_token_types<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_token_types(
+    deps: Deps,
     contract_id: String,
 ) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(&deps.querier)
@@ -1025,8 +1025,8 @@ fn query_token_types<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_token<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_token(
+    deps: Deps,
     contract_id: String,
     token_id: String,
 ) -> StdResult<Binary> {
@@ -1037,8 +1037,8 @@ fn query_token<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_tokens<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_tokens(
+    deps: Deps,
     contract_id: String,
 ) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(&deps.querier)
@@ -1048,8 +1048,8 @@ fn query_tokens<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_nft<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_nft(
+    deps: Deps,
     contract_id: String,
     token_id: String,
     target: String,
@@ -1070,8 +1070,8 @@ fn query_nft<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_total<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_total(
+    deps: Deps,
     contract_id: String,
     token_id: String,
     target_str: String,
@@ -1084,8 +1084,8 @@ fn query_total<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_root_or_parent_or_children<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_root_or_parent_or_children(
+    deps: Deps,
     contract_id: String,
     token_id: String,
     target: String,
@@ -1111,8 +1111,8 @@ fn query_root_or_parent_or_children<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn query_perms<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_perms(
+    deps: Deps,
     contract_id: String,
     addr: HumanAddr,
 ) -> StdResult<Binary> {
@@ -1123,8 +1123,8 @@ fn query_perms<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_approved<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_approved(
+    deps: Deps,
     contract_id: String,
     proxy: HumanAddr,
     approver: HumanAddr,
