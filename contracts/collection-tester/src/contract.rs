@@ -17,14 +17,14 @@ use crate::state::{config, State};
 pub fn init(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     _msg: InitMsg,
 ) -> StdResult<InitResponse> {
     let state = State {
-        owner: deps.api.canonical_address(&env.message.sender)?,
+        owner: deps.api.canonical_address(&info.sender)?,
     };
 
-    config(&mut deps.storage).save(&state)?;
+    config(deps.storage).save(&state)?;
 
     Ok(InitResponse::default())
 }
@@ -1007,7 +1007,7 @@ fn query_collection(
     deps: Deps,
     contract_id: String,
 ) -> StdResult<Binary> {
-    let res = match LinkCollectionQuerier::new(&deps.querier).query_collection(contract_id)? {
+    let res = match LinkCollectionQuerier::new(deps.querier).query_collection(contract_id)? {
         Some(collection_response) => collection_response,
         None => return to_binary(&None::<Box<Response<Collection>>>),
     };
@@ -1021,7 +1021,7 @@ fn query_balance(
     token_id: String,
     addr: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_balance(contract_id, token_id, addr)
         .unwrap();
     let out = to_binary(&res)?;
@@ -1033,7 +1033,7 @@ fn query_token_type(
     contract_id: String,
     token_id: String,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_token_type(contract_id, token_id)
         .unwrap();
     let out = to_binary(&res)?;
@@ -1044,7 +1044,7 @@ fn query_token_types(
     deps: Deps,
     contract_id: String,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_token_types(contract_id)
         .unwrap();
     let out = to_binary(&res)?;
@@ -1056,7 +1056,7 @@ fn query_token(
     contract_id: String,
     token_id: String,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_token(contract_id, token_id)
         .unwrap();
     let out = to_binary(&res)?;
@@ -1067,7 +1067,7 @@ fn query_tokens(
     deps: Deps,
     contract_id: String,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_tokens(contract_id)
         .unwrap();
     let out = to_binary(&res)?;
@@ -1081,13 +1081,13 @@ fn query_nft(
     target: String,
 ) -> StdResult<Binary> {
     let res = match &*target {
-        "count" => LinkCollectionQuerier::new(&deps.querier)
+        "count" => LinkCollectionQuerier::new(deps.querier)
             .query_nft_count(contract_id, token_id)
             .unwrap(),
-        "mint" => LinkCollectionQuerier::new(&deps.querier)
+        "mint" => LinkCollectionQuerier::new(deps.querier)
             .query_nft_mint(contract_id, token_id)
             .unwrap(),
-        "burn" => LinkCollectionQuerier::new(&deps.querier)
+        "burn" => LinkCollectionQuerier::new(deps.querier)
             .query_nft_burn(contract_id, token_id)
             .unwrap(),
         _ => Uint128(0),
@@ -1103,7 +1103,7 @@ fn query_total(
     target_str: String,
 ) -> StdResult<Binary> {
     let target = Target::from_str(&target_str).unwrap();
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_supply(contract_id, token_id, target)
         .unwrap();
     let out = to_binary(&res)?;
@@ -1117,19 +1117,19 @@ fn query_root_or_parent_or_children(
     target: String,
 ) -> StdResult<Binary> {
     if target == "root" {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_root(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
         Ok(out)
     } else if target == "parent" {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_parent(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
         Ok(out)
     } else {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_children(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
@@ -1142,7 +1142,7 @@ fn query_perms(
     contract_id: String,
     addr: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_perm(contract_id, addr)
         .unwrap();
     let out = to_binary(&res)?;
@@ -1155,7 +1155,7 @@ fn query_approved(
     proxy: HumanAddr,
     approver: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_approved(contract_id, proxy, approver)
         .unwrap();
     let out = to_binary(&res)?;
