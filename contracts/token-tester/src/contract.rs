@@ -22,7 +22,7 @@ pub fn init(
         owner: deps.api.canonical_address(&env.message.sender)?,
     };
 
-    config(&mut deps.storage).save(&state)?;
+    config(deps.storage).save(&state)?;
 
     Ok(InitResponse::default())
 }
@@ -512,7 +512,7 @@ fn query_approvers(
 }
 
 fn _query_owner(deps: Deps) -> StdResult<HumanAddr> {
-    let state = config_read(&deps.storage).load()?;
+    let state = config_read(deps.storage).load()?;
     Ok(deps.api.human_address(&state.owner)?)
 }
 
