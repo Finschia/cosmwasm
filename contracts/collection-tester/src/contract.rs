@@ -198,46 +198,47 @@ pub fn handle(
 
 pub fn query(
     deps: Deps,
+    env: Env,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCollection { contract_id } => query_collection(deps, contract_id),
+        QueryMsg::GetCollection { contract_id } => query_collection(deps, env, contract_id),
         QueryMsg::GetBalance {
             contract_id,
             token_id,
             addr,
-        } => query_balance(deps, contract_id, token_id, addr),
+        } => query_balance(deps, env, contract_id, token_id, addr),
         QueryMsg::GetTokenType {
             contract_id,
             token_id,
-        } => query_token_type(deps, contract_id, token_id),
-        QueryMsg::GetTokenTypes { contract_id } => query_token_types(deps, contract_id),
+        } => query_token_type(deps, env, contract_id, token_id),
+        QueryMsg::GetTokenTypes { contract_id } => query_token_types(deps, env, contract_id),
         QueryMsg::GetToken {
             contract_id,
             token_id,
-        } => query_token(deps, contract_id, token_id),
-        QueryMsg::GetTokens { contract_id } => query_tokens(deps, contract_id),
+        } => query_token(deps, env, contract_id, token_id),
+        QueryMsg::GetTokens { contract_id } => query_tokens(deps, env, contract_id),
         QueryMsg::GetNft {
             contract_id,
             token_id,
             target,
-        } => query_nft(deps, contract_id, token_id, target),
+        } => query_nft(deps, env, contract_id, token_id, target),
         QueryMsg::GetTotal {
             contract_id,
             token_id,
             target,
-        } => query_total(deps, contract_id, token_id, target),
+        } => query_total(deps, env, contract_id, token_id, target),
         QueryMsg::GetRootOrParentOrChildren {
             contract_id,
             token_id,
             target,
-        } => query_root_or_parent_or_children(deps, contract_id, token_id, target),
-        QueryMsg::GetPerms { contract_id, addr } => query_perms(deps, contract_id, addr),
+        } => query_root_or_parent_or_children(deps, env, contract_id, token_id, target),
+        QueryMsg::GetPerms { contract_id, addr } => query_perms(deps, env, contract_id, addr),
         QueryMsg::GetApproved {
             contract_id,
             proxy,
             approver,
-        } => query_approved(deps, contract_id, proxy, approver),
+        } => query_approved(deps, env, contract_id, proxy, approver),
     }
 }
 
@@ -1005,6 +1006,7 @@ pub fn try_detach_from(
 
 fn query_collection(
     deps: Deps,
+    _env: Env,
     contract_id: String,
 ) -> StdResult<Binary> {
     let res = match LinkCollectionQuerier::new(deps.querier).query_collection(contract_id)? {
@@ -1017,6 +1019,7 @@ fn query_collection(
 
 fn query_balance(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
     addr: HumanAddr,
@@ -1030,6 +1033,7 @@ fn query_balance(
 
 fn query_token_type(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
 ) -> StdResult<Binary> {
@@ -1042,6 +1046,7 @@ fn query_token_type(
 
 fn query_token_types(
     deps: Deps,
+    _env: Env,
     contract_id: String,
 ) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(deps.querier)
@@ -1053,6 +1058,7 @@ fn query_token_types(
 
 fn query_token(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
 ) -> StdResult<Binary> {
@@ -1065,6 +1071,7 @@ fn query_token(
 
 fn query_tokens(
     deps: Deps,
+    _env: Env,
     contract_id: String,
 ) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(deps.querier)
@@ -1076,6 +1083,7 @@ fn query_tokens(
 
 fn query_nft(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
     target: String,
@@ -1098,6 +1106,7 @@ fn query_nft(
 
 fn query_total(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
     target_str: String,
@@ -1112,6 +1121,7 @@ fn query_total(
 
 fn query_root_or_parent_or_children(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
     target: String,
@@ -1139,6 +1149,7 @@ fn query_root_or_parent_or_children(
 
 fn query_perms(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     addr: HumanAddr,
 ) -> StdResult<Binary> {
@@ -1151,6 +1162,7 @@ fn query_perms(
 
 fn query_approved(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     proxy: HumanAddr,
     approver: HumanAddr,
