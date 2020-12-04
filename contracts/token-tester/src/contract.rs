@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    attr, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, Querier, StdResult, Storage, Uint128,
+    attr, to_binary, Api, Binary, CosmosMsg, Env, Deps, DepsMut, HandleResponse, HandleResult, HumanAddr,
+    InitResponse, StdResult, Uint128,
 };
 
 use cosmwasm_ext::{
@@ -13,8 +13,8 @@ use cosmwasm_ext::{
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, config_read, State};
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn init(
+    deps: DepsMut,
     env: Env,
     _msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -27,8 +27,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     Ok(InitResponse::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn handle(
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
@@ -96,8 +96,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query(
+    deps: Deps,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
@@ -124,8 +124,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn try_issue<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_issue(
+    _deps: DepsMut,
     _env: Env,
     owner: HumanAddr,
     to: HumanAddr,
@@ -165,8 +165,8 @@ pub fn try_issue<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_transfer<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -197,8 +197,8 @@ pub fn try_transfer<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer_from(
+    _deps: DepsMut,
     _env: Env,
     proxy: HumanAddr,
     from: HumanAddr,
@@ -231,8 +231,8 @@ pub fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_mint<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_mint(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -261,8 +261,8 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_burn<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -289,8 +289,8 @@ pub fn try_burn<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_burn_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_from(
+    _deps: DepsMut,
     _env: Env,
     proxy: HumanAddr,
     from: HumanAddr,
@@ -319,8 +319,8 @@ pub fn try_burn_from<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_grant_perm(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -350,8 +350,8 @@ pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_revoke_perm(
+    _deps: DepsMut,
     _env: Env,
     from: HumanAddr,
     contract_id: String,
@@ -379,8 +379,8 @@ pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_modify<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_modify(
+    _deps: DepsMut,
     _env: Env,
     owner: HumanAddr,
     contract_id: String,
@@ -406,8 +406,8 @@ pub fn try_modify<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-pub fn try_approve<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_approve(
+    _deps: DepsMut,
     _env: Env,
     approver: HumanAddr,
     contract_id: String,
@@ -434,8 +434,8 @@ pub fn try_approve<S: Storage, A: Api, Q: Querier>(
     Ok(res)
 }
 
-fn query_token<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_token(
+    deps: Deps,
     contract_id: String,
 ) -> StdResult<Binary> {
     let res = match LinkTokenQuerier::new(&deps.querier).query_token(contract_id)? {
@@ -447,8 +447,8 @@ fn query_token<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_balance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_balance(
+    deps: Deps,
     contract_id: String,
     address: HumanAddr,
 ) -> StdResult<Binary> {
@@ -459,8 +459,8 @@ fn query_balance<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_supply<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_supply(
+    deps: Deps,
     contract_id: String,
     target_str: String,
 ) -> StdResult<Binary> {
@@ -472,8 +472,8 @@ fn query_supply<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_perm<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_perm(
+    deps: Deps,
     contract_id: String,
     address: HumanAddr,
 ) -> StdResult<Binary> {
@@ -485,8 +485,8 @@ fn query_perm<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_is_approved<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_is_approved(
+    deps: Deps,
     proxy: HumanAddr,
     contract_id: String,
     approver: HumanAddr,
@@ -498,8 +498,8 @@ fn query_is_approved<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_approvers<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_approvers(
+    deps: Deps,
     proxy: HumanAddr,
     contract_id: String,
 ) -> StdResult<Binary> {
@@ -511,7 +511,7 @@ fn query_approvers<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn _query_owner<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<HumanAddr> {
+fn _query_owner(deps: Deps) -> StdResult<HumanAddr> {
     let state = config_read(&deps.storage).load()?;
     Ok(deps.api.human_address(&state.owner)?)
 }
@@ -522,7 +522,8 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage};
     use cosmwasm_std::{coins, Env};
 
-    fn create_contract(owner: String) -> (Extern<MockStorage, MockApi, MockQuerier>, Env) {
+    fn create_contract(owner: String) -> (Extern<MockStorage, MockApi, MockQuie
+r>, Env) {
         let mut deps = mock_dependencies(20, &coins(1000, "cony"));
         let env = mock_env(owner, &coins(1000, "cony"));
         let res = init(&mut deps, env.clone(), InitMsg {}).unwrap();
