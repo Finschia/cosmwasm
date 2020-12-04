@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
+    attr, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
     InitResponse, Querier, StdResult, Storage, Uint128,
 };
 
@@ -159,7 +159,7 @@ pub fn try_issue<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "issue")],
+        attributes: vec![attr("action", "issue")],
         data: None,
     };
     Ok(res)
@@ -191,7 +191,7 @@ pub fn try_transfer<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer")],
+        attributes: vec![attr("action", "transfer")],
         data: None,
     };
     Ok(res)
@@ -225,7 +225,7 @@ pub fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_from")],
+        attributes: vec![attr("action", "transfer_from")],
         data: None,
     };
     Ok(res)
@@ -255,7 +255,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "mint")],
+        attributes: vec![attr("action", "mint")],
         data: None,
     };
     Ok(res)
@@ -283,7 +283,7 @@ pub fn try_burn<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn")],
+        attributes: vec![attr("action", "burn")],
         data: None,
     };
     Ok(res)
@@ -313,7 +313,7 @@ pub fn try_burn_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_from")],
+        attributes: vec![attr("action", "burn_from")],
         data: None,
     };
     Ok(res)
@@ -344,7 +344,7 @@ pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "grant_perm")],
+        attributes: vec![attr("action", "grant_perm")],
         data: None,
     };
     Ok(res)
@@ -373,7 +373,7 @@ pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "revoke_perm")],
+        attributes: vec![attr("action", "revoke_perm")],
         data: None,
     };
     Ok(res)
@@ -400,7 +400,7 @@ pub fn try_modify<S: Storage, A: Api, Q: Querier>(
     .into();
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "modify")],
+        attributes: vec![attr("action", "modify")],
         data: None,
     };
     Ok(res)
@@ -428,7 +428,7 @@ pub fn try_approve<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "approve")],
+        attributes: vec![attr("action", "approve")],
         data: None,
     };
     Ok(res)
