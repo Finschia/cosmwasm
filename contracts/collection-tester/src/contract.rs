@@ -2,8 +2,8 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Env, Deps, DepsMut, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, MessageInfo, StdResult, Uint128,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HandleResponse, HandleResult,
+    HumanAddr, InitResponse, MessageInfo, StdResult, Uint128,
 };
 
 use cosmwasm_ext::{
@@ -14,12 +14,7 @@ use cosmwasm_ext::{
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, State};
 
-pub fn init(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    _msg: InitMsg,
-) -> StdResult<InitResponse> {
+pub fn init(deps: DepsMut, _env: Env, info: MessageInfo, _msg: InitMsg) -> StdResult<InitResponse> {
     let state = State {
         owner: deps.api.canonical_address(&info.sender)?,
     };
@@ -186,7 +181,16 @@ pub fn handle(
             from,
             to_token_id,
             token_id,
-        } => try_attach_from(deps, env, info, proxy, contract_id, from, to_token_id, token_id),
+        } => try_attach_from(
+            deps,
+            env,
+            info,
+            proxy,
+            contract_id,
+            from,
+            to_token_id,
+            token_id,
+        ),
         HandleMsg::DetachFrom {
             proxy,
             contract_id,
@@ -196,11 +200,7 @@ pub fn handle(
     }
 }
 
-pub fn query(
-    deps: Deps,
-    env: Env,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetCollection { contract_id } => query_collection(deps, env, contract_id),
         QueryMsg::GetBalance {
@@ -1004,11 +1004,7 @@ pub fn try_detach_from(
     Ok(res)
 }
 
-fn query_collection(
-    deps: Deps,
-    _env: Env,
-    contract_id: String,
-) -> StdResult<Binary> {
+fn query_collection(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
     let res = match LinkCollectionQuerier::new(deps.querier).query_collection(contract_id)? {
         Some(collection_response) => collection_response,
         None => return to_binary(&None::<Box<Response<Collection>>>),
@@ -1044,11 +1040,7 @@ fn query_token_type(
     Ok(out)
 }
 
-fn query_token_types(
-    deps: Deps,
-    _env: Env,
-    contract_id: String,
-) -> StdResult<Binary> {
+fn query_token_types(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(deps.querier)
         .query_token_types(contract_id)
         .unwrap();
@@ -1056,12 +1048,7 @@ fn query_token_types(
     Ok(out)
 }
 
-fn query_token(
-    deps: Deps,
-    _env: Env,
-    contract_id: String,
-    token_id: String,
-) -> StdResult<Binary> {
+fn query_token(deps: Deps, _env: Env, contract_id: String, token_id: String) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(deps.querier)
         .query_token(contract_id, token_id)
         .unwrap();
@@ -1069,11 +1056,7 @@ fn query_token(
     Ok(out)
 }
 
-fn query_tokens(
-    deps: Deps,
-    _env: Env,
-    contract_id: String,
-) -> StdResult<Binary> {
+fn query_tokens(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(deps.querier)
         .query_tokens(contract_id)
         .unwrap();
@@ -1147,12 +1130,7 @@ fn query_root_or_parent_or_children(
     }
 }
 
-fn query_perms(
-    deps: Deps,
-    _env: Env,
-    contract_id: String,
-    addr: HumanAddr,
-) -> StdResult<Binary> {
+fn query_perms(deps: Deps, _env: Env, contract_id: String, addr: HumanAddr) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(deps.querier)
         .query_perm(contract_id, addr)
         .unwrap();

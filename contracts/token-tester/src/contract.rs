@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Env, Deps, DepsMut, MessageInfo, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, StdResult, Uint128,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HandleResponse, HandleResult,
+    HumanAddr, InitResponse, MessageInfo, StdResult, Uint128,
 };
 
 use cosmwasm_ext::{
@@ -13,12 +13,7 @@ use cosmwasm_ext::{
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, config_read, State};
 
-pub fn init(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    _msg: InitMsg,
-) -> StdResult<InitResponse> {
+pub fn init(deps: DepsMut, _env: Env, info: MessageInfo, _msg: InitMsg) -> StdResult<InitResponse> {
     let state = State {
         owner: deps.api.canonical_address(&info.sender)?,
     };
@@ -98,11 +93,7 @@ pub fn handle(
     }
 }
 
-pub fn query(
-    deps: Deps,
-    env: Env,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetToken { contract_id } => query_token(deps, env, contract_id),
         QueryMsg::GetBalance {
@@ -122,7 +113,9 @@ pub fn query(
             contract_id,
             approver,
         } => query_is_approved(deps, env, proxy, contract_id, approver),
-        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, env, proxy, contract_id),
+        QueryMsg::GetApprovers { proxy, contract_id } => {
+            query_approvers(deps, env, proxy, contract_id)
+        }
     }
 }
 
@@ -447,11 +440,7 @@ pub fn try_approve(
     Ok(res)
 }
 
-fn query_token(
-    deps: Deps,
-    _env: Env,
-    contract_id: String,
-) -> StdResult<Binary> {
+fn query_token(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
     let res = match LinkTokenQuerier::new(deps.querier).query_token(contract_id)? {
         Some(token_response) => token_response,
         None => return to_binary(&None::<Box<Response<Token>>>),
@@ -488,12 +477,7 @@ fn query_supply(
     Ok(out)
 }
 
-fn query_perm(
-    deps: Deps,
-    _env: Env,
-    contract_id: String,
-    address: HumanAddr,
-) -> StdResult<Binary> {
+fn query_perm(deps: Deps, _env: Env, contract_id: String, address: HumanAddr) -> StdResult<Binary> {
     let res = match LinkTokenQuerier::new(deps.querier).query_perm(contract_id, address)? {
         Some(permissions) => permissions,
         None => return to_binary(&None::<Box<Vec<TokenPerm>>>),
@@ -538,7 +522,9 @@ fn _query_owner(deps: Deps, _env: Env) -> StdResult<HumanAddr> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage};
+    use cosmwasm_std::testing::{
+        mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage,
+    };
     use cosmwasm_std::{coins, Env, OwnedDeps};
 
     fn create_contract(owner: String) -> (OwnedDeps<MockStorage, MockApi, MockQuerier>, Env) {
