@@ -438,7 +438,7 @@ fn query_token(
     deps: Deps,
     contract_id: String,
 ) -> StdResult<Binary> {
-    let res = match LinkTokenQuerier::new(&deps.querier).query_token(contract_id)? {
+    let res = match LinkTokenQuerier::new(deps.querier).query_token(contract_id)? {
         Some(token_response) => token_response,
         None => return to_binary(&None::<Box<Response<Token>>>),
     };
@@ -452,7 +452,7 @@ fn query_balance(
     contract_id: String,
     address: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkTokenQuerier::new(&deps.querier)
+    let res = LinkTokenQuerier::new(deps.querier)
         .query_balance(contract_id, address)
         .unwrap();
     let out = to_binary(&res)?;
@@ -465,7 +465,7 @@ fn query_supply(
     target_str: String,
 ) -> StdResult<Binary> {
     let target = Target::from_str(&target_str).unwrap();
-    let res = LinkTokenQuerier::new(&deps.querier)
+    let res = LinkTokenQuerier::new(deps.querier)
         .query_supply(contract_id, target)
         .unwrap();
     let out = to_binary(&res)?;
@@ -477,7 +477,7 @@ fn query_perm(
     contract_id: String,
     address: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = match LinkTokenQuerier::new(&deps.querier).query_perm(contract_id, address)? {
+    let res = match LinkTokenQuerier::new(deps.querier).query_perm(contract_id, address)? {
         Some(permissions) => permissions,
         None => return to_binary(&None::<Box<Vec<TokenPerm>>>),
     };
@@ -491,7 +491,7 @@ fn query_is_approved(
     contract_id: String,
     approver: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkTokenQuerier::new(&deps.querier)
+    let res = LinkTokenQuerier::new(deps.querier)
         .query_is_approved(proxy, contract_id, approver)
         .unwrap();
     let out = to_binary(&res)?;
@@ -503,7 +503,7 @@ fn query_approvers(
     proxy: HumanAddr,
     contract_id: String,
 ) -> StdResult<Binary> {
-    let res = match LinkTokenQuerier::new(&deps.querier).query_approvers(proxy, contract_id)? {
+    let res = match LinkTokenQuerier::new(deps.querier).query_approvers(proxy, contract_id)? {
         Some(approvers) => approvers,
         None => return to_binary(&None::<Box<Vec<HumanAddr>>>),
     };
