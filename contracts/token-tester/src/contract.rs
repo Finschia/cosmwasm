@@ -538,14 +538,14 @@ fn _query_owner(deps: Deps, _env: Env) -> StdResult<HumanAddr> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage};
-    use cosmwasm_std::{coins, Env};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage};
+    use cosmwasm_std::{coins, Env, OwnedDeps};
 
-    fn create_contract(owner: String) -> (Extern<MockStorage, MockApi, MockQuie
-r>, Env) {
-        let mut deps = mock_dependencies(20, &coins(1000, "cony"));
-        let env = mock_env(owner, &coins(1000, "cony"));
-        let res = init(&mut deps, env.clone(), InitMsg {}).unwrap();
+    fn create_contract(owner: String) -> (OwnedDeps<MockStorage, MockApi, MockQuerier>, Env) {
+        let mut deps = mock_dependencies(&coins(1000, "cony"));
+        let env = mock_env();
+        let info = mock_info(owner, &coins(1000, "cony"));
+        let res = init(deps.as_mut(), env.clone(), info.clone(), InitMsg {}).unwrap();
         assert_eq!(0, res.messages.len());
         (deps, env)
     }
@@ -555,7 +555,8 @@ r>, Env) {
         let addr = "creator";
 
         let (deps, _) = create_contract(addr.to_string());
-        let value = _query_owner(&deps).unwrap();
-        assert_eq!("creator", value.as_str());
+        let env = mock_env();
+        let value = _query_owner(deps.as_ref(), env).unwrap();
+        assert_eq!(addr, value.as_str());
     }
 }
