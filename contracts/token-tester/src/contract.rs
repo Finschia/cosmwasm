@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Env, Deps, DepsMut, HandleResponse, HandleResult, HumanAddr,
+    attr, to_binary, Binary, CosmosMsg, Env, Deps, DepsMut, MessageInfo, HandleResponse, HandleResult, HumanAddr,
     InitResponse, StdResult, Uint128,
 };
 
@@ -15,11 +15,12 @@ use crate::state::{config, config_read, State};
 
 pub fn init(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
+    info: MessageInfo,
     _msg: InitMsg,
 ) -> StdResult<InitResponse> {
     let state = State {
-        owner: deps.api.canonical_address(&env.message.sender)?,
+        owner: deps.api.canonical_address(&info.sender)?,
     };
 
     config(deps.storage).save(&state)?;
