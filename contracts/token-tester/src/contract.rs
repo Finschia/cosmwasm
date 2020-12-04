@@ -31,6 +31,7 @@ pub fn init(
 pub fn handle(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     msg: HandleMsg,
 ) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
     match msg {
@@ -45,82 +46,83 @@ pub fn handle(
             mintable,
             decimals,
         } => try_issue(
-            deps, env, owner, to, name, symbol, img_uri, meta, amount, mintable, decimals,
+            deps, env, info, owner, to, name, symbol, img_uri, meta, amount, mintable, decimals,
         ),
         HandleMsg::Transfer {
             from,
             contract_id,
             to,
             amount,
-        } => try_transfer(deps, env, from, contract_id, to, amount),
+        } => try_transfer(deps, env, info, from, contract_id, to, amount),
         HandleMsg::TransferFrom {
             proxy,
             from,
             contract_id,
             to,
             amount,
-        } => try_transfer_from(deps, env, proxy, from, contract_id, to, amount),
+        } => try_transfer_from(deps, env, info, proxy, from, contract_id, to, amount),
         HandleMsg::Mint {
             from,
             contract_id,
             to,
             amount,
-        } => try_mint(deps, env, from, contract_id, to, amount),
+        } => try_mint(deps, env, info, from, contract_id, to, amount),
         HandleMsg::Burn {
             from,
             contract_id,
             amount,
-        } => try_burn(deps, env, from, contract_id, amount),
+        } => try_burn(deps, env, info, from, contract_id, amount),
         HandleMsg::BurnFrom {
             proxy,
             from,
             contract_id,
             amount,
-        } => try_burn_from(deps, env, proxy, from, contract_id, amount),
+        } => try_burn_from(deps, env, info, proxy, from, contract_id, amount),
         HandleMsg::GrantPerm {
             from,
             contract_id,
             to,
             permission,
-        } => try_grant_perm(deps, env, from, contract_id, to, permission),
+        } => try_grant_perm(deps, env, info, from, contract_id, to, permission),
         HandleMsg::RevokePerm {
             from,
             contract_id,
             permission,
-        } => try_revoke_perm(deps, env, from, contract_id, permission),
-        HandleMsg::Modify { owner, contract_id } => try_modify(deps, env, owner, contract_id),
+        } => try_revoke_perm(deps, env, info, from, contract_id, permission),
+        HandleMsg::Modify { owner, contract_id } => try_modify(deps, env, info, owner, contract_id),
         HandleMsg::Approve {
             approver,
             contract_id,
             proxy,
-        } => try_approve(deps, env, approver, contract_id, proxy),
+        } => try_approve(deps, env, info, approver, contract_id, proxy),
     }
 }
 
 pub fn query(
     deps: Deps,
+    env: Env,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetToken { contract_id } => query_token(deps, contract_id),
+        QueryMsg::GetToken { contract_id } => query_token(deps, env, contract_id),
         QueryMsg::GetBalance {
             contract_id,
             address,
-        } => query_balance(deps, contract_id, address),
+        } => query_balance(deps, env, contract_id, address),
         QueryMsg::GetTotal {
             contract_id,
             target,
-        } => query_supply(deps, contract_id, target),
+        } => query_supply(deps, env, contract_id, target),
         QueryMsg::GetPerm {
             contract_id,
             address,
-        } => query_perm(deps, contract_id, address),
+        } => query_perm(deps, env, contract_id, address),
         QueryMsg::GetIsApproved {
             proxy,
             contract_id,
             approver,
-        } => query_is_approved(deps, proxy, contract_id, approver),
-        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, proxy, contract_id),
+        } => query_is_approved(deps, env, proxy, contract_id, approver),
+        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, env, proxy, contract_id),
     }
 }
 
@@ -128,6 +130,7 @@ pub fn query(
 pub fn try_issue(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     to: HumanAddr,
     name: String,
@@ -169,6 +172,7 @@ pub fn try_issue(
 pub fn try_transfer(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -201,6 +205,7 @@ pub fn try_transfer(
 pub fn try_transfer_from(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     from: HumanAddr,
     contract_id: String,
@@ -235,6 +240,7 @@ pub fn try_transfer_from(
 pub fn try_mint(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -265,6 +271,7 @@ pub fn try_mint(
 pub fn try_burn(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     amount: Uint128,
@@ -293,6 +300,7 @@ pub fn try_burn(
 pub fn try_burn_from(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     from: HumanAddr,
     contract_id: String,
@@ -323,6 +331,7 @@ pub fn try_burn_from(
 pub fn try_grant_perm(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -354,6 +363,7 @@ pub fn try_grant_perm(
 pub fn try_revoke_perm(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     perm_str: String,
@@ -383,6 +393,7 @@ pub fn try_revoke_perm(
 pub fn try_modify(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
 ) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
@@ -410,6 +421,7 @@ pub fn try_modify(
 pub fn try_approve(
     _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
@@ -437,6 +449,7 @@ pub fn try_approve(
 
 fn query_token(
     deps: Deps,
+    _env: Env,
     contract_id: String,
 ) -> StdResult<Binary> {
     let res = match LinkTokenQuerier::new(deps.querier).query_token(contract_id)? {
@@ -450,6 +463,7 @@ fn query_token(
 
 fn query_balance(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     address: HumanAddr,
 ) -> StdResult<Binary> {
@@ -462,6 +476,7 @@ fn query_balance(
 
 fn query_supply(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     target_str: String,
 ) -> StdResult<Binary> {
@@ -475,6 +490,7 @@ fn query_supply(
 
 fn query_perm(
     deps: Deps,
+    _env: Env,
     contract_id: String,
     address: HumanAddr,
 ) -> StdResult<Binary> {
@@ -488,6 +504,7 @@ fn query_perm(
 
 fn query_is_approved(
     deps: Deps,
+    _env: Env,
     proxy: HumanAddr,
     contract_id: String,
     approver: HumanAddr,
@@ -501,6 +518,7 @@ fn query_is_approved(
 
 fn query_approvers(
     deps: Deps,
+    _env: Env,
     proxy: HumanAddr,
     contract_id: String,
 ) -> StdResult<Binary> {
@@ -512,7 +530,7 @@ fn query_approvers(
     Ok(out)
 }
 
-fn _query_owner(deps: Deps) -> StdResult<HumanAddr> {
+fn _query_owner(deps: Deps, _env: Env) -> StdResult<HumanAddr> {
     let state = config_read(deps.storage).load()?;
     Ok(deps.api.human_address(&state.owner)?)
 }
