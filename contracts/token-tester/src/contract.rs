@@ -195,6 +195,7 @@ pub fn try_transfer(
     Ok(res)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn try_transfer_from(
     _deps: DepsMut,
     _env: Env,

@@ -604,6 +604,7 @@ pub fn try_transfer_nft(
     Ok(res)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn try_transfer_nft_from(
     _deps: DepsMut,
     _env: Env,
@@ -677,6 +678,7 @@ pub fn try_transfer_ft(
     Ok(res)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn try_transfer_ft_from(
     _deps: DepsMut,
     _env: Env,
@@ -938,6 +940,7 @@ pub fn try_detach(
     Ok(res)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn try_attach_from(
     _deps: DepsMut,
     _env: Env,
