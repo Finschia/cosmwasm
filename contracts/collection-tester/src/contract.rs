@@ -16,7 +16,7 @@ use crate::state::{config, State};
 
 pub fn init(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     _msg: InitMsg,
 ) -> StdResult<InitResponse> {
