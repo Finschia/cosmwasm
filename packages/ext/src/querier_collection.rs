@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{HumanAddr, Querier, StdResult, Uint128};
 
-use crate::query::{LinkQueryWrapper, Module, QueryData, Response, Target};
 use crate::collection::{Collection, CollectionPerm, Token, TokenType};
+use crate::query::{LinkQueryWrapper, Module, QueryData, Response};
 
 pub struct LinkCollectionQuerier<'a, Q: Querier> {
     querier: &'a Q,
@@ -54,7 +54,6 @@ pub enum CollectionQuery {
     QueryTotalParam {
         contract_id: String,
         token_id: String,
-        target: Target,
     },
     QueryPermParam {
         contract_id: String,
@@ -239,12 +238,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_supply(
-        &self,
-        contract_id: String,
-        token_id: String,
-        target: Target,
-    ) -> StdResult<Uint128> {
+    pub fn query_supply(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -252,7 +246,38 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
                 data: CollectionQuery::QueryTotalParam {
                     contract_id,
                     token_id,
-                    target,
+                },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_mint(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
+            module: Module::Collectionencode,
+            query_data: QueryData {
+                route: CollectionQueryRoute::Mint,
+                data: CollectionQuery::QueryTotalParam {
+                    contract_id,
+                    token_id,
+                },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_burn(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
+            module: Module::Collectionencode,
+            query_data: QueryData {
+                route: CollectionQueryRoute::Burn,
+                data: CollectionQuery::QueryTotalParam {
+                    contract_id,
+                    token_id,
                 },
             },
         };

@@ -1078,11 +1078,25 @@ fn query_total<S: Storage, A: Api, Q: Querier>(
     target_str: String,
 ) -> StdResult<Binary> {
     let target = Target::from_str(&target_str).unwrap();
-    let res = LinkCollectionQuerier::new(&deps.querier)
-        .query_supply(contract_id, token_id, target)
-        .unwrap();
-    let out = to_binary(&res)?;
-    Ok(out)
+    if Target::Supply == target {
+        let res = LinkCollectionQuerier::new(&deps.querier)
+            .query_supply(contract_id, token_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    } else if Target::Mint == target {
+        let res = LinkCollectionQuerier::new(&deps.querier)
+            .query_mint(contract_id, token_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    } else {
+        let res = LinkCollectionQuerier::new(&deps.querier)
+            .query_burn(contract_id, token_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    }
 }
 
 fn query_root_or_parent_or_children<S: Storage, A: Api, Q: Querier>(
