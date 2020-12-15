@@ -196,4 +196,8 @@ pub enum QueryMsg {
         proxy: HumanAddr,
         approver: HumanAddr,
     },
+    GetApprovers {
+        proxy: HumanAddr,
+        contract_id: String,
+    },
 }

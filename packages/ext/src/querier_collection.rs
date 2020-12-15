@@ -29,6 +29,7 @@ pub enum CollectionQueryRoute {
     Parent,
     Children,
     Approved,
+    Approver,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -75,6 +76,10 @@ pub enum CollectionQuery {
         contract_id: String,
         proxy: HumanAddr,
         approver: HumanAddr,
+    },
+    QueryApproversParam {
+        proxy: HumanAddr,
+        contract_id: String,
     },
 }
 
@@ -355,6 +360,23 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
                     proxy,
                     approver,
                 },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_approvers(
+        &self,
+        proxy: HumanAddr,
+        contract_id: String,
+    ) -> StdResult<Option<Vec<HumanAddr>>> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
+            module: Module::Collectionencode,
+            query_data: QueryData {
+                route: CollectionQueryRoute::Approver,
+                data: CollectionQuery::QueryApproversParam { proxy, contract_id },
             },
         };
 

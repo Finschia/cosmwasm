@@ -1135,3 +1135,16 @@ fn query_approved<S: Storage, A: Api, Q: Querier>(
     let out = to_binary(&res)?;
     Ok(out)
 }
+
+fn query_approvers<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    proxy: HumanAddr,
+    contract_id: String,
+) -> StdResult<Binary> {
+    let res = match LinkCollectionQuerier::new(&deps.querier).query_approvers(proxy, contract_id)? {
+        Some(approvers) => approvers,
+        None => return to_binary(&None::<Box<Vec<HumanAddr>>>),
+    };
+    let out = to_binary(&res)?;
+    Ok(out)
+}
