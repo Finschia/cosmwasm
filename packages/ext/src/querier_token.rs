@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{HumanAddr, Querier, StdResult, Uint128};
 
-use crate::query::{LinkQueryWrapper, Module, QueryData, Response, Target};
+use crate::query::{LinkQueryWrapper, Module, QueryData, Response};
 use crate::token::{Token, TokenPerm};
 
 pub struct LinkTokenQuerier<'a, Q: Querier> {
@@ -16,6 +16,8 @@ pub enum TokenQueryRoute {
     Tokens,
     Balance,
     Supply,
+    Mint,
+    Burn,
     Perms,
     Approved,
     Approvers,
@@ -33,7 +35,6 @@ pub enum TokenQuery {
     },
     QueryTotalParam {
         contract_id: String,
-        target: Target,
     },
     QueryPermParam {
         contract_id: String,
@@ -84,15 +85,38 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_supply(&self, contract_id: String, target: Target) -> StdResult<Uint128> {
+    pub fn query_supply(&self, contract_id: String) -> StdResult<Uint128> {
         let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
             module: Module::Tokenencode,
             query_data: QueryData {
                 route: TokenQueryRoute::Supply,
-                data: TokenQuery::QueryTotalParam {
-                    contract_id,
-                    target,
-                },
+                data: TokenQuery::QueryTotalParam { contract_id },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_mint(&self, contract_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
+            module: Module::Tokenencode,
+            query_data: QueryData {
+                route: TokenQueryRoute::Mint,
+                data: TokenQuery::QueryTotalParam { contract_id },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_burn(&self, contract_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
+            module: Module::Tokenencode,
+            query_data: QueryData {
+                route: TokenQueryRoute::Burn,
+                data: TokenQuery::QueryTotalParam { contract_id },
             },
         };
 

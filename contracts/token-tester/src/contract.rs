@@ -114,7 +114,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::GetTotal {
             contract_id,
             target,
-        } => query_supply(deps, contract_id, target),
+        } => query_total(deps, contract_id, target),
         QueryMsg::GetPerm {
             contract_id,
             address,
@@ -466,17 +466,31 @@ fn query_balance<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_supply<S: Storage, A: Api, Q: Querier>(
+fn query_total<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     contract_id: String,
     target_str: String,
 ) -> StdResult<Binary> {
     let target = Target::from_str(&target_str).unwrap();
-    let res = LinkTokenQuerier::new(&deps.querier)
-        .query_supply(contract_id, target)
-        .unwrap();
-    let out = to_binary(&res)?;
-    Ok(out)
+    if Target::Supply == target {
+        let res = LinkTokenQuerier::new(&deps.querier)
+            .query_supply(contract_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    } else if Target::Mint == target {
+        let res = LinkTokenQuerier::new(&deps.querier)
+            .query_mint(contract_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    } else {
+        let res = LinkTokenQuerier::new(&deps.querier)
+            .query_burn(contract_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    }
 }
 
 fn query_perm<S: Storage, A: Api, Q: Querier>(
