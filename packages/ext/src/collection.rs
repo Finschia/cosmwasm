@@ -65,6 +65,7 @@ impl MintNFTParam {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename = "permission")]
+#[serde(rename_all = "snake_case")]
 pub enum CollectionPerm {
     Mint,
     Burn,
