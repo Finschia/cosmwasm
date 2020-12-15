@@ -172,7 +172,7 @@ pub enum QueryMsg {
     GetTokens {
         contract_id: String,
     },
-    GetNft {
+    GetNftCount {
         contract_id: String,
         token_id: String,
         target: String,

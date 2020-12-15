@@ -213,11 +213,11 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             token_id,
         } => query_token(deps, contract_id, token_id),
         QueryMsg::GetTokens { contract_id } => query_tokens(deps, contract_id),
-        QueryMsg::GetNft {
+        QueryMsg::GetNftCount {
             contract_id,
             token_id,
             target,
-        } => query_nft(deps, contract_id, token_id, target),
+        } => query_nft_count(deps, contract_id, token_id, target),
         QueryMsg::GetTotal {
             contract_id,
             token_id,
@@ -1049,7 +1049,7 @@ fn query_tokens<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_nft<S: Storage, A: Api, Q: Querier>(
+fn query_nft_count<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     contract_id: String,
     token_id: String,
