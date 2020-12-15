@@ -350,7 +350,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         proxy: HumanAddr,
         approver: HumanAddr,
-    ) -> StdResult<Option<Vec<CollectionPerm>>> {
+    ) -> StdResult<bool> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
