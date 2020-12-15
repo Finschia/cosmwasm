@@ -107,7 +107,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         token_id: String,
         addr: HumanAddr,
     ) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Balance,
@@ -128,7 +128,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         token_id: String,
     ) -> StdResult<Response<TokenType>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokentypes,
@@ -144,7 +144,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_token_types(&self, contract_id: String) -> StdResult<Vec<Response<TokenType>>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokentypes,
@@ -164,7 +164,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         token_id: String,
     ) -> StdResult<Response<FungibleToken>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokens,
@@ -180,7 +180,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_tokens(&self, contract_id: String) -> StdResult<Vec<Response<FungibleToken>>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokens,
@@ -196,7 +196,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_nft_count(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftcount,
@@ -212,7 +212,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_nft_mint(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftmint,
@@ -228,7 +228,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_nft_burn(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftburn,
@@ -249,7 +249,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         token_id: String,
         target: Target,
     ) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Supply,
@@ -270,7 +270,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         token_id: String,
     ) -> StdResult<Response<NonFungibleToken>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Parent,
@@ -290,7 +290,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         token_id: String,
     ) -> StdResult<Response<NonFungibleToken>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Root,
@@ -310,7 +310,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         token_id: String,
     ) -> StdResult<Vec<Response<NonFungibleToken>>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Children,
@@ -330,7 +330,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         address: HumanAddr,
     ) -> StdResult<Option<Vec<CollectionPerm>>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Perms,
@@ -351,7 +351,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         proxy: HumanAddr,
         approver: HumanAddr,
     ) -> StdResult<Option<Vec<CollectionPerm>>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Approved,
