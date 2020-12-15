@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{HumanAddr, Querier, StdResult, Uint128};
 
-use crate::collection::{Collection, CollectionPerm, FungibleToken, NonFungibleToken, TokenType};
 use crate::query::{LinkQueryWrapper, Module, QueryData, Response, Target};
+use crate::collection::{Collection, CollectionPerm, Token, TokenType};
 
 pub struct LinkCollectionQuerier<'a, Q: Querier> {
     querier: &'a Q,
@@ -159,11 +159,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_token(
-        &self,
-        contract_id: String,
-        token_id: String,
-    ) -> StdResult<Response<FungibleToken>> {
+    pub fn query_token(&self, contract_id: String, token_id: String) -> StdResult<Response<Token>> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -179,7 +175,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_tokens(&self, contract_id: String) -> StdResult<Vec<Response<FungibleToken>>> {
+    pub fn query_tokens(&self, contract_id: String) -> StdResult<Vec<Response<Token>>> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -269,7 +265,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         &self,
         contract_id: String,
         token_id: String,
-    ) -> StdResult<Response<NonFungibleToken>> {
+    ) -> StdResult<Response<Token>> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -285,11 +281,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_root(
-        &self,
-        contract_id: String,
-        token_id: String,
-    ) -> StdResult<Response<NonFungibleToken>> {
+    pub fn query_root(&self, contract_id: String, token_id: String) -> StdResult<Response<Token>> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -309,7 +301,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         &self,
         contract_id: String,
         token_id: String,
-    ) -> StdResult<Vec<Response<NonFungibleToken>>> {
+    ) -> StdResult<Vec<Response<Token>>> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {

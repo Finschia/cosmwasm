@@ -13,20 +13,15 @@ pub struct Collection {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct NonFungibleToken {
+pub struct Token {
     pub contract_id: String,
     pub token_id: String,
-    pub owner: HumanAddr,
-    pub name: String,
-    pub meta: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct FungibleToken {
-    pub contract_id: String,
-    pub token_id: String,
-    pub decimals: Uint128,
-    pub mintable: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decimals: Option<Uint128>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<HumanAddr>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mintable: Option<bool>,
     pub name: String,
     pub meta: String,
 }
