@@ -233,7 +233,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             contract_id,
             proxy,
             approver,
-        } => query_approved(deps, contract_id, proxy, approver),
+        } => query_is_approved(deps, contract_id, proxy, approver),
+        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, proxy, contract_id),
     }
 }
 
@@ -1123,14 +1124,14 @@ fn query_perms<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_approved<S: Storage, A: Api, Q: Querier>(
+fn query_is_approved<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     contract_id: String,
     proxy: HumanAddr,
     approver: HumanAddr,
 ) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(&deps.querier)
-        .query_approved(contract_id, proxy, approver)
+        .query_is_approved(contract_id, proxy, approver)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)

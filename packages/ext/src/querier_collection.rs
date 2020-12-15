@@ -345,7 +345,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_approved(
+    pub fn query_is_approved(
         &self,
         contract_id: String,
         proxy: HumanAddr,
