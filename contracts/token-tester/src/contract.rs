@@ -87,7 +87,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             contract_id,
             permission,
         } => try_revoke_perm(deps, env, from, contract_id, permission),
-        HandleMsg::Modify { owner, contract_id } => try_modify(deps, env, owner, contract_id),
+        HandleMsg::Modify {
+            owner,
+            contract_id,
+            key,
+            value,
+        } => try_modify(deps, env, owner, contract_id, key, value),
         HandleMsg::Approve {
             approver,
             contract_id,
@@ -384,8 +389,10 @@ pub fn try_modify<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     owner: HumanAddr,
     contract_id: String,
+    key: String,
+    value: String,
 ) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
-    let change = Change::new("meta".to_string(), "update_token_meta".to_string());
+    let change = Change::new(key, value);
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
         msg_data: MsgData {
