@@ -77,8 +77,8 @@ pub enum CollectionQuery {
         approver: HumanAddr,
     },
     QueryApproversParam {
-        proxy: HumanAddr,
         contract_id: String,
+        proxy: HumanAddr,
     },
 }
 
