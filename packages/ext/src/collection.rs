@@ -1,6 +1,6 @@
 use schemars::JsonSchema;
+use serde::de::{Deserialize as deDeserialize, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
-use serde::de::{Deserialize as deDeserialize, Deserializer, Visitor, MapAccess};
 use std::fmt;
 
 use std::str::FromStr;
@@ -19,7 +19,7 @@ pub struct Collection {
 #[serde(untagged)]
 pub enum Token {
     FT(FungibleToken),
-    NFT(NonFungibleToken)
+    NFT(NonFungibleToken),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -101,7 +101,15 @@ impl FromStr for CollectionPerm {
     }
 }
 
-const FIELDS: &'static [&'static str] = &["contract_id", "token_id", "name", "meta", "decimals", "mintable", "owner"];
+const FIELDS: &[&str] = &[
+    "contract_id",
+    "token_id",
+    "name",
+    "meta",
+    "decimals",
+    "mintable",
+    "owner",
+];
 
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -121,7 +129,10 @@ impl<'de> Visitor<'de> for FieldVisitor {
     type Value = Field;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str(&format!("`{}` or `{}` or `{}` or `{}` or `{}` or `{}` or `{}`", FIELDS[0], FIELDS[1], FIELDS[2], FIELDS[3], FIELDS[4], FIELDS[5], FIELDS[6]))
+        formatter.write_str(&format!(
+            "`{}` or `{}` or `{}` or `{}` or `{}` or `{}` or `{}`",
+            FIELDS[0], FIELDS[1], FIELDS[2], FIELDS[3], FIELDS[4], FIELDS[5], FIELDS[6]
+        ))
     }
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
@@ -218,29 +229,55 @@ impl<'de> Visitor<'de> for TokenVisitor {
             }
         }
 
-        Ok(match (contract_id, token_id, name, meta, decimals_str, mintable, owner) {
-            (Some(contract_id), Some(token_id), Some(name), Some(meta), Some(decimals_str), Some(mintable), None) => {
-                let decimals = (&decimals_str).parse::<u128>().unwrap_or_else(|e| panic!(e));
-                Token::FT(FungibleToken {
-                    contract_id: contract_id,
-                    token_id: token_id,
-                    name: name,
-                    meta: meta,
-                    decimals: Uint128::from(decimals),
-                    mintable,
-                })
-            }
-            (Some(contract_id), Some(token_id), Some(name), Some(meta), None, None, Some(owner)) => {
-                Token::NFT(NonFungibleToken {
-                    contract_id: contract_id,
-                    token_id: token_id,
-                    name: name,
-                    meta: meta,
+        Ok(
+            match (
+                contract_id,
+                token_id,
+                name,
+                meta,
+                decimals_str,
+                mintable,
+                owner,
+            ) {
+                (
+                    Some(contract_id),
+                    Some(token_id),
+                    Some(name),
+                    Some(meta),
+                    Some(decimals_str),
+                    Some(mintable),
+                    None,
+                ) => {
+                    let decimals = (&decimals_str)
+                        .parse::<u128>()
+                        .unwrap_or_else(|e| panic!(e));
+                    Token::FT(FungibleToken {
+                        contract_id,
+                        token_id,
+                        name,
+                        meta,
+                        decimals: Uint128::from(decimals),
+                        mintable,
+                    })
+                }
+                (
+                    Some(contract_id),
+                    Some(token_id),
+                    Some(name),
+                    Some(meta),
+                    None,
+                    None,
+                    Some(owner),
+                ) => Token::NFT(NonFungibleToken {
+                    contract_id,
+                    token_id,
+                    name,
+                    meta,
                     owner: HumanAddr::from(owner),
-                })
-            }
-            _ => panic!("unexpected token type")
-        })
+                }),
+                _ => panic!("unexpected token type"),
+            },
+        )
     }
 }
 
