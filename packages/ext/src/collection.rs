@@ -486,7 +486,7 @@ mod tests {
             }
         )
     }
-    
+
     #[test]
     fn test_invalid_token_deserialize() {
         let json = r#"
