@@ -229,55 +229,56 @@ impl<'de> Visitor<'de> for TokenVisitor {
             }
         }
 
-        Ok(
-            match (
-                contract_id,
-                token_id,
-                name,
-                meta,
-                decimals_str,
-                mintable,
-                owner,
-            ) {
-                (
-                    Some(contract_id),
-                    Some(token_id),
-                    Some(name),
-                    Some(meta),
-                    Some(decimals_str),
-                    Some(mintable),
-                    None,
-                ) => {
-                    let decimals = (&decimals_str)
-                        .parse::<u128>()
-                        .unwrap_or_else(|e| panic!(e));
-                    Token::FT(FungibleToken {
-                        contract_id,
-                        token_id,
-                        name,
-                        meta,
-                        decimals: Uint128::from(decimals),
-                        mintable,
-                    })
-                }
-                (
-                    Some(contract_id),
-                    Some(token_id),
-                    Some(name),
-                    Some(meta),
-                    None,
-                    None,
-                    Some(owner),
-                ) => Token::NFT(NonFungibleToken {
+        let res: Result<Token, _> = match (
+            contract_id,
+            token_id,
+            name,
+            meta,
+            decimals_str,
+            mintable,
+            owner,
+        ) {
+            (
+                Some(contract_id),
+                Some(token_id),
+                Some(name),
+                Some(meta),
+                Some(decimals_str),
+                Some(mintable),
+                None,
+            ) => {
+                let decimals = (&decimals_str)
+                    .parse::<u128>()
+                    .unwrap_or_else(|e| panic!(e));
+                Ok(Token::FT(FungibleToken {
                     contract_id,
                     token_id,
                     name,
                     meta,
-                    owner: HumanAddr::from(owner),
-                }),
-                _ => panic!("unexpected token type"),
-            },
-        )
+                    decimals: Uint128::from(decimals),
+                    mintable,
+                }))
+            }
+            (
+                Some(contract_id),
+                Some(token_id),
+                Some(name),
+                Some(meta),
+                None,
+                None,
+                Some(owner),
+            ) => Ok(Token::NFT(NonFungibleToken {
+                contract_id,
+                token_id,
+                name,
+                meta,
+                owner: HumanAddr::from(owner),
+            })),
+            _ => Err(serde::de::Error::missing_field(
+                "The fields required to deserialize to FT or NFT are missing",
+            )),
+        };
+        res
     }
 }
 
