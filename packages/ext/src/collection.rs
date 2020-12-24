@@ -290,3 +290,223 @@ impl<'de> deDeserialize<'de> for Token {
         deserializer.deserialize_struct("Token", FIELDS, TokenVisitor)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::query::Response;
+
+    #[test]
+    fn test_ft_and_nft_deserialize() {
+        let json = r#"
+        [
+            {
+                "type": "collection/FT",
+                "value": {
+                    "contract_id": "9be17165",
+                    "token_id": "0000000100000000",
+                    "decimals": "18",
+                    "mintable": true,
+                    "name": "ft_test_name-1",
+                    "meta": ""
+                }
+            },
+            {
+                "type": "collection/NFT",
+                "value": {
+                    "contract_id": "9be17165",
+                    "token_id": "1000000100000001",
+                    "owner": "link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu",
+                    "name": "nft-0",
+                    "meta": ""
+                }
+            }
+        ]
+        "#;
+
+        let res = serde_json::from_str::<Vec<Response<Token>>>(json);
+        assert!(res.is_ok());
+        let tokens = res.unwrap();
+        let ft = tokens[0].clone();
+        let nft = tokens[1].clone();
+
+        assert_eq!(
+            ft,
+            Response {
+                key: "collection/FT".to_string(),
+                value: Token::FT(FungibleToken {
+                    contract_id: "9be17165".to_string(),
+                    token_id: "0000000100000000".to_string(),
+                    name: "ft_test_name-1".to_string(),
+                    meta: "".to_string(),
+                    decimals: Uint128(18),
+                    mintable: true,
+                })
+            }
+        );
+        assert_eq!(
+            nft,
+            Response {
+                key: "collection/NFT".to_string(),
+                value: Token::NFT(NonFungibleToken {
+                    contract_id: "9be17165".to_string(),
+                    token_id: "1000000100000001".to_string(),
+                    name: "nft-0".to_string(),
+                    meta: "".to_string(),
+                    owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
+                })
+            }
+        )
+    }
+
+    #[test]
+    fn test_fts_deserialize() {
+        let json = r#"
+        [
+            {
+                "type": "collection/FT",
+                "value": {
+                    "contract_id": "9be17165",
+                    "token_id": "0000000100000000",
+                    "decimals": "18",
+                    "mintable": true,
+                    "name": "ft_test_name-1",
+                    "meta": ""
+                }
+            },
+            {
+                "type": "collection/FT",
+                "value": {
+                    "contract_id": "9be17165",
+                    "token_id": "0000000100000001",
+                    "decimals": "8",
+                    "mintable": false,
+                    "name": "ft_test_name-2",
+                    "meta": "meta"
+
+                }
+            }
+        ]
+        "#;
+
+        let res = serde_json::from_str::<Vec<Response<Token>>>(json);
+        assert!(res.is_ok());
+        let tokens = res.unwrap();
+        let ft1 = tokens[0].clone();
+        let ft2 = tokens[1].clone();
+
+        assert_eq!(
+            ft1,
+            Response {
+                key: "collection/FT".to_string(),
+                value: Token::FT(FungibleToken {
+                    contract_id: "9be17165".to_string(),
+                    token_id: "0000000100000000".to_string(),
+                    name: "ft_test_name-1".to_string(),
+                    meta: "".to_string(),
+                    decimals: Uint128(18),
+                    mintable: true,
+                })
+            }
+        );
+        assert_eq!(
+            ft2,
+            Response {
+                key: "collection/FT".to_string(),
+                value: Token::FT(FungibleToken {
+                    contract_id: "9be17165".to_string(),
+                    token_id: "0000000100000001".to_string(),
+                    name: "ft_test_name-2".to_string(),
+                    meta: "meta".to_string(),
+                    decimals: Uint128(8),
+                    mintable: false,
+                })
+            }
+        )
+    }
+
+    #[test]
+    fn test_nfts_deserialize() {
+        let json = r#"
+        [
+            {
+                "type": "collection/NFT",
+                "value": {
+                    "contract_id": "9be17165",
+                    "token_id": "1000000100000001",
+                    "owner": "link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu",
+                    "name": "nft-0",
+                    "meta": ""
+                }
+            },
+            {
+                "type": "collection/NFT",
+                "value": {
+                    "contract_id": "9be17165",
+                    "token_id": "1000000100000002",
+                    "owner": "link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu",
+                    "name": "nft-1",
+                    "meta": ""
+                }
+            }
+        ]
+        "#;
+
+        let res = serde_json::from_str::<Vec<Response<Token>>>(json);
+        assert!(res.is_ok());
+        let tokens = res.unwrap();
+        let nft1 = tokens[0].clone();
+        let nft2 = tokens[1].clone();
+
+        assert_eq!(
+            nft1,
+            Response {
+                key: "collection/NFT".to_string(),
+                value: Token::NFT(NonFungibleToken {
+                    contract_id: "9be17165".to_string(),
+                    token_id: "1000000100000001".to_string(),
+                    name: "nft-0".to_string(),
+                    meta: "".to_string(),
+                    owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
+                })
+            }
+        );
+        assert_eq!(
+            nft2,
+            Response {
+                key: "collection/NFT".to_string(),
+                value: Token::NFT(NonFungibleToken {
+                    contract_id: "9be17165".to_string(),
+                    token_id: "1000000100000002".to_string(),
+                    name: "nft-1".to_string(),
+                    meta: "".to_string(),
+                    owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
+                })
+            }
+        )
+    }
+    
+    #[test]
+    fn test_invalid_token_deserialize() {
+        let json = r#"
+        [
+            {
+                "type": "collection/FT",
+                "value": {
+                    "contract_id": "9be17165",
+                    "token_id": "0000000100000000",
+                    "decimals": "18",
+                    "mintable": true,
+                    "name": "ft_test_name-1",
+                    "meta": ""
+                    "owner": "link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu",
+                }
+            }
+        ]
+        "#;
+
+        let res = serde_json::from_str::<Vec<Response<Token>>>(json);
+        assert!(!res.is_ok());
+    }
+}
