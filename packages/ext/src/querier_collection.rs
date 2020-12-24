@@ -35,48 +35,48 @@ pub enum CollectionQueryRoute {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CollectionQuery {
-    QueryCollectionParam {
+    CollectionParam {
         contract_id: String,
     },
-    QueryBalanceParam {
+    BalanceParam {
         contract_id: String,
         token_id: String,
         addr: HumanAddr,
     },
-    QueryTokentypesParam {
+    TokentypesParam {
         contract_id: String,
         token_id: String,
     },
-    QueryTokensParam {
+    TokensParam {
         contract_id: String,
         token_id: String,
     },
-    QueryTotalParam {
+    TotalParam {
         contract_id: String,
         token_id: String,
     },
-    QueryPermParam {
+    PermParam {
         contract_id: String,
         address: HumanAddr,
     },
-    QueryParentParam {
+    ParentParam {
         contract_id: String,
         token_id: String,
     },
-    QueryRootParam {
+    RootParam {
         contract_id: String,
         token_id: String,
     },
-    QueryChildrenParam {
+    ChildrenParam {
         contract_id: String,
         token_id: String,
     },
-    QueryApprovedParam {
+    IsApprovedParam {
         contract_id: String,
         proxy: HumanAddr,
         approver: HumanAddr,
     },
-    QueryApproversParam {
+    ApproversParam {
         contract_id: String,
         proxy: HumanAddr,
     },
@@ -92,7 +92,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Collections,
-                data: CollectionQuery::QueryCollectionParam { contract_id },
+                data: CollectionQuery::CollectionParam { contract_id },
             },
         };
 
@@ -110,7 +110,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Balance,
-                data: CollectionQuery::QueryBalanceParam {
+                data: CollectionQuery::BalanceParam {
                     contract_id,
                     token_id,
                     addr,
@@ -131,7 +131,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokentypes,
-                data: CollectionQuery::QueryTokentypesParam {
+                data: CollectionQuery::TokentypesParam {
                     contract_id,
                     token_id,
                 },
@@ -147,7 +147,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokentypes,
-                data: CollectionQuery::QueryTokentypesParam {
+                data: CollectionQuery::TokentypesParam {
                     contract_id,
                     token_id: "".to_string(),
                 },
@@ -163,7 +163,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokens,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -179,7 +179,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokens,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id: "".to_string(),
                 },
@@ -195,7 +195,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftcount,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -211,7 +211,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftmint,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -227,7 +227,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftburn,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -243,7 +243,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Supply,
-                data: CollectionQuery::QueryTotalParam {
+                data: CollectionQuery::TotalParam {
                     contract_id,
                     token_id,
                 },
@@ -259,7 +259,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Mint,
-                data: CollectionQuery::QueryTotalParam {
+                data: CollectionQuery::TotalParam {
                     contract_id,
                     token_id,
                 },
@@ -275,7 +275,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Burn,
-                data: CollectionQuery::QueryTotalParam {
+                data: CollectionQuery::TotalParam {
                     contract_id,
                     token_id,
                 },
@@ -295,7 +295,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Parent,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -311,7 +311,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Root,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -331,7 +331,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Children,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -351,7 +351,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Perms,
-                data: CollectionQuery::QueryPermParam {
+                data: CollectionQuery::PermParam {
                     contract_id,
                     address,
                 },
@@ -372,7 +372,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Approved,
-                data: CollectionQuery::QueryApprovedParam {
+                data: CollectionQuery::IsApprovedParam {
                     contract_id,
                     proxy,
                     approver,
@@ -393,7 +393,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Approver,
-                data: CollectionQuery::QueryApproversParam { proxy, contract_id },
+                data: CollectionQuery::ApproversParam { proxy, contract_id },
             },
         };
 
