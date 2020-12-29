@@ -172,7 +172,7 @@ pub enum QueryMsg {
     GetTokens {
         contract_id: String,
     },
-    GetNft {
+    GetNftCount {
         contract_id: String,
         token_id: String,
         target: String,
@@ -195,5 +195,9 @@ pub enum QueryMsg {
         contract_id: String,
         proxy: HumanAddr,
         approver: HumanAddr,
+    },
+    GetApprovers {
+        proxy: HumanAddr,
+        contract_id: String,
     },
 }

@@ -145,6 +145,7 @@ dependencies = [
  "cosmwasm-std",
  "schemars",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

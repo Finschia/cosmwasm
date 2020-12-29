@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{HumanAddr, Querier, StdResult, Uint128};
 
-use crate::collection::{Collection, CollectionPerm, FungibleToken, NonFungibleToken, TokenType};
-use crate::query::{LinkQueryWrapper, Module, QueryData, Response, Target};
+use crate::collection::{Collection, CollectionPerm, Token, TokenType};
+use crate::query::{LinkQueryWrapper, Module, QueryData, Response};
 
 pub struct LinkCollectionQuerier<'a, Q: Querier> {
     querier: &'a Q,
@@ -29,52 +29,56 @@ pub enum CollectionQueryRoute {
     Parent,
     Children,
     Approved,
+    Approver,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CollectionQuery {
-    QueryCollectionParam {
+    CollectionParam {
         contract_id: String,
     },
-    QueryBalanceParam {
+    BalanceParam {
         contract_id: String,
         token_id: String,
         addr: HumanAddr,
     },
-    QueryTokentypesParam {
+    TokentypesParam {
         contract_id: String,
         token_id: String,
     },
-    QueryTokensParam {
+    TokensParam {
         contract_id: String,
         token_id: String,
     },
-    QueryTotalParam {
+    TotalParam {
         contract_id: String,
         token_id: String,
-        target: Target,
     },
-    QueryPermParam {
+    PermParam {
         contract_id: String,
         address: HumanAddr,
     },
-    QueryParentParam {
+    ParentParam {
         contract_id: String,
         token_id: String,
     },
-    QueryRootParam {
+    RootParam {
         contract_id: String,
         token_id: String,
     },
-    QueryChildrenParam {
+    ChildrenParam {
         contract_id: String,
         token_id: String,
     },
-    QueryApprovedParam {
+    IsApprovedParam {
         contract_id: String,
         proxy: HumanAddr,
         approver: HumanAddr,
+    },
+    ApproversParam {
+        contract_id: String,
+        proxy: HumanAddr,
     },
 }
 
@@ -88,7 +92,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Collections,
-                data: CollectionQuery::QueryCollectionParam { contract_id },
+                data: CollectionQuery::CollectionParam { contract_id },
             },
         };
 
@@ -102,11 +106,11 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         token_id: String,
         addr: HumanAddr,
     ) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Balance,
-                data: CollectionQuery::QueryBalanceParam {
+                data: CollectionQuery::BalanceParam {
                     contract_id,
                     token_id,
                     addr,
@@ -123,11 +127,11 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         token_id: String,
     ) -> StdResult<Response<TokenType>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokentypes,
-                data: CollectionQuery::QueryTokentypesParam {
+                data: CollectionQuery::TokentypesParam {
                     contract_id,
                     token_id,
                 },
@@ -139,11 +143,11 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_token_types(&self, contract_id: String) -> StdResult<Vec<Response<TokenType>>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokentypes,
-                data: CollectionQuery::QueryTokentypesParam {
+                data: CollectionQuery::TokentypesParam {
                     contract_id,
                     token_id: "".to_string(),
                 },
@@ -154,16 +158,12 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_token(
-        &self,
-        contract_id: String,
-        token_id: String,
-    ) -> StdResult<Response<FungibleToken>> {
-        let request = LinkQueryWrapper {
+    pub fn query_token(&self, contract_id: String, token_id: String) -> StdResult<Response<Token>> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokens,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -174,12 +174,12 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_tokens(&self, contract_id: String) -> StdResult<Vec<Response<FungibleToken>>> {
-        let request = LinkQueryWrapper {
+    pub fn query_tokens(&self, contract_id: String) -> StdResult<Vec<Response<Token>>> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Tokens,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id: "".to_string(),
                 },
@@ -191,11 +191,11 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_nft_count(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftcount,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -207,11 +207,11 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_nft_mint(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftmint,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -223,11 +223,11 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
     }
 
     pub fn query_nft_burn(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Nftburn,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -238,20 +238,46 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_supply(
-        &self,
-        contract_id: String,
-        token_id: String,
-        target: Target,
-    ) -> StdResult<Uint128> {
-        let request = LinkQueryWrapper {
+    pub fn query_supply(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Supply,
-                data: CollectionQuery::QueryTotalParam {
+                data: CollectionQuery::TotalParam {
                     contract_id,
                     token_id,
-                    target,
+                },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_mint(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
+            module: Module::Collectionencode,
+            query_data: QueryData {
+                route: CollectionQueryRoute::Mint,
+                data: CollectionQuery::TotalParam {
+                    contract_id,
+                    token_id,
+                },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_burn(&self, contract_id: String, token_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
+            module: Module::Collectionencode,
+            query_data: QueryData {
+                route: CollectionQueryRoute::Burn,
+                data: CollectionQuery::TotalParam {
+                    contract_id,
+                    token_id,
                 },
             },
         };
@@ -264,12 +290,12 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         &self,
         contract_id: String,
         token_id: String,
-    ) -> StdResult<Response<NonFungibleToken>> {
-        let request = LinkQueryWrapper {
+    ) -> StdResult<Response<Token>> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Parent,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -280,16 +306,12 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_root(
-        &self,
-        contract_id: String,
-        token_id: String,
-    ) -> StdResult<Response<NonFungibleToken>> {
-        let request = LinkQueryWrapper {
+    pub fn query_root(&self, contract_id: String, token_id: String) -> StdResult<Response<Token>> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Root,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -304,12 +326,12 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         &self,
         contract_id: String,
         token_id: String,
-    ) -> StdResult<Vec<Response<NonFungibleToken>>> {
-        let request = LinkQueryWrapper {
+    ) -> StdResult<Vec<Response<Token>>> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Children,
-                data: CollectionQuery::QueryTokensParam {
+                data: CollectionQuery::TokensParam {
                     contract_id,
                     token_id,
                 },
@@ -325,11 +347,11 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         contract_id: String,
         address: HumanAddr,
     ) -> StdResult<Option<Vec<CollectionPerm>>> {
-        let request = LinkQueryWrapper {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Perms,
-                data: CollectionQuery::QueryPermParam {
+                data: CollectionQuery::PermParam {
                     contract_id,
                     address,
                 },
@@ -340,21 +362,38 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_approved(
+    pub fn query_is_approved(
         &self,
         contract_id: String,
         proxy: HumanAddr,
         approver: HumanAddr,
-    ) -> StdResult<Option<Vec<CollectionPerm>>> {
-        let request = LinkQueryWrapper {
+    ) -> StdResult<bool> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
                 route: CollectionQueryRoute::Approved,
-                data: CollectionQuery::QueryApprovedParam {
+                data: CollectionQuery::IsApprovedParam {
                     contract_id,
                     proxy,
                     approver,
                 },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_approvers(
+        &self,
+        proxy: HumanAddr,
+        contract_id: String,
+    ) -> StdResult<Option<Vec<HumanAddr>>> {
+        let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
+            module: Module::Collectionencode,
+            query_data: QueryData {
+                route: CollectionQueryRoute::Approver,
+                data: CollectionQuery::ApproversParam { proxy, contract_id },
             },
         };
 

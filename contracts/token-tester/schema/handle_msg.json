@@ -276,14 +276,22 @@
           "type": "object",
           "required": [
             "contract_id",
-            "owner"
+            "key",
+            "owner",
+            "value"
           ],
           "properties": {
             "contract_id": {
               "type": "string"
             },
+            "key": {
+              "type": "string"
+            },
             "owner": {
               "$ref": "#/definitions/HumanAddr"
+            },
+            "value": {
+              "type": "string"
             }
           }
         }

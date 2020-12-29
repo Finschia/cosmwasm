@@ -213,11 +213,11 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             token_id,
         } => query_token(deps, contract_id, token_id),
         QueryMsg::GetTokens { contract_id } => query_tokens(deps, contract_id),
-        QueryMsg::GetNft {
+        QueryMsg::GetNftCount {
             contract_id,
             token_id,
             target,
-        } => query_nft(deps, contract_id, token_id, target),
+        } => query_nft_count(deps, contract_id, token_id, target),
         QueryMsg::GetTotal {
             contract_id,
             token_id,
@@ -233,7 +233,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             contract_id,
             proxy,
             approver,
-        } => query_approved(deps, contract_id, proxy, approver),
+        } => query_is_approved(deps, contract_id, proxy, approver),
+        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, proxy, contract_id),
     }
 }
 
@@ -1048,7 +1049,7 @@ fn query_tokens<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_nft<S: Storage, A: Api, Q: Querier>(
+fn query_nft_count<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     contract_id: String,
     token_id: String,
@@ -1077,11 +1078,25 @@ fn query_total<S: Storage, A: Api, Q: Querier>(
     target_str: String,
 ) -> StdResult<Binary> {
     let target = Target::from_str(&target_str).unwrap();
-    let res = LinkCollectionQuerier::new(&deps.querier)
-        .query_supply(contract_id, token_id, target)
-        .unwrap();
-    let out = to_binary(&res)?;
-    Ok(out)
+    if Target::Supply == target {
+        let res = LinkCollectionQuerier::new(&deps.querier)
+            .query_supply(contract_id, token_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    } else if Target::Mint == target {
+        let res = LinkCollectionQuerier::new(&deps.querier)
+            .query_mint(contract_id, token_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    } else {
+        let res = LinkCollectionQuerier::new(&deps.querier)
+            .query_burn(contract_id, token_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    }
 }
 
 fn query_root_or_parent_or_children<S: Storage, A: Api, Q: Querier>(
@@ -1123,15 +1138,28 @@ fn query_perms<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_approved<S: Storage, A: Api, Q: Querier>(
+fn query_is_approved<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     contract_id: String,
     proxy: HumanAddr,
     approver: HumanAddr,
 ) -> StdResult<Binary> {
     let res = LinkCollectionQuerier::new(&deps.querier)
-        .query_approved(contract_id, proxy, approver)
+        .query_is_approved(contract_id, proxy, approver)
         .unwrap();
+    let out = to_binary(&res)?;
+    Ok(out)
+}
+
+fn query_approvers<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    proxy: HumanAddr,
+    contract_id: String,
+) -> StdResult<Binary> {
+    let res = match LinkCollectionQuerier::new(&deps.querier).query_approvers(proxy, contract_id)? {
+        Some(approvers) => approvers,
+        None => return to_binary(&None::<Box<Vec<HumanAddr>>>),
+    };
     let out = to_binary(&res)?;
     Ok(out)
 }

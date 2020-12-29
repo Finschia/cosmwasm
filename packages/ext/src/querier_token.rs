@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{HumanAddr, Querier, StdResult, Uint128};
 
-use crate::query::{LinkQueryWrapper, Module, QueryData, Response, Target};
+use crate::query::{LinkQueryWrapper, Module, QueryData, Response};
 use crate::token::{Token, TokenPerm};
 
 pub struct LinkTokenQuerier<'a, Q: Querier> {
@@ -16,6 +16,8 @@ pub enum TokenQueryRoute {
     Tokens,
     Balance,
     Supply,
+    Mint,
+    Burn,
     Perms,
     Approved,
     Approvers,
@@ -24,27 +26,26 @@ pub enum TokenQueryRoute {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TokenQuery {
-    QueryTokenParam {
+    TokenParam {
         contract_id: String,
     },
-    QueryBalanceParam {
-        contract_id: String,
-        address: HumanAddr,
-    },
-    QueryTotalParam {
-        contract_id: String,
-        target: Target,
-    },
-    QueryPermParam {
+    BalanceParam {
         contract_id: String,
         address: HumanAddr,
     },
-    QueryIsApprovedParam {
+    TotalParam {
+        contract_id: String,
+    },
+    PermParam {
+        contract_id: String,
+        address: HumanAddr,
+    },
+    IsApprovedParam {
         proxy: HumanAddr,
         contract_id: String,
         approver: HumanAddr,
     },
-    QueryApproversParam {
+    ApproversParam {
         proxy: HumanAddr,
         contract_id: String,
     },
@@ -60,7 +61,7 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
             module: Module::Tokenencode,
             query_data: QueryData {
                 route: TokenQueryRoute::Tokens,
-                data: TokenQuery::QueryTokenParam { contract_id },
+                data: TokenQuery::TokenParam { contract_id },
             },
         };
 
@@ -73,7 +74,7 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
             module: Module::Tokenencode,
             query_data: QueryData {
                 route: TokenQueryRoute::Balance,
-                data: TokenQuery::QueryBalanceParam {
+                data: TokenQuery::BalanceParam {
                     contract_id,
                     address,
                 },
@@ -84,15 +85,38 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_supply(&self, contract_id: String, target: Target) -> StdResult<Uint128> {
+    pub fn query_supply(&self, contract_id: String) -> StdResult<Uint128> {
         let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
             module: Module::Tokenencode,
             query_data: QueryData {
                 route: TokenQueryRoute::Supply,
-                data: TokenQuery::QueryTotalParam {
-                    contract_id,
-                    target,
-                },
+                data: TokenQuery::TotalParam { contract_id },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_mint(&self, contract_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
+            module: Module::Tokenencode,
+            query_data: QueryData {
+                route: TokenQueryRoute::Mint,
+                data: TokenQuery::TotalParam { contract_id },
+            },
+        };
+
+        let res = self.querier.custom_query(&request.into())?;
+        Ok(res)
+    }
+
+    pub fn query_burn(&self, contract_id: String) -> StdResult<Uint128> {
+        let request = LinkQueryWrapper::<TokenQueryRoute, TokenQuery> {
+            module: Module::Tokenencode,
+            query_data: QueryData {
+                route: TokenQueryRoute::Burn,
+                data: TokenQuery::TotalParam { contract_id },
             },
         };
 
@@ -109,7 +133,7 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
             module: Module::Tokenencode,
             query_data: QueryData {
                 route: TokenQueryRoute::Perms,
-                data: TokenQuery::QueryPermParam {
+                data: TokenQuery::PermParam {
                     contract_id,
                     address,
                 },
@@ -130,7 +154,7 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
             module: Module::Tokenencode,
             query_data: QueryData {
                 route: TokenQueryRoute::Approved,
-                data: TokenQuery::QueryIsApprovedParam {
+                data: TokenQuery::IsApprovedParam {
                     proxy,
                     contract_id,
                     approver,
@@ -151,7 +175,7 @@ impl<'a, Q: Querier> LinkTokenQuerier<'a, Q> {
             module: Module::Tokenencode,
             query_data: QueryData {
                 route: TokenQueryRoute::Approvers,
-                data: TokenQuery::QueryApproversParam { proxy, contract_id },
+                data: TokenQuery::ApproversParam { proxy, contract_id },
             },
         };
 
