@@ -64,6 +64,8 @@ pub enum HandleMsg {
     Modify {
         owner: HumanAddr,
         contract_id: String,
+        key: String,
+        value: String,
     },
     Approve {
         approver: HumanAddr,

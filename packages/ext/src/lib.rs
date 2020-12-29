@@ -8,7 +8,7 @@ mod query;
 mod token;
 
 pub use collection::{
-    Coin, Collection, CollectionPerm, FungibleToken, MintNFTParam, NonFungibleToken, TokenType,
+    Coin, Collection, CollectionPerm, MintNFTParam, Token as CollectionToken, TokenType,
 };
 pub use msg::{Change, LinkMsgWrapper, Module, MsgData};
 pub use msg_collection::{CollectionMsg, CollectionRoute};

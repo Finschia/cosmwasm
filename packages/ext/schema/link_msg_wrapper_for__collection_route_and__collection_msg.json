@@ -670,10 +670,10 @@
     },
     "permission": {
       "enum": [
-        "Mint",
-        "Burn",
-        "Issue",
-        "Modify"
+        "mint",
+        "burn",
+        "issue",
+        "modify"
       ]
     }
   }

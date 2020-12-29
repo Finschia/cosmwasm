@@ -84,7 +84,12 @@ pub fn handle(
             contract_id,
             permission,
         } => try_revoke_perm(deps, env, info, from, contract_id, permission),
-        HandleMsg::Modify { owner, contract_id } => try_modify(deps, env, info, owner, contract_id),
+        HandleMsg::Modify {
+            owner,
+            contract_id,
+            key,
+            value,
+        } => try_modify(deps, env, info, owner, contract_id, key, value),
         HandleMsg::Approve {
             approver,
             contract_id,
@@ -103,7 +108,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetTotal {
             contract_id,
             target,
-        } => query_supply(deps, env, contract_id, target),
+        } => query_total(deps, env, contract_id, target),
         QueryMsg::GetPerm {
             contract_id,
             address,
@@ -390,8 +395,10 @@ pub fn try_modify(
     _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
+    key: String,
+    value: String,
 ) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
-    let change = Change::new("meta".to_string(), "update_token_meta".to_string());
+    let change = Change::new(key, value);
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
         msg_data: MsgData {
@@ -464,18 +471,32 @@ fn query_balance(
     Ok(out)
 }
 
-fn query_supply(
+fn query_total(
     deps: Deps,
     _env: Env,
     contract_id: String,
     target_str: String,
 ) -> StdResult<Binary> {
     let target = Target::from_str(&target_str).unwrap();
-    let res = LinkTokenQuerier::new(deps.querier)
-        .query_supply(contract_id, target)
-        .unwrap();
-    let out = to_binary(&res)?;
-    Ok(out)
+    if Target::Supply == target {
+        let res = LinkTokenQuerier::new(deps.querier)
+            .query_supply(contract_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    } else if Target::Mint == target {
+        let res = LinkTokenQuerier::new(deps.querier)
+            .query_mint(contract_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    } else {
+        let res = LinkTokenQuerier::new(deps.querier)
+            .query_burn(contract_id)
+            .unwrap();
+        let out = to_binary(&res)?;
+        Ok(out)
+    }
 }
 
 fn query_perm(deps: Deps, _env: Env, contract_id: String, address: HumanAddr) -> StdResult<Binary> {
