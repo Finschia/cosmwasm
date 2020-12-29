@@ -239,7 +239,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             proxy,
             approver,
         } => query_is_approved(deps, env, contract_id, proxy, approver),
-        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, env, proxy, contract_id),
+        QueryMsg::GetApprovers { proxy, contract_id } => {
+            query_approvers(deps, env, proxy, contract_id)
+        }
     }
 }
 
