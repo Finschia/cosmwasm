@@ -158,7 +158,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_token(&self, contract_id: String, token_id: String) -> StdResult<Response<Token>> {
+    pub fn query_token(&self, contract_id: String, token_id: String) -> StdResult<Token> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -174,7 +174,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_tokens(&self, contract_id: String) -> StdResult<Vec<Response<Token>>> {
+    pub fn query_tokens(&self, contract_id: String) -> StdResult<Vec<Token>> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -286,11 +286,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_parent(
-        &self,
-        contract_id: String,
-        token_id: String,
-    ) -> StdResult<Response<Token>> {
+    pub fn query_parent(&self, contract_id: String, token_id: String) -> StdResult<Token> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -306,7 +302,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_root(&self, contract_id: String, token_id: String) -> StdResult<Response<Token>> {
+    pub fn query_root(&self, contract_id: String, token_id: String) -> StdResult<Token> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {
@@ -322,11 +318,7 @@ impl<'a, Q: Querier> LinkCollectionQuerier<'a, Q> {
         Ok(res)
     }
 
-    pub fn query_children(
-        &self,
-        contract_id: String,
-        token_id: String,
-    ) -> StdResult<Vec<Response<Token>>> {
+    pub fn query_children(&self, contract_id: String, token_id: String) -> StdResult<Vec<Token>> {
         let request = LinkQueryWrapper::<CollectionQueryRoute, CollectionQuery> {
             module: Module::Collectionencode,
             query_data: QueryData {

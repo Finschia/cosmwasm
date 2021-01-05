@@ -1,7 +1,5 @@
 use schemars::JsonSchema;
-use serde::de::{Deserialize as deDeserialize, Deserializer, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 use std::str::FromStr;
 
@@ -15,10 +13,12 @@ pub struct Collection {
     pub base_img_uri: String,
 }
 
-#[derive(Serialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(untagged)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(tag = "type", content = "value")]
 pub enum Token {
+    #[serde(rename = "collection/FT")]
     FT(FungibleToken),
+    #[serde(rename = "collection/NFT")]
     NFT(NonFungibleToken),
 }
 
@@ -101,196 +101,6 @@ impl FromStr for CollectionPerm {
     }
 }
 
-const FIELDS: &[&str] = &[
-    "contract_id",
-    "token_id",
-    "name",
-    "meta",
-    "decimals",
-    "mintable",
-    "owner",
-];
-
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Field {
-    ContractId,
-    TokenId,
-    Name,
-    Meta,
-    Decimals,
-    Mintable,
-    Owner,
-}
-
-struct FieldVisitor;
-
-impl<'de> Visitor<'de> for FieldVisitor {
-    type Value = Field;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str(&format!(
-            "`{}` or `{}` or `{}` or `{}` or `{}` or `{}` or `{}`",
-            FIELDS[0], FIELDS[1], FIELDS[2], FIELDS[3], FIELDS[4], FIELDS[5], FIELDS[6]
-        ))
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        match v {
-            "contract_id" => Ok(Field::ContractId),
-            "token_id" => Ok(Field::TokenId),
-            "name" => Ok(Field::Name),
-            "meta" => Ok(Field::Meta),
-            "decimals" => Ok(Field::Decimals),
-            "mintable" => Ok(Field::Mintable),
-            "owner" => Ok(Field::Owner),
-            _ => Err(serde::de::Error::unknown_field(v, FIELDS)),
-        }
-    }
-}
-
-impl<'de> deDeserialize<'de> for Field {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_identifier(FieldVisitor)
-    }
-}
-
-struct TokenVisitor;
-
-impl<'de> Visitor<'de> for TokenVisitor {
-    type Value = Token;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("struct Token")
-    }
-
-    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, <A as MapAccess<'de>>::Error>
-    where
-        A: MapAccess<'de>,
-    {
-        let mut contract_id = None;
-        let mut token_id = None;
-        let mut name = None;
-        let mut meta = None;
-        let mut decimals_str = None;
-        let mut mintable = None;
-        let mut owner = None;
-
-        while let Some(key) = map.next_key::<Field>()? {
-            match key {
-                Field::ContractId => {
-                    if contract_id.is_some() {
-                        return Err(serde::de::Error::duplicate_field(FIELDS[0]));
-                    }
-                    contract_id = Some(map.next_value::<String>()?);
-                }
-                Field::TokenId => {
-                    if token_id.is_some() {
-                        return Err(serde::de::Error::duplicate_field(FIELDS[1]));
-                    }
-                    token_id = Some(map.next_value::<String>()?);
-                }
-                Field::Name => {
-                    if name.is_some() {
-                        return Err(serde::de::Error::duplicate_field(FIELDS[2]));
-                    }
-                    name = Some(map.next_value::<String>()?);
-                }
-                Field::Meta => {
-                    if meta.is_some() {
-                        return Err(serde::de::Error::duplicate_field(FIELDS[3]));
-                    }
-                    meta = Some(map.next_value::<String>()?);
-                }
-                Field::Decimals => {
-                    if decimals_str.is_some() {
-                        return Err(serde::de::Error::duplicate_field(FIELDS[4]));
-                    }
-                    decimals_str = Some(map.next_value::<String>()?);
-                }
-                Field::Mintable => {
-                    if mintable.is_some() {
-                        return Err(serde::de::Error::duplicate_field(FIELDS[5]));
-                    }
-                    mintable = Some(map.next_value::<bool>()?);
-                }
-                Field::Owner => {
-                    if owner.is_some() {
-                        return Err(serde::de::Error::duplicate_field(FIELDS[6]));
-                    }
-                    owner = Some(map.next_value::<String>()?);
-                }
-            }
-        }
-
-        let res: Result<Token, _> = match (
-            contract_id,
-            token_id,
-            name,
-            meta,
-            decimals_str,
-            mintable,
-            owner,
-        ) {
-            (
-                Some(contract_id),
-                Some(token_id),
-                Some(name),
-                Some(meta),
-                Some(decimals_str),
-                Some(mintable),
-                None,
-            ) => {
-                let decimals = (&decimals_str)
-                    .parse::<u128>()
-                    .unwrap_or_else(|e| panic!(e));
-                Ok(Token::FT(FungibleToken {
-                    contract_id,
-                    token_id,
-                    name,
-                    meta,
-                    decimals: Uint128::from(decimals),
-                    mintable,
-                }))
-            }
-            (
-                Some(contract_id),
-                Some(token_id),
-                Some(name),
-                Some(meta),
-                None,
-                None,
-                Some(owner),
-            ) => Ok(Token::NFT(NonFungibleToken {
-                contract_id,
-                token_id,
-                name,
-                meta,
-                owner: HumanAddr::from(owner),
-            })),
-            _ => Err(serde::de::Error::missing_field(
-                "The fields required to deserialize to FT or NFT are missing",
-            )),
-        };
-        res
-    }
-}
-
-impl<'de> deDeserialize<'de> for Token {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_struct("Token", FIELDS, TokenVisitor)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -325,7 +135,7 @@ mod tests {
         ]
         "#;
 
-        let res = serde_json::from_str::<Vec<Response<Token>>>(json);
+        let res = serde_json::from_str::<Vec<Token>>(json);
         assert!(res.is_ok());
         let tokens = res.unwrap();
         let ft = tokens[0].clone();
@@ -333,30 +143,46 @@ mod tests {
 
         assert_eq!(
             ft,
-            Response {
-                key: "collection/FT".to_string(),
-                value: Token::FT(FungibleToken {
-                    contract_id: "9be17165".to_string(),
-                    token_id: "0000000100000000".to_string(),
-                    name: "ft_test_name-1".to_string(),
-                    meta: "".to_string(),
-                    decimals: Uint128(18),
-                    mintable: true,
-                })
-            }
+            Token::FT(FungibleToken {
+                contract_id: "9be17165".to_string(),
+                token_id: "0000000100000000".to_string(),
+                name: "ft_test_name-1".to_string(),
+                meta: "".to_string(),
+                decimals: Uint128(18),
+                mintable: true,
+            })
         );
         assert_eq!(
             nft,
-            Response {
-                key: "collection/NFT".to_string(),
-                value: Token::NFT(NonFungibleToken {
-                    contract_id: "9be17165".to_string(),
-                    token_id: "1000000100000001".to_string(),
-                    name: "nft-0".to_string(),
-                    meta: "".to_string(),
-                    owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
-                })
-            }
+            Token::NFT(NonFungibleToken {
+                contract_id: "9be17165".to_string(),
+                token_id: "1000000100000001".to_string(),
+                name: "nft-0".to_string(),
+                meta: "".to_string(),
+                owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
+            })
+        );
+
+        assert_eq!(
+            ft,
+            Token::FT(FungibleToken {
+                contract_id: "9be17165".to_string(),
+                token_id: "0000000100000000".to_string(),
+                name: "ft_test_name-1".to_string(),
+                meta: "".to_string(),
+                decimals: Uint128(18),
+                mintable: true,
+            })
+        );
+        assert_eq!(
+            nft,
+            Token::NFT(NonFungibleToken {
+                contract_id: "9be17165".to_string(),
+                token_id: "1000000100000001".to_string(),
+                name: "nft-0".to_string(),
+                meta: "".to_string(),
+                owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
+            })
         )
     }
 
@@ -390,7 +216,7 @@ mod tests {
         ]
         "#;
 
-        let res = serde_json::from_str::<Vec<Response<Token>>>(json);
+        let res = serde_json::from_str::<Vec<Token>>(json);
         assert!(res.is_ok());
         let tokens = res.unwrap();
         let ft1 = tokens[0].clone();
@@ -398,31 +224,25 @@ mod tests {
 
         assert_eq!(
             ft1,
-            Response {
-                key: "collection/FT".to_string(),
-                value: Token::FT(FungibleToken {
-                    contract_id: "9be17165".to_string(),
-                    token_id: "0000000100000000".to_string(),
-                    name: "ft_test_name-1".to_string(),
-                    meta: "".to_string(),
-                    decimals: Uint128(18),
-                    mintable: true,
-                })
-            }
+            Token::FT(FungibleToken {
+                contract_id: "9be17165".to_string(),
+                token_id: "0000000100000000".to_string(),
+                name: "ft_test_name-1".to_string(),
+                meta: "".to_string(),
+                decimals: Uint128(18),
+                mintable: true,
+            })
         );
         assert_eq!(
             ft2,
-            Response {
-                key: "collection/FT".to_string(),
-                value: Token::FT(FungibleToken {
-                    contract_id: "9be17165".to_string(),
-                    token_id: "0000000100000001".to_string(),
-                    name: "ft_test_name-2".to_string(),
-                    meta: "meta".to_string(),
-                    decimals: Uint128(8),
-                    mintable: false,
-                })
-            }
+            Token::FT(FungibleToken {
+                contract_id: "9be17165".to_string(),
+                token_id: "0000000100000001".to_string(),
+                name: "ft_test_name-2".to_string(),
+                meta: "meta".to_string(),
+                decimals: Uint128(8),
+                mintable: false,
+            })
         )
     }
 
@@ -453,7 +273,7 @@ mod tests {
         ]
         "#;
 
-        let res = serde_json::from_str::<Vec<Response<Token>>>(json);
+        let res = serde_json::from_str::<Vec<Token>>(json);
         assert!(res.is_ok());
         let tokens = res.unwrap();
         let nft1 = tokens[0].clone();
@@ -461,29 +281,23 @@ mod tests {
 
         assert_eq!(
             nft1,
-            Response {
-                key: "collection/NFT".to_string(),
-                value: Token::NFT(NonFungibleToken {
-                    contract_id: "9be17165".to_string(),
-                    token_id: "1000000100000001".to_string(),
-                    name: "nft-0".to_string(),
-                    meta: "".to_string(),
-                    owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
-                })
-            }
+            Token::NFT(NonFungibleToken {
+                contract_id: "9be17165".to_string(),
+                token_id: "1000000100000001".to_string(),
+                name: "nft-0".to_string(),
+                meta: "".to_string(),
+                owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
+            })
         );
         assert_eq!(
             nft2,
-            Response {
-                key: "collection/NFT".to_string(),
-                value: Token::NFT(NonFungibleToken {
-                    contract_id: "9be17165".to_string(),
-                    token_id: "1000000100000002".to_string(),
-                    name: "nft-1".to_string(),
-                    meta: "".to_string(),
-                    owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
-                })
-            }
+            Token::NFT(NonFungibleToken {
+                contract_id: "9be17165".to_string(),
+                token_id: "1000000100000002".to_string(),
+                name: "nft-1".to_string(),
+                meta: "".to_string(),
+                owner: HumanAddr::from("link18vd8fpwxzck93qlwghaj6arh4p7c5n89fvcmzu"),
+            })
         )
     }
 
@@ -506,7 +320,7 @@ mod tests {
         ]
         "#;
 
-        let res = serde_json::from_str::<Vec<Response<Token>>>(json);
+        let res = serde_json::from_str::<Vec<Token>>(json);
         assert!(!res.is_ok());
     }
 }
