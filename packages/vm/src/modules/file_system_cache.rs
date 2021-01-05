@@ -4,13 +4,13 @@
 use memmap::Mmap;
 use std::{
     fs::{self, File},
-    io::{self, Write},
+    io::{self, ErrorKind, Write},
     path::PathBuf,
 };
 
 use wasmer_runtime_core::{cache::Artifact, module::Module};
 
-use crate::backends::{backend, compiler_for_backend};
+use crate::backends::{compiler_for_backend, BACKEND_NAME};
 use crate::checksum::Checksum;
 use crate::errors::{VmError, VmResult};
 
@@ -58,15 +58,25 @@ impl FileSystemCache {
         }
     }
 
-    pub fn load(&self, checksum: &Checksum) -> VmResult<Module> {
-        self.load_with_backend(checksum, backend())
-    }
+    pub fn load(&self, checksum: &Checksum) -> VmResult<Option<Module>> {
+        let backend = BACKEND_NAME;
 
-    pub fn load_with_backend(&self, checksum: &Checksum, backend: &str) -> VmResult<Module> {
         let filename = checksum.to_hex();
         let file_path = self.path.clone().join(backend).join(filename);
-        let file = File::open(file_path)
-            .map_err(|e| VmError::cache_err(format!("Error opening module file: {}", e)))?;
+
+        let file = match File::open(file_path) {
+            Ok(file) => file,
+            Err(err) => match err.kind() {
+                ErrorKind::NotFound => return Ok(None),
+                _ => {
+                    return Err(VmError::cache_err(format!(
+                        "Error opening module file: {}",
+                        err
+                    )))
+                }
+            },
+        };
+
         let mmap = unsafe { Mmap::map(&file) }
             .map_err(|e| VmError::cache_err(format!("Mmap error: {}", e)))?;
 
@@ -79,10 +89,11 @@ impl FileSystemCache {
                     .as_ref(),
             )
         }?;
-        Ok(module)
+        Ok(Some(module))
     }
 
-    pub fn store(&mut self, checksum: &Checksum, module: Module) -> VmResult<()> {
+    /// Stores a serialization of the module to the file system
+    pub fn store(&mut self, checksum: &Checksum, module: &Module) -> VmResult<()> {
         let backend_str = module.info().backend.to_string();
         let modules_dir = self.path.clone().join(backend_str);
         fs::create_dir_all(&modules_dir)
@@ -105,14 +116,17 @@ impl FileSystemCache {
 mod tests {
     use super::*;
     use crate::backends::compile;
-    use std::env;
-    use wabt::wat2wasm;
+    use tempfile::TempDir;
 
     #[test]
     fn test_file_system_cache_run() {
         use wasmer_runtime_core::{imports, typed_func::Func};
 
-        let wasm = wat2wasm(
+        let tmp_dir = TempDir::new().unwrap();
+        let mut cache = unsafe { FileSystemCache::new(tmp_dir.path()).unwrap() };
+
+        // Create module
+        let wasm = wat::parse_str(
             r#"(module
             (type $t0 (func (param i32) (result i32)))
             (func $add_one (export "add_one") (type $t0) (param $p0 i32) (result i32)
@@ -123,29 +137,29 @@ mod tests {
         )
         .unwrap();
         let checksum = Checksum::generate(&wasm);
-
         let module = compile(&wasm).unwrap();
 
-        // assert we are using the proper backend
-        assert_eq!(backend().to_string(), module.info().backend.to_string());
+        // Module does not exist
+        let cached = cache.load(&checksum).unwrap();
+        assert!(cached.is_none());
 
-        let cache_dir = env::temp_dir();
-        let mut fs_cache = unsafe { FileSystemCache::new(cache_dir).unwrap() };
+        // Store module
+        cache.store(&checksum, &module).unwrap();
 
-        // store module
-        fs_cache.store(&checksum, module.clone()).unwrap();
+        // Load module
+        let cached = cache.load(&checksum).unwrap();
+        assert!(cached.is_some());
 
-        // load module
-        let cached_result = fs_cache.load(&checksum);
-
-        let cached_module = cached_result.unwrap();
-        let import_object = imports! {};
-        let instance = cached_module.instantiate(&import_object).unwrap();
-        let add_one: Func<i32, i32> = instance.exports.get("add_one").unwrap();
-
-        let value = add_one.call(42).unwrap();
-
-        // verify it works
-        assert_eq!(value, 43);
+        // Check the returned module is functional.
+        // This is not really testing the cache API but better safe than sorry.
+        {
+            assert_eq!(module.info().backend.to_string(), BACKEND_NAME.to_string());
+            let cached_module = cached.unwrap();
+            let import_object = imports! {};
+            let instance = cached_module.instantiate(&import_object).unwrap();
+            let add_one: Func<i32, i32> = instance.exports.get("add_one").unwrap();
+            let value = add_one.call(42).unwrap();
+            assert_eq!(value, 43);
+        }
     }
 }

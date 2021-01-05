@@ -1,6 +1,6 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use snafu::Snafu;
+#[cfg(feature = "backtraces")]
+use std::backtrace::Backtrace;
+use thiserror::Error;
 
 /// Structured error type for init, handle and query.
 ///
@@ -16,203 +16,147 @@ use snafu::Snafu;
 ///
 /// Checklist for adding a new error:
 /// - Add enum case
-/// - Add to PartialEq implementation
-/// - Add serialize/deserialize test
 /// - Add creator function in std_error_helpers.rs
-/// - Regenerate schemas
-#[derive(Debug, Serialize, Deserialize, Snafu, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-#[non_exhaustive]
+#[derive(Error, Debug)]
 pub enum StdError {
     /// Whenever there is no specific error type available
-    #[snafu(display("Generic error: {}", msg))]
+    #[error("Generic error: {msg}")]
     GenericErr {
         msg: String,
-        #[serde(skip)]
-        backtrace: Option<snafu::Backtrace>,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
     },
-    #[snafu(display("Invalid Base64 string: {}", msg))]
+    #[error("Invalid Base64 string: {msg}")]
     InvalidBase64 {
         msg: String,
-        #[serde(skip)]
-        backtrace: Option<snafu::Backtrace>,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("Invalid data size: expected={expected} actual={actual}")]
+    InvalidDataSize {
+        expected: u64,
+        actual: u64,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
     },
     /// Whenever UTF-8 bytes cannot be decoded into a unicode string, e.g. in String::from_utf8 or str::from_utf8.
-    #[snafu(display("Cannot decode UTF8 bytes into string: {}", msg))]
+    #[error("Cannot decode UTF8 bytes into string: {msg}")]
     InvalidUtf8 {
         msg: String,
-        #[serde(skip)]
-        backtrace: Option<snafu::Backtrace>,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
     },
-    #[snafu(display("{} not found", kind))]
+    #[error("{kind} not found")]
     NotFound {
         kind: String,
-        #[serde(skip)]
-        backtrace: Option<snafu::Backtrace>,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
     },
-    #[snafu(display("Error parsing into type {}: {}", target, msg))]
+    #[error("Error parsing into type {target_type}: {msg}")]
     ParseErr {
         /// the target type that was attempted
-        target: String,
+        target_type: String,
         msg: String,
-        #[serde(skip)]
-        backtrace: Option<snafu::Backtrace>,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
     },
-    #[snafu(display("Error serializing type {}: {}", source, msg))]
+    #[error("Error serializing type {source_type}: {msg}")]
     SerializeErr {
         /// the source type that was attempted
-        #[snafu(source(false))]
-        source: String,
+        source_type: String,
         msg: String,
-        #[serde(skip)]
-        backtrace: Option<snafu::Backtrace>,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
     },
-    #[snafu(display("Unauthorized"))]
-    Unauthorized {
-        #[serde(skip)]
-        backtrace: Option<snafu::Backtrace>,
-    },
-    #[snafu(display("Cannot subtract {} from {}", subtrahend, minuend))]
+    #[error("Cannot subtract {subtrahend} from {minuend}")]
     Underflow {
         minuend: String,
         subtrahend: String,
-        #[serde(skip)]
-        backtrace: Option<snafu::Backtrace>,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
     },
 }
 
 impl StdError {
     pub fn generic_err<S: Into<String>>(msg: S) -> Self {
-        GenericErr { msg: msg.into() }.build()
+        StdError::GenericErr {
+            msg: msg.into(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
     }
 
     pub fn invalid_base64<S: ToString>(msg: S) -> Self {
-        InvalidBase64 {
+        StdError::InvalidBase64 {
             msg: msg.to_string(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
         }
-        .build()
+    }
+
+    pub fn invalid_data_size(expected: usize, actual: usize) -> Self {
+        StdError::InvalidDataSize {
+            // Cast is safe because usize is 32 or 64 bit large in all environments we support
+            expected: expected as u64,
+            actual: actual as u64,
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
     }
 
     pub fn invalid_utf8<S: ToString>(msg: S) -> Self {
-        InvalidUtf8 {
+        StdError::InvalidUtf8 {
             msg: msg.to_string(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
         }
-        .build()
     }
 
     pub fn not_found<S: Into<String>>(kind: S) -> Self {
-        NotFound { kind: kind.into() }.build()
+        StdError::NotFound {
+            kind: kind.into(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
     }
 
     pub fn parse_err<T: Into<String>, M: ToString>(target: T, msg: M) -> Self {
-        ParseErr {
-            target: target.into(),
+        StdError::ParseErr {
+            target_type: target.into(),
             msg: msg.to_string(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
         }
-        .build()
     }
 
     pub fn serialize_err<S: Into<String>, M: ToString>(source: S, msg: M) -> Self {
-        SerializeErr {
-            source: source.into(),
+        StdError::SerializeErr {
+            source_type: source.into(),
             msg: msg.to_string(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
         }
-        .build()
     }
 
     pub fn underflow<U: ToString>(minuend: U, subtrahend: U) -> Self {
-        Underflow {
+        StdError::Underflow {
             minuend: minuend.to_string(),
             subtrahend: subtrahend.to_string(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
         }
-        .build()
-    }
-
-    pub fn unauthorized() -> Self {
-        Unauthorized {}.build()
     }
 }
 
-impl PartialEq for StdError {
-    /// Two errors are considered equal if and only if their payloads (i.e. all fields other than backtrace) are equal.
-    ///
-    /// The origin of the error (expressed by its backtrace) is ignored, which allows equality checks on errors and
-    /// results in tests. This is a property that might not always be desired depending on the use case and something
-    /// you should be aware of.
-    ///
-    /// Note: We destruct the unused backtrace as _ to avoid the use of `..` which silently ignores newly added fields.
-    #[allow(clippy::unneeded_field_pattern)]
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (
-                StdError::GenericErr { msg, backtrace: _ },
-                StdError::GenericErr {
-                    msg: msg2,
-                    backtrace: _,
-                },
-            ) => msg == msg2,
-            (
-                StdError::InvalidBase64 { msg, backtrace: _ },
-                StdError::InvalidBase64 {
-                    msg: msg2,
-                    backtrace: _,
-                },
-            ) => msg == msg2,
-            (
-                StdError::InvalidUtf8 { msg, backtrace: _ },
-                StdError::InvalidUtf8 {
-                    msg: msg2,
-                    backtrace: _,
-                },
-            ) => msg == msg2,
-            (
-                StdError::NotFound { kind, backtrace: _ },
-                StdError::NotFound {
-                    kind: kind2,
-                    backtrace: _,
-                },
-            ) => kind == kind2,
-            (
-                StdError::ParseErr {
-                    target,
-                    msg,
-                    backtrace: _,
-                },
-                StdError::ParseErr {
-                    target: target2,
-                    msg: msg2,
-                    backtrace: _,
-                },
-            ) => target == target2 && msg == msg2,
-            (
-                StdError::SerializeErr {
-                    source,
-                    msg,
-                    backtrace: _,
-                },
-                StdError::SerializeErr {
-                    source: source2,
-                    msg: msg2,
-                    backtrace: _,
-                },
-            ) => source == source2 && msg == msg2,
-            (StdError::Unauthorized { backtrace: _ }, StdError::Unauthorized { backtrace: _ }) => {
-                true
-            }
-            (
-                StdError::Underflow {
-                    minuend,
-                    subtrahend,
-                    backtrace: _,
-                },
-                StdError::Underflow {
-                    minuend: minued2,
-                    subtrahend: subtrahend2,
-                    backtrace: _,
-                },
-            ) => minuend == minued2 && subtrahend == subtrahend2,
-            _ => false,
-        }
+impl From<std::str::Utf8Error> for StdError {
+    fn from(source: std::str::Utf8Error) -> Self {
+        Self::invalid_utf8(source)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for StdError {
+    fn from(source: std::string::FromUtf8Error) -> Self {
+        Self::invalid_utf8(source)
     }
 }
 
@@ -226,7 +170,7 @@ pub type StdResult<T> = core::result::Result<T, StdError>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::serde::{from_slice, to_vec};
+    use std::str;
 
     // constructors
 
@@ -277,6 +221,20 @@ mod test {
     }
 
     #[test]
+    fn invalid_data_size_works() {
+        let error = StdError::invalid_data_size(31, 14);
+        match error {
+            StdError::InvalidDataSize {
+                expected, actual, ..
+            } => {
+                assert_eq!(expected, 31);
+                assert_eq!(actual, 14);
+            }
+            _ => panic!("expect different error"),
+        }
+    }
+
+    #[test]
     fn invalid_utf8_works_for_strings() {
         let error = StdError::invalid_utf8("my text");
         match error {
@@ -312,8 +270,10 @@ mod test {
     fn parse_err_works() {
         let error = StdError::parse_err("Book", "Missing field: title");
         match error {
-            StdError::ParseErr { target, msg, .. } => {
-                assert_eq!(target, "Book");
+            StdError::ParseErr {
+                target_type, msg, ..
+            } => {
+                assert_eq!(target_type, "Book");
                 assert_eq!(msg, "Missing field: title");
             }
             _ => panic!("expect different error"),
@@ -324,8 +284,10 @@ mod test {
     fn serialize_err_works() {
         let error = StdError::serialize_err("Book", "Content too long");
         match error {
-            StdError::SerializeErr { source, msg, .. } => {
-                assert_eq!(source, "Book");
+            StdError::SerializeErr {
+                source_type, msg, ..
+            } => {
+                assert_eq!(source_type, "Book");
                 assert_eq!(msg, "Content too long");
             }
             _ => panic!("expect different error"),
@@ -365,127 +327,45 @@ mod test {
     }
 
     #[test]
-    fn unauthorized_works() {
-        let error = StdError::unauthorized();
-        match error {
-            StdError::Unauthorized { .. } => {}
-            _ => panic!("expect different error"),
-        }
-    }
-
-    #[test]
-    fn can_serialize() {
-        let error = InvalidBase64 {
-            msg: "invalid length".to_string(),
-        }
-        .build();
+    fn implements_debug() {
+        let error: StdError = StdError::underflow(3, 5);
+        let embedded = format!("Debug message: {:?}", error);
         assert_eq!(
-            to_vec(&error).unwrap(),
-            br#"{"invalid_base64":{"msg":"invalid length"}}"#.to_vec()
+            embedded,
+            r#"Debug message: Underflow { minuend: "3", subtrahend: "5" }"#
         );
     }
 
     #[test]
-    fn can_deserialize() {
-        let error: StdError =
-            from_slice(br#"{"invalid_base64":{"msg":"invalid length"}}"#).unwrap();
+    fn implements_display() {
+        let error: StdError = StdError::underflow(3, 5);
+        let embedded = format!("Display message: {}", error);
+        assert_eq!(embedded, "Display message: Cannot subtract 5 from 3");
+    }
+
+    #[test]
+    fn from_std_str_utf8error_works() {
+        let error: StdError = str::from_utf8(b"Hello \xF0\x90\x80World")
+            .unwrap_err()
+            .into();
         match error {
-            StdError::InvalidBase64 { msg, backtrace } => {
-                assert_eq!(msg, "invalid length");
-                assert!(backtrace.is_none());
+            StdError::InvalidUtf8 { msg, .. } => {
+                assert_eq!(msg, "invalid utf-8 sequence of 3 bytes from index 6")
             }
-            _ => panic!("invalid type"),
-        };
+            err => panic!("Unexpected error: {:?}", err),
+        }
     }
 
-    /// The deseralizer in from_slice can perform zero-copy deserializations (https://serde.rs/lifetimes.html).
-    /// So it is possible to have `&'static str` fields as long as all source data is always static.
-    /// This is an unrealistic assumption for our use case. This test case ensures we can deseralize
-    /// errors from limited liefetime sources.
     #[test]
-    fn can_deserialize_from_non_static_source() {
-        let source = (br#"{"not_found":{"kind":"bugs"}}"#).to_vec();
-        let error: StdError = from_slice(&source).unwrap();
+    fn from_std_string_fromutf8error_works() {
+        let error: StdError = String::from_utf8(b"Hello \xF0\x90\x80World".to_vec())
+            .unwrap_err()
+            .into();
         match error {
-            StdError::NotFound { kind, backtrace } => {
-                assert_eq!(kind, "bugs");
-                assert!(backtrace.is_none());
+            StdError::InvalidUtf8 { msg, .. } => {
+                assert_eq!(msg, "invalid utf-8 sequence of 3 bytes from index 6")
             }
-            _ => panic!("invalid type"),
-        };
-    }
-
-    #[test]
-    fn eq_works() {
-        let error1 = StdError::InvalidBase64 {
-            msg: "invalid length".to_string(),
-            backtrace: None,
-        };
-        let error2 = StdError::InvalidBase64 {
-            msg: "invalid length".to_string(),
-            backtrace: None,
-        };
-        assert_eq!(error1, error2);
-    }
-
-    #[test]
-    fn ne_works() {
-        let error1 = StdError::InvalidBase64 {
-            msg: "invalid length".to_string(),
-            backtrace: None,
-        };
-        let error2 = StdError::InvalidBase64 {
-            msg: "other bla".to_string(),
-            backtrace: None,
-        };
-        assert_ne!(error1, error2);
-    }
-
-    fn assert_conversion(original: StdError) {
-        let seralized = to_vec(&original).unwrap();
-        let restored: StdError = from_slice(&seralized).unwrap();
-        assert_eq!(restored, original);
-    }
-
-    #[test]
-    fn generic_err_conversion() {
-        assert_conversion(GenericErr { msg: "something" }.build());
-    }
-
-    #[test]
-    fn invalid_base64_conversion() {
-        assert_conversion(
-            InvalidBase64 {
-                msg: "invalid length".to_string(),
-            }
-            .build(),
-        );
-    }
-
-    #[test]
-    fn unauthorized_conversion() {
-        assert_conversion(Unauthorized {}.build());
-    }
-
-    #[test]
-    fn not_found_conversion() {
-        assert_conversion(NotFound { kind: "State" }.build());
-    }
-
-    #[test]
-    fn parse_err_conversion() {
-        let err = from_slice::<String>(b"123").unwrap_err();
-        assert_conversion(err);
-    }
-
-    #[test]
-    fn serialize_err_conversion() {
-        assert_conversion(
-            SerializeErr {
-                source: "Person",
-                msg: "buffer is full",
-            }
-            .build(),
-        );
+            err => panic!("Unexpected error: {:?}", err),
+        }
     }
 }

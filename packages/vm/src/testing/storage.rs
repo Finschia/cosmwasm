@@ -1,13 +1,17 @@
 use std::collections::BTreeMap;
 #[cfg(feature = "iterator")]
+use std::collections::HashMap;
+#[cfg(feature = "iterator")]
+use std::convert::TryInto;
+#[cfg(feature = "iterator")]
 use std::ops::{Bound, RangeBounds};
 
 #[cfg(feature = "iterator")]
 use cosmwasm_std::{Order, KV};
 
 #[cfg(feature = "iterator")]
-use crate::traits::StorageIterator;
-use crate::{FfiResult, GasInfo, Storage};
+use crate::BackendError;
+use crate::{BackendResult, GasInfo, Storage};
 
 #[cfg(feature = "iterator")]
 const GAS_COST_LAST_ITERATION: u64 = 37;
@@ -15,94 +19,119 @@ const GAS_COST_LAST_ITERATION: u64 = 37;
 #[cfg(feature = "iterator")]
 const GAS_COST_RANGE: u64 = 11;
 
-/// A storage iterator for testing only. This type uses a Rust iterator
-/// as a data source, which does not provide a gas value for the last iteration.
 #[cfg(feature = "iterator")]
-pub struct MockIterator<'a> {
-    source: Box<dyn Iterator<Item = (KV, u64)> + 'a>,
-}
-
-#[cfg(feature = "iterator")]
-impl MockIterator<'_> {
-    pub fn empty() -> Self {
-        MockIterator {
-            source: Box::new(std::iter::empty()),
-        }
-    }
-}
-
-#[cfg(feature = "iterator")]
-impl StorageIterator for MockIterator<'_> {
-    fn next(&mut self) -> FfiResult<Option<KV>> {
-        match self.source.next() {
-            Some((kv, gas_used)) => (Ok(Some(kv)), GasInfo::with_externally_used(gas_used)),
-            None => (
-                Ok(None),
-                GasInfo::with_externally_used(GAS_COST_LAST_ITERATION),
-            ),
-        }
-    }
+#[derive(Default, Debug)]
+struct Iter {
+    data: Vec<KV>,
+    position: usize,
 }
 
 #[derive(Default, Debug)]
 pub struct MockStorage {
     data: BTreeMap<Vec<u8>, Vec<u8>>,
+    #[cfg(feature = "iterator")]
+    iterators: HashMap<u32, Iter>,
 }
 
 impl MockStorage {
     pub fn new() -> Self {
         MockStorage::default()
     }
+
+    #[cfg(feature = "iterator")]
+    pub fn all(&mut self, iterator_id: u32) -> BackendResult<Vec<KV>> {
+        let mut out: Vec<KV> = Vec::new();
+        let mut total = GasInfo::free();
+        loop {
+            let (result, info) = self.next(iterator_id);
+            total += info;
+            match result {
+                Err(err) => return (Err(err), total),
+                Ok(ok) => {
+                    if let Some(v) = ok {
+                        out.push(v);
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        (Ok(out), total)
+    }
 }
 
 impl Storage for MockStorage {
-    fn get(&self, key: &[u8]) -> FfiResult<Option<Vec<u8>>> {
+    fn get(&self, key: &[u8]) -> BackendResult<Option<Vec<u8>>> {
         let gas_info = GasInfo::with_externally_used(key.len() as u64);
         (Ok(self.data.get(key).cloned()), gas_info)
     }
 
     #[cfg(feature = "iterator")]
-    /// range allows iteration over a set of keys, either forwards or backwards
-    /// uses standard rust range notation, and eg db.range(b"foo"..b"bar") also works reverse
-    fn range<'a>(
-        &'a self,
+    fn scan(
+        &mut self,
         start: Option<&[u8]>,
         end: Option<&[u8]>,
         order: Order,
-    ) -> FfiResult<Box<dyn StorageIterator + 'a>> {
+    ) -> BackendResult<u32> {
         let gas_info = GasInfo::with_externally_used(GAS_COST_RANGE);
         let bounds = range_bounds(start, end);
 
-        // BTreeMap.range panics if range is start > end.
-        // However, this cases represent just empty range and we treat it as such.
-        match (bounds.start_bound(), bounds.end_bound()) {
-            (Bound::Included(start), Bound::Excluded(end)) if start > end => {
-                return (Ok(Box::new(MockIterator::empty())), gas_info);
-            }
-            _ => {}
-        }
-
-        let original_iter = self.data.range(bounds);
-        let iter: Box<dyn Iterator<Item = (KV, u64)>> = match order {
-            Order::Ascending => Box::new(original_iter.map(clone_item).map(|item| {
-                let gas_cost = (item.0.len() + item.1.len()) as u64;
-                (item, gas_cost)
-            })),
-            Order::Descending => Box::new(original_iter.rev().map(clone_item).map(|item| {
-                let gas_cost = (item.0.len() + item.1.len()) as u64;
-                (item, gas_cost)
-            })),
+        let values: Vec<KV> = match (bounds.start_bound(), bounds.end_bound()) {
+            // BTreeMap.range panics if range is start > end.
+            // However, this cases represent just empty range and we treat it as such.
+            (Bound::Included(start), Bound::Excluded(end)) if start > end => Vec::new(),
+            _ => match order {
+                Order::Ascending => self.data.range(bounds).map(clone_item).collect(),
+                Order::Descending => self.data.range(bounds).rev().map(clone_item).collect(),
+            },
         };
-        (Ok(Box::new(MockIterator { source: iter })), gas_info)
+
+        let last_id: u32 = self
+            .iterators
+            .len()
+            .try_into()
+            .expect("Found more iterator IDs than supported");
+        let new_id = last_id + 1;
+        let iter = Iter {
+            data: values,
+            position: 0,
+        };
+        self.iterators.insert(new_id, iter);
+
+        (Ok(new_id), gas_info)
     }
 
-    fn set(&mut self, key: &[u8], value: &[u8]) -> FfiResult<()> {
+    #[cfg(feature = "iterator")]
+    fn next(&mut self, iterator_id: u32) -> BackendResult<Option<KV>> {
+        let iterator = match self.iterators.get_mut(&iterator_id) {
+            Some(i) => i,
+            None => {
+                return (
+                    Err(BackendError::iterator_does_not_exist(iterator_id)),
+                    GasInfo::free(),
+                )
+            }
+        };
+
+        let (value, gas_info): (Option<KV>, GasInfo) = if iterator.data.len() > iterator.position {
+            let item = iterator.data[iterator.position].clone();
+            iterator.position += 1;
+            let gas_cost = (item.0.len() + item.1.len()) as u64;
+            (Some(item), GasInfo::with_cost(gas_cost))
+        } else {
+            (None, GasInfo::with_externally_used(GAS_COST_LAST_ITERATION))
+        };
+
+        (Ok(value), gas_info)
+    }
+
+    fn set(&mut self, key: &[u8], value: &[u8]) -> BackendResult<()> {
         self.data.insert(key.to_vec(), value.to_vec());
         let gas_info = GasInfo::with_externally_used((key.len() + value.len()) as u64);
         (Ok(()), gas_info)
     }
 
-    fn remove(&mut self, key: &[u8]) -> FfiResult<()> {
+    fn remove(&mut self, key: &[u8]) -> BackendResult<()> {
         self.data.remove(key);
         let gas_info = GasInfo::with_externally_used(key.len() as u64);
         (Ok(()), gas_info)
@@ -160,16 +189,8 @@ mod test {
 
         // ensure we had previously set "foo" = "bar"
         assert_eq!(store.get(b"foo").0.unwrap(), Some(b"bar".to_vec()));
-        assert_eq!(
-            store
-                .range(None, None, Order::Ascending)
-                .0
-                .unwrap()
-                .elements()
-                .unwrap()
-                .len(),
-            1
-        );
+        let iter_id = store.scan(None, None, Order::Ascending).0.unwrap();
+        assert_eq!(store.all(iter_id).0.unwrap().len(), 1);
 
         // setup - add some data, and delete part of it as well
         store.set(b"ant", b"hill").0.expect("error setting value");
@@ -181,8 +202,8 @@ mod test {
 
         // unbounded
         {
-            let iter = store.range(None, None, Order::Ascending).0.unwrap();
-            let elements = iter.elements().unwrap();
+            let iter_id = store.scan(None, None, Order::Ascending).0.unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(
                 elements,
                 vec![
@@ -195,8 +216,8 @@ mod test {
 
         // unbounded (descending)
         {
-            let iter = store.range(None, None, Order::Descending).0.unwrap();
-            let elements = iter.elements().unwrap();
+            let iter_id = store.scan(None, None, Order::Descending).0.unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(
                 elements,
                 vec![
@@ -209,21 +230,21 @@ mod test {
 
         // bounded
         {
-            let iter = store
-                .range(Some(b"f"), Some(b"n"), Order::Ascending)
+            let iter_id = store
+                .scan(Some(b"f"), Some(b"n"), Order::Ascending)
                 .0
                 .unwrap();
-            let elements = iter.elements().unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(elements, vec![(b"foo".to_vec(), b"bar".to_vec())]);
         }
 
         // bounded (descending)
         {
-            let iter = store
-                .range(Some(b"air"), Some(b"loop"), Order::Descending)
+            let iter_id = store
+                .scan(Some(b"air"), Some(b"loop"), Order::Descending)
                 .0
                 .unwrap();
-            let elements = iter.elements().unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(
                 elements,
                 vec![
@@ -235,48 +256,48 @@ mod test {
 
         // bounded empty [a, a)
         {
-            let iter = store
-                .range(Some(b"foo"), Some(b"foo"), Order::Ascending)
+            let iter_id = store
+                .scan(Some(b"foo"), Some(b"foo"), Order::Ascending)
                 .0
                 .unwrap();
-            let elements = iter.elements().unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(elements, vec![]);
         }
 
         // bounded empty [a, a) (descending)
         {
-            let iter = store
-                .range(Some(b"foo"), Some(b"foo"), Order::Descending)
+            let iter_id = store
+                .scan(Some(b"foo"), Some(b"foo"), Order::Descending)
                 .0
                 .unwrap();
-            let elements = iter.elements().unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(elements, vec![]);
         }
 
         // bounded empty [a, b) with b < a
         {
-            let iter = store
-                .range(Some(b"z"), Some(b"a"), Order::Ascending)
+            let iter_id = store
+                .scan(Some(b"z"), Some(b"a"), Order::Ascending)
                 .0
                 .unwrap();
-            let elements = iter.elements().unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(elements, vec![]);
         }
 
         // bounded empty [a, b) with b < a (descending)
         {
-            let iter = store
-                .range(Some(b"z"), Some(b"a"), Order::Descending)
+            let iter_id = store
+                .scan(Some(b"z"), Some(b"a"), Order::Descending)
                 .0
                 .unwrap();
-            let elements = iter.elements().unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(elements, vec![]);
         }
 
         // right unbounded
         {
-            let iter = store.range(Some(b"f"), None, Order::Ascending).0.unwrap();
-            let elements = iter.elements().unwrap();
+            let iter_id = store.scan(Some(b"f"), None, Order::Ascending).0.unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(
                 elements,
                 vec![
@@ -288,8 +309,8 @@ mod test {
 
         // right unbounded (descending)
         {
-            let iter = store.range(Some(b"f"), None, Order::Descending).0.unwrap();
-            let elements = iter.elements().unwrap();
+            let iter_id = store.scan(Some(b"f"), None, Order::Descending).0.unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(
                 elements,
                 vec![
@@ -301,15 +322,15 @@ mod test {
 
         // left unbounded
         {
-            let iter = store.range(None, Some(b"f"), Order::Ascending).0.unwrap();
-            let elements = iter.elements().unwrap();
+            let iter_id = store.scan(None, Some(b"f"), Order::Ascending).0.unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(elements, vec![(b"ant".to_vec(), b"hill".to_vec()),]);
         }
 
         // left unbounded (descending)
         {
-            let iter = store.range(None, Some(b"no"), Order::Descending).0.unwrap();
-            let elements = iter.elements().unwrap();
+            let iter_id = store.scan(None, Some(b"no"), Order::Descending).0.unwrap();
+            let elements = store.all(iter_id).0.unwrap();
             assert_eq!(
                 elements,
                 vec![

@@ -4,14 +4,17 @@
 use cosmwasm_std::{Coin, HumanAddr};
 use std::collections::HashSet;
 
-use crate::compatability::check_wasm;
+use crate::compatibility::check_wasm;
 use crate::features::features_from_csv;
-use crate::instance::Instance;
-use crate::{Api, Extern, Querier, Storage};
+use crate::instance::{Instance, InstanceOptions};
+use crate::{Api, Backend, Querier, Storage};
 
 use super::mock::{MockApi, MOCK_CONTRACT_ADDR};
 use super::querier::MockQuerier;
 use super::storage::MockStorage;
+
+const DEFAULT_GAS_LIMIT: u64 = 500_000;
+const DEFAULT_PRINT_DEBUG: bool = true;
 
 pub fn mock_instance(
     wasm: &[u8],
@@ -70,30 +73,30 @@ pub fn mock_instance_with_gas_limit(
 #[derive(Debug)]
 pub struct MockInstanceOptions<'a> {
     // dependencies
-    pub canonical_address_length: usize,
     pub balances: &'a [(&'a HumanAddr, &'a [Coin])],
     /// This option is merged into balances and might override an existing value
     pub contract_balance: Option<&'a [Coin]>,
-    /// When set, all calls to the API fail with FfiError::Unknown containing this message
+    /// When set, all calls to the API fail with BackendError::Unknown containing this message
     pub backend_error: Option<&'static str>,
 
     // instance
     pub supported_features: HashSet<String>,
     pub gas_limit: u64,
+    pub print_debug: bool,
 }
 
 impl Default for MockInstanceOptions<'_> {
     fn default() -> Self {
         Self {
             // dependencies
-            canonical_address_length: 20,
             balances: Default::default(),
             contract_balance: Default::default(),
             backend_error: None,
 
             // instance
             supported_features: features_from_csv("staking"),
-            gas_limit: 500_000,
+            gas_limit: DEFAULT_GAS_LIMIT,
+            print_debug: DEFAULT_PRINT_DEBUG,
         }
     }
 }
@@ -116,24 +119,34 @@ pub fn mock_instance_with_options(
     }
 
     let api = if let Some(backend_error) = options.backend_error {
-        MockApi::new_failing(options.canonical_address_length, backend_error)
+        MockApi::new_failing(backend_error)
     } else {
-        MockApi::new(options.canonical_address_length)
+        MockApi::default()
     };
 
-    let deps = Extern {
+    let backend = Backend {
         storage: MockStorage::default(),
         querier: MockQuerier::new(&balances),
         api,
     };
-    Instance::from_code(wasm, deps, options.gas_limit).unwrap()
+    let options = InstanceOptions {
+        gas_limit: options.gas_limit,
+        print_debug: options.print_debug,
+    };
+    Instance::from_code(wasm, backend, options).unwrap()
+}
+
+/// Creates InstanceOptions for testing
+pub fn mock_instance_options() -> InstanceOptions {
+    InstanceOptions {
+        gas_limit: DEFAULT_GAS_LIMIT,
+        print_debug: DEFAULT_PRINT_DEBUG,
+    }
 }
 
 /// Runs a series of IO tests, hammering especially on allocate and deallocate.
 /// This could be especially useful when run with some kind of leak detector.
-pub fn test_io<S: Storage + 'static, A: Api + 'static, Q: Querier + 'static>(
-    instance: &mut Instance<S, A, Q>,
-) {
+pub fn test_io<S: Storage, A: Api + 'static, Q: Querier>(instance: &mut Instance<S, A, Q>) {
     let sizes: Vec<usize> = vec![0, 1, 3, 10, 200, 2000, 5 * 1024];
     let bytes: Vec<u8> = vec![0x00, 0xA5, 0xFF];
 

@@ -18,9 +18,9 @@
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
 use cosmwasm_std::{
-    coin, from_binary, Decimal, HumanAddr, InitResponse, StdError, StdResult, Uint128, Validator,
+    coin, from_binary, ContractResult, Decimal, HumanAddr, InitResponse, Uint128, Validator,
 };
-use cosmwasm_vm::testing::{init, mock_dependencies, mock_env, query};
+use cosmwasm_vm::testing::{init, mock_backend, mock_env, mock_info, mock_instance_options, query};
 use cosmwasm_vm::Instance;
 
 use staking::msg::{
@@ -43,10 +43,11 @@ fn sample_validator<U: Into<HumanAddr>>(addr: U) -> Validator {
 
 #[test]
 fn initialization_with_missing_validator() {
-    let mut ext = mock_dependencies(20, &[]);
-    ext.querier
+    let mut backend = mock_backend(&[]);
+    backend
+        .querier
         .update_staking("ustake", &[sample_validator("john")], &[]);
-    let mut deps = Instance::from_code(WASM, ext, 500_000).unwrap();
+    let mut deps = Instance::from_code(WASM, backend, mock_instance_options()).unwrap();
 
     let creator = HumanAddr::from("creator");
     let msg = InitMsg {
@@ -57,23 +58,22 @@ fn initialization_with_missing_validator() {
         exit_tax: Decimal::percent(2),
         min_withdrawal: Uint128(50),
     };
-    let env = mock_env(&creator, &[]);
+    let info = mock_info(&creator, &[]);
 
     // make sure we can init with this
-    let res: StdResult<InitResponse> = init(&mut deps, env, msg.clone());
-    match res.unwrap_err() {
-        StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "my-validator is not in the current validator set")
-        }
-        _ => panic!("expected unregistered validator error"),
-    }
+    let res: ContractResult<InitResponse> = init(&mut deps, mock_env(), info, msg.clone());
+    let msg = res.unwrap_err();
+    assert_eq!(
+        msg,
+        "Generic error: my-validator is not in the current validator set"
+    );
 }
 
 #[test]
 fn proper_initialization() {
     // we need to use the verbose approach here to customize the querier with staking info
-    let mut ext = mock_dependencies(20, &[]);
-    ext.querier.update_staking(
+    let mut backend = mock_backend(&[]);
+    backend.querier.update_staking(
         "ustake",
         &[
             sample_validator("john"),
@@ -82,7 +82,7 @@ fn proper_initialization() {
         ],
         &[],
     );
-    let mut deps = Instance::from_code(WASM, ext, 500_000).unwrap();
+    let mut deps = Instance::from_code(WASM, backend, mock_instance_options()).unwrap();
     assert_eq!(deps.required_features.len(), 1);
     assert!(deps.required_features.contains("staking"));
 
@@ -95,14 +95,14 @@ fn proper_initialization() {
         exit_tax: Decimal::percent(2),
         min_withdrawal: Uint128(50),
     };
-    let env = mock_env(&creator, &[]);
+    let info = mock_info(&creator, &[]);
 
     // make sure we can init with this
-    let res: InitResponse = init(&mut deps, env, msg.clone()).unwrap();
+    let res: InitResponse = init(&mut deps, mock_env(), info, msg.clone()).unwrap();
     assert_eq!(0, res.messages.len());
 
     // token info is proper
-    let res = query(&mut deps, QueryMsg::TokenInfo {}).unwrap();
+    let res = query(&mut deps, mock_env(), QueryMsg::TokenInfo {}).unwrap();
     let token: TokenInfoResponse = from_binary(&res).unwrap();
     assert_eq!(&token.name, &msg.name);
     assert_eq!(&token.symbol, &msg.symbol);
@@ -111,6 +111,7 @@ fn proper_initialization() {
     // no balance
     let res = query(
         &mut deps,
+        mock_env(),
         QueryMsg::Balance {
             address: creator.clone(),
         },
@@ -122,6 +123,7 @@ fn proper_initialization() {
     // no claims
     let res = query(
         &mut deps,
+        mock_env(),
         QueryMsg::Claims {
             address: creator.clone(),
         },
@@ -131,7 +133,7 @@ fn proper_initialization() {
     assert_eq!(claim.claims, Uint128(0));
 
     // investment info correct
-    let res = query(&mut deps, QueryMsg::Investment {}).unwrap();
+    let res = query(&mut deps, mock_env(), QueryMsg::Investment {}).unwrap();
     let invest: InvestmentResponse = from_binary(&res).unwrap();
     assert_eq!(&invest.owner, &creator);
     assert_eq!(&invest.validator, &msg.validator);

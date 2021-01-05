@@ -1,22 +1,17 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 use crate::addresses::HumanAddr;
+use crate::binary::Binary;
 use crate::coins::Coin;
-use crate::encoding::Binary;
-use crate::errors::StdResult;
 use crate::math::Decimal;
-
-pub type QueryResponse = Binary;
-
-pub type QueryResult = StdResult<QueryResponse>;
+use crate::types::Empty;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum QueryRequest<T> {
+pub enum QueryRequest<C: CustomQuery> {
     Bank(BankQuery),
-    Custom(T),
+    Custom(C),
     Staking(StakingQuery),
     Wasm(WasmQuery),
 }
@@ -33,6 +28,29 @@ pub enum BankQuery {
     AllBalances { address: HumanAddr },
 }
 
+/// A trait that is required to avoid conflicts with other query types like BankQuery and WasmQuery
+/// in generic implementations.
+/// You need to implement it in your custom query type.
+///
+/// # Examples
+///
+/// ```
+/// # use cosmwasm_std::CustomQuery;
+/// # use schemars::JsonSchema;
+/// # use serde::{Deserialize, Serialize};
+/// #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+/// #[serde(rename_all = "snake_case")]
+/// pub enum MyCustomQuery {
+///     Ping {},
+///     Capitalized { text: String },
+/// }
+///
+/// impl CustomQuery for MyCustomQuery {}
+/// ```
+pub trait CustomQuery: Serialize {}
+
+impl CustomQuery for Empty {}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WasmQuery {
@@ -44,7 +62,7 @@ pub enum WasmQuery {
         msg: Binary,
     },
     /// this queries the raw kv-store of the contract.
-    /// returns the raw, unparsed data stored at that key (or `Ok(Err(StdError:NotFound{}))` if missing)
+    /// returns the raw, unparsed data stored at that key, which may be an empty vector if not present
     Raw {
         contract_addr: HumanAddr,
         /// Key is the raw key used in the contracts Storage
@@ -52,20 +70,26 @@ pub enum WasmQuery {
     },
 }
 
-impl<T: Clone + fmt::Debug + PartialEq + JsonSchema> From<BankQuery> for QueryRequest<T> {
+impl<C: CustomQuery> From<BankQuery> for QueryRequest<C> {
     fn from(msg: BankQuery) -> Self {
         QueryRequest::Bank(msg)
     }
 }
 
+impl<C: CustomQuery> From<C> for QueryRequest<C> {
+    fn from(msg: C) -> Self {
+        QueryRequest::Custom(msg)
+    }
+}
+
 #[cfg(feature = "staking")]
-impl<T: Clone + fmt::Debug + PartialEq + JsonSchema> From<StakingQuery> for QueryRequest<T> {
+impl<C: CustomQuery> From<StakingQuery> for QueryRequest<C> {
     fn from(msg: StakingQuery) -> Self {
         QueryRequest::Staking(msg)
     }
 }
 
-impl<T: Clone + fmt::Debug + PartialEq + JsonSchema> From<WasmQuery> for QueryRequest<T> {
+impl<C: CustomQuery> From<WasmQuery> for QueryRequest<C> {
     fn from(msg: WasmQuery) -> Self {
         QueryRequest::Wasm(msg)
     }
@@ -156,7 +180,7 @@ pub struct FullDelegation {
     /// but there are many places between the two
     pub can_redelegate: Coin,
     /// How much we can currently withdraw
-    pub accumulated_rewards: Coin,
+    pub accumulated_rewards: Vec<Coin>,
 }
 
 /// ValidatorsResponse is data format returned from StakingRequest::Validators query

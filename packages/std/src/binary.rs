@@ -1,4 +1,6 @@
 use std::fmt;
+use std::mem;
+use std::ops::Deref;
 
 use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Deserializer, Serialize};
@@ -9,7 +11,7 @@ use crate::errors::{StdError, StdResult};
 /// with serde. It also adds some helper methods to help encode inline.
 ///
 /// This is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>
-#[derive(Clone, Default, Debug, PartialEq, JsonSchema)]
+#[derive(Clone, Default, Debug, PartialEq, Eq, Hash, JsonSchema)]
 pub struct Binary(#[schemars(with = "String")] pub Vec<u8>);
 
 impl Binary {
@@ -25,14 +27,52 @@ impl Binary {
     pub fn to_base64(&self) -> String {
         base64::encode(&self.0)
     }
+
     pub fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+
+    /// Copies content into fixed-sized array.
+    /// The result type `A: ByteArray` is a workaround for
+    /// the missing [const-generics](https://rust-lang.github.io/rfcs/2000-const-generics.html).
+    /// `A` is a fixed-sized array like `[u8; 8]`.
+    ///
+    /// ByteArray is implemented for `[u8; 0]` to `[u8; 32]`, such that
+    /// we are limited by 32 bytes for now.
+    ///
+    /// # Examples
+    ///
+    /// Copy to array of explicit length
+    ///
+    /// ```
+    /// # use cosmwasm_std::Binary;
+    /// let binary = Binary::from(&[0xfb, 0x1f, 0x37]);
+    /// let array: [u8; 3] = binary.to_array().unwrap();
+    /// assert_eq!(array, [0xfb, 0x1f, 0x37]);
+    /// ```
+    ///
+    /// Copy to integer
+    ///
+    /// ```
+    /// # use cosmwasm_std::Binary;
+    /// let binary = Binary::from(&[0x8b, 0x67, 0x64, 0x84, 0xb5, 0xfb, 0x1f, 0x37]);
+    /// let num = u64::from_be_bytes(binary.to_array().unwrap());
+    /// assert_eq!(num, 10045108015024774967);
+    /// ```
+    pub fn to_array<A>(&self) -> StdResult<A>
+    where
+        A: ByteArray,
+    {
+        let out_size = std::mem::size_of::<A>();
+        if self.len() != out_size {
+            return Err(StdError::invalid_data_size(out_size, self.len()));
+        }
+
+        // We cannot use Default::default() because it is only implemented for
+        // short arrays [T; 0] … [T; 32].
+        let mut out: A = unsafe { mem::zeroed() };
+        <A as AsMut<[u8]>>::as_mut(&mut out).copy_from_slice(&self.0);
+        Ok(out)
     }
 }
 
@@ -45,6 +85,19 @@ impl fmt::Display for Binary {
 impl From<&[u8]> for Binary {
     fn from(binary: &[u8]) -> Self {
         Self(binary.to_vec())
+    }
+}
+
+/// Just like Vec<u8>, Binary is a smart pointer to [u8].
+/// This implements `*binary` for us and allows us to
+/// do `&*binary`, returning a `&[u8]` from a `&Binary`.
+/// With [deref coercions](https://doc.rust-lang.org/1.22.1/book/first-edition/deref-coercions.html#deref-coercions),
+/// this allows us to use `&binary` whenever a `&[u8]` is required.
+impl Deref for Binary {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
     }
 }
 
@@ -85,9 +138,41 @@ impl From<Vec<u8>> for Binary {
     }
 }
 
-impl Into<Vec<u8>> for Binary {
-    fn into(self) -> Vec<u8> {
-        self.0
+impl From<Binary> for Vec<u8> {
+    fn from(original: Binary) -> Vec<u8> {
+        original.0
+    }
+}
+
+/// Implement `encoding::Binary == std::vec::Vec<u8>`
+impl PartialEq<Vec<u8>> for Binary {
+    fn eq(&self, rhs: &Vec<u8>) -> bool {
+        // Use Vec<u8> == Vec<u8>
+        self.0 == *rhs
+    }
+}
+
+/// Implement `std::vec::Vec<u8> == encoding::Binary`
+impl PartialEq<Binary> for Vec<u8> {
+    fn eq(&self, rhs: &Binary) -> bool {
+        // Use Vec<u8> == Vec<u8>
+        *self == rhs.0
+    }
+}
+
+/// Implement `Binary == &[u8]`
+impl PartialEq<&[u8]> for Binary {
+    fn eq(&self, rhs: &&[u8]) -> bool {
+        // Use &[u8] == &[u8]
+        self.as_slice() == *rhs
+    }
+}
+
+/// Implement `&[u8] == Binary`
+impl PartialEq<Binary> for &[u8] {
+    fn eq(&self, rhs: &Binary) -> bool {
+        // Use &[u8] == &[u8]
+        *self == rhs.as_slice()
     }
 }
 
@@ -131,11 +216,38 @@ impl<'de> de::Visitor<'de> for Base64Visitor {
     }
 }
 
+/// A marker trait for `[u8; $N]`, which is needed as long as
+/// https://rust-lang.github.io/rfcs/2000-const-generics.html is not stable.
+///
+/// Implementing this for other types (like Vec<u8>) results in undefined behaviour.
+pub unsafe trait ByteArray: Sized + AsMut<[u8]> {}
+
+// Macro needed until https://rust-lang.github.io/rfcs/2000-const-generics.html is stable.
+// See https://users.rust-lang.org/t/how-to-implement-trait-for-fixed-size-array-of-any-size/31494
+macro_rules! implement_fixes_size_arrays {
+    ($($N:literal)+) => {
+        $(
+            unsafe impl ByteArray for [u8; $N] {}
+        )+
+    }
+}
+
+implement_fixes_size_arrays! {
+     0  1  2  3  4  5  6  7  8  9
+    10 11 12 13 14 15 16 17 18 19
+    20 21 22 23 24 25 26 27 28 29
+    30 31 32
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::errors::StdError;
     use crate::serde::{from_slice, to_vec};
+    use std::collections::hash_map::DefaultHasher;
+    use std::collections::HashSet;
+    use std::hash::{Hash, Hasher};
+    use std::iter::FromIterator;
 
     #[test]
     fn encode_decode() {
@@ -152,7 +264,58 @@ mod test {
         let encoded = Binary(binary.clone()).to_base64();
         assert_eq!(8, encoded.len());
         let decoded = Binary::from_base64(&encoded).unwrap();
-        assert_eq!(binary.as_slice(), decoded.as_slice());
+        assert_eq!(binary.deref(), decoded.deref());
+    }
+
+    #[test]
+    fn to_array_works() {
+        // simple
+        let binary = Binary::from(&[1, 2, 3]);
+        let array: [u8; 3] = binary.to_array().unwrap();
+        assert_eq!(array, [1, 2, 3]);
+
+        // empty
+        let binary = Binary::from(&[]);
+        let array: [u8; 0] = binary.to_array().unwrap();
+        assert_eq!(array, [] as [u8; 0]);
+
+        // invalid size
+        let binary = Binary::from(&[1, 2, 3]);
+        let error = binary.to_array::<[u8; 8]>().unwrap_err();
+        match error {
+            StdError::InvalidDataSize {
+                expected, actual, ..
+            } => {
+                assert_eq!(expected, 8);
+                assert_eq!(actual, 3);
+            }
+            err => panic!("Unexpected error: {:?}", err),
+        }
+
+        // long array (32 bytes)
+        let binary = Binary::from_base64("t119JOQox4WUQEmO/nyqOZfO+wjJm91YG2sfn4ZglvA=").unwrap();
+        let array: [u8; 32] = binary.to_array().unwrap();
+        assert_eq!(
+            array,
+            [
+                0xb7, 0x5d, 0x7d, 0x24, 0xe4, 0x28, 0xc7, 0x85, 0x94, 0x40, 0x49, 0x8e, 0xfe, 0x7c,
+                0xaa, 0x39, 0x97, 0xce, 0xfb, 0x08, 0xc9, 0x9b, 0xdd, 0x58, 0x1b, 0x6b, 0x1f, 0x9f,
+                0x86, 0x60, 0x96, 0xf0,
+            ]
+        );
+
+        // very long array > 32 bytes (does not yet compile but we can make it happen with Rust 1.47+)
+        // let binary =
+        //     Binary::from_base64("t119JOQox4WUQEmO/nyqOZfO+wjJm91YG2sfn4ZglvBzyMOwMWq+").unwrap();
+        // let array: [u8; 39] = binary.to_array().unwrap();
+        // assert_eq!(
+        //     array,
+        //     [
+        //         0xb7, 0x5d, 0x7d, 0x24, 0xe4, 0x28, 0xc7, 0x85, 0x94, 0x40, 0x49, 0x8e, 0xfe, 0x7c,
+        //         0xaa, 0x39, 0x97, 0xce, 0xfb, 0x08, 0xc9, 0x9b, 0xdd, 0x58, 0x1b, 0x6b, 0x1f, 0x9f,
+        //         0x86, 0x60, 0x96, 0xf0, 0x73, 0xc8, 0xc3, 0xb0, 0x31, 0x6a, 0xbe,
+        //     ]
+        // );
     }
 
     #[test]
@@ -278,10 +441,18 @@ mod test {
 
     #[test]
     fn into_vec_works() {
+        // Into<Vec<u8>> for Binary
         let original = Binary(vec![0u8, 187, 61, 11, 250, 0]);
         let original_ptr = original.0.as_ptr();
         let vec: Vec<u8> = original.into();
         assert_eq!(vec.as_slice(), [0u8, 187, 61, 11, 250, 0]);
+        assert_eq!(vec.as_ptr(), original_ptr, "vector must not be copied");
+
+        // From<Binary> for Vec<u8>
+        let original = Binary(vec![7u8, 35, 49, 101, 0, 255]);
+        let original_ptr = original.0.as_ptr();
+        let vec = Vec::<u8>::from(original);
+        assert_eq!(vec.as_slice(), [7u8, 35, 49, 101, 0, 255]);
         assert_eq!(vec.as_ptr(), original_ptr, "vector must not be copied");
     }
 
@@ -312,5 +483,77 @@ mod test {
         let serialized = to_vec(&invalid_str).unwrap();
         let res = from_slice::<Binary>(&serialized);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn binary_implements_deref() {
+        // Dereference to [u8]
+        let binary = Binary(vec![7u8, 35, 49, 101, 0, 255]);
+        assert_eq!(*binary, [7u8, 35, 49, 101, 0, 255]);
+
+        // This checks deref coercions from &Binary to &[u8] works
+        let binary = Binary(vec![7u8, 35, 49, 101, 0, 255]);
+        assert_eq!(binary.len(), 6);
+        let binary_slice: &[u8] = &binary;
+        assert_eq!(binary_slice, &[7u8, 35, 49, 101, 0, 255]);
+    }
+
+    #[test]
+    fn binary_implements_hash() {
+        let a1 = Binary::from([0, 187, 61, 11, 250, 0]);
+        let mut hasher = DefaultHasher::new();
+        a1.hash(&mut hasher);
+        let a1_hash = hasher.finish();
+
+        let a2 = Binary::from([0, 187, 61, 11, 250, 0]);
+        let mut hasher = DefaultHasher::new();
+        a2.hash(&mut hasher);
+        let a2_hash = hasher.finish();
+
+        let b = Binary::from([16, 21, 33, 0, 255, 9]);
+        let mut hasher = DefaultHasher::new();
+        b.hash(&mut hasher);
+        let b_hash = hasher.finish();
+
+        assert_eq!(a1_hash, a2_hash);
+        assert_ne!(a1_hash, b_hash);
+    }
+
+    /// This requires Hash and Eq to be implemented
+    #[test]
+    fn binary_can_be_used_in_hash_set() {
+        let a1 = Binary::from([0, 187, 61, 11, 250, 0]);
+        let a2 = Binary::from([0, 187, 61, 11, 250, 0]);
+        let b = Binary::from([16, 21, 33, 0, 255, 9]);
+
+        let mut set = HashSet::new();
+        set.insert(a1.clone());
+        set.insert(a2.clone());
+        set.insert(b.clone());
+        assert_eq!(set.len(), 2);
+
+        let set1 = HashSet::<Binary>::from_iter(vec![b.clone(), a1.clone()]);
+        let set2 = HashSet::from_iter(vec![a1.clone(), a2.clone(), b.clone()]);
+        assert_eq!(set1, set2);
+    }
+
+    #[test]
+    fn binary_implements_partial_eq_with_vector() {
+        let a = Binary(vec![5u8; 3]);
+        let b = vec![5u8; 3];
+        let c = vec![9u8; 3];
+        assert_eq!(a, b);
+        assert_eq!(b, a);
+        assert_ne!(a, c);
+        assert_ne!(c, a);
+    }
+
+    #[test]
+    fn binary_implements_partial_eq_with_slice() {
+        let a = Binary(vec![0xAA, 0xBB]);
+        assert_eq!(a, b"\xAA\xBB" as &[u8]);
+        assert_eq!(b"\xAA\xBB" as &[u8], a);
+        assert_ne!(a, b"\x11\x22" as &[u8]);
+        assert_ne!(b"\x11\x22" as &[u8], a);
     }
 }

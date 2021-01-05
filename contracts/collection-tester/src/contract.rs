@@ -2,8 +2,8 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, Querier, StdResult, Storage, Uint128,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HandleResponse, HandleResult,
+    HumanAddr, InitResponse, MessageInfo, StdResult, Uint128,
 };
 
 use cosmwasm_ext::{
@@ -14,23 +14,20 @@ use cosmwasm_ext::{
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, State};
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    _msg: InitMsg,
-) -> StdResult<InitResponse> {
+pub fn init(deps: DepsMut, _env: Env, info: MessageInfo, _msg: InitMsg) -> StdResult<InitResponse> {
     let state = State {
-        owner: deps.api.canonical_address(&env.message.sender)?,
+        owner: deps.api.canonical_address(&info.sender)?,
     };
 
-    config(&mut deps.storage).save(&state)?;
+    config(deps.storage).save(&state)?;
 
     Ok(InitResponse::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn handle(
+    deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     msg: HandleMsg,
 ) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
     match msg {
@@ -39,13 +36,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             name,
             meta,
             base_img_uri,
-        } => try_create(deps, env, owner, name, meta, base_img_uri),
+        } => try_create(deps, env, info, owner, name, meta, base_img_uri),
         HandleMsg::IssueNft {
             owner,
             contract_id,
             name,
             meta,
-        } => try_issue_nft(deps, env, owner, contract_id, name, meta),
+        } => try_issue_nft(deps, env, info, owner, contract_id, name, meta),
         HandleMsg::IssueFt {
             owner,
             contract_id,
@@ -58,6 +55,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => try_issue_ft(
             deps,
             env,
+            info,
             owner,
             contract_id,
             to,
@@ -72,61 +70,61 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             contract_id,
             to,
             token_types,
-        } => try_mint_nft(deps, env, from, contract_id, to, token_types),
+        } => try_mint_nft(deps, env, info, from, contract_id, to, token_types),
         HandleMsg::MintFt {
             from,
             contract_id,
             to,
             tokens,
-        } => try_mint_ft(deps, env, from, contract_id, to, tokens),
+        } => try_mint_ft(deps, env, info, from, contract_id, to, tokens),
         HandleMsg::BurnNft {
             from,
             contract_id,
             token_id,
-        } => try_burn_nft(deps, env, from, contract_id, token_id),
+        } => try_burn_nft(deps, env, info, from, contract_id, token_id),
         HandleMsg::BurnNftFrom {
             proxy,
             contract_id,
             from,
             token_ids,
-        } => try_burn_nft_from(deps, env, proxy, contract_id, from, token_ids),
+        } => try_burn_nft_from(deps, env, info, proxy, contract_id, from, token_ids),
         HandleMsg::BurnFt {
             from,
             contract_id,
             amounts,
-        } => try_burn_ft(deps, env, from, contract_id, amounts),
+        } => try_burn_ft(deps, env, info, from, contract_id, amounts),
         HandleMsg::BurnFtFrom {
             proxy,
             contract_id,
             from,
             amounts,
-        } => try_burn_ft_from(deps, env, proxy, contract_id, from, amounts),
+        } => try_burn_ft_from(deps, env, info, proxy, contract_id, from, amounts),
         HandleMsg::TransferNft {
             from,
             contract_id,
             to,
             token_ids,
-        } => try_transfer_nft(deps, env, from, contract_id, to, token_ids),
+        } => try_transfer_nft(deps, env, info, from, contract_id, to, token_ids),
         HandleMsg::TransferNftFrom {
             proxy,
             contract_id,
             from,
             to,
             token_ids,
-        } => try_transfer_nft_from(deps, env, proxy, contract_id, from, to, token_ids),
+        } => try_transfer_nft_from(deps, env, info, proxy, contract_id, from, to, token_ids),
         HandleMsg::TransferFt {
             from,
             contract_id,
             to,
             tokens,
-        } => try_transfer_ft(deps, env, from, contract_id, to, tokens),
+        } => try_transfer_ft(deps, env, info, from, contract_id, to, tokens),
         HandleMsg::TransferFtFrom {
             proxy,
             contract_id,
             from,
             to,
             tokens,
-        } => try_transfer_ft_from(deps, env, proxy, contract_id, from, to, tokens),
+        } => try_transfer_ft_from(deps, env, info, proxy, contract_id, from, to, tokens),
         HandleMsg::Modify {
             owner,
             contract_id,
@@ -137,6 +135,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => try_modify(
             deps,
             env,
+            info,
             owner,
             contract_id,
             token_type,
@@ -148,99 +147,108 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             approver,
             contract_id,
             proxy,
-        } => try_approve(deps, env, approver, contract_id, proxy),
+        } => try_approve(deps, env, info, approver, contract_id, proxy),
         HandleMsg::Disapprove {
             approver,
             contract_id,
             proxy,
-        } => try_disapprove(deps, env, approver, contract_id, proxy),
+        } => try_disapprove(deps, env, info, approver, contract_id, proxy),
         HandleMsg::GrantPerm {
             from,
             contract_id,
             to,
             permission,
-        } => try_grant_perm(deps, env, from, contract_id, to, permission),
+        } => try_grant_perm(deps, env, info, from, contract_id, to, permission),
         HandleMsg::RevokePerm {
             from,
             contract_id,
             permission,
-        } => try_revoke_perm(deps, env, from, contract_id, permission),
+        } => try_revoke_perm(deps, env, info, from, contract_id, permission),
         HandleMsg::Attach {
             from,
             contract_id,
             to_token_id,
             token_id,
-        } => try_attach(deps, env, from, contract_id, to_token_id, token_id),
+        } => try_attach(deps, env, info, from, contract_id, to_token_id, token_id),
         HandleMsg::Detach {
             from,
             contract_id,
             token_id,
-        } => try_detach(deps, env, from, contract_id, token_id),
+        } => try_detach(deps, env, info, from, contract_id, token_id),
         HandleMsg::AttachFrom {
             proxy,
             contract_id,
             from,
             to_token_id,
             token_id,
-        } => try_attach_from(deps, env, proxy, contract_id, from, to_token_id, token_id),
+        } => try_attach_from(
+            deps,
+            env,
+            info,
+            proxy,
+            contract_id,
+            from,
+            to_token_id,
+            token_id,
+        ),
         HandleMsg::DetachFrom {
             proxy,
             contract_id,
             from,
             token_id,
-        } => try_detach_from(deps, env, proxy, contract_id, from, token_id),
+        } => try_detach_from(deps, env, info, proxy, contract_id, from, token_id),
     }
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCollection { contract_id } => query_collection(deps, contract_id),
+        QueryMsg::GetCollection { contract_id } => query_collection(deps, env, contract_id),
         QueryMsg::GetBalance {
             contract_id,
             token_id,
             addr,
-        } => query_balance(deps, contract_id, token_id, addr),
+        } => query_balance(deps, env, contract_id, token_id, addr),
         QueryMsg::GetTokenType {
             contract_id,
             token_id,
-        } => query_token_type(deps, contract_id, token_id),
-        QueryMsg::GetTokenTypes { contract_id } => query_token_types(deps, contract_id),
+        } => query_token_type(deps, env, contract_id, token_id),
+        QueryMsg::GetTokenTypes { contract_id } => query_token_types(deps, env, contract_id),
         QueryMsg::GetToken {
             contract_id,
             token_id,
-        } => query_token(deps, contract_id, token_id),
-        QueryMsg::GetTokens { contract_id } => query_tokens(deps, contract_id),
+        } => query_token(deps, env, contract_id, token_id),
+        QueryMsg::GetTokens { contract_id } => query_tokens(deps, env, contract_id),
         QueryMsg::GetNftCount {
             contract_id,
             token_id,
             target,
-        } => query_nft_count(deps, contract_id, token_id, target),
+        } => query_nft_count(deps, env, contract_id, token_id, target),
         QueryMsg::GetTotal {
             contract_id,
             token_id,
             target,
-        } => query_total(deps, contract_id, token_id, target),
+        } => query_total(deps, env, contract_id, token_id, target),
         QueryMsg::GetRootOrParentOrChildren {
             contract_id,
             token_id,
             target,
-        } => query_root_or_parent_or_children(deps, contract_id, token_id, target),
-        QueryMsg::GetPerms { contract_id, addr } => query_perms(deps, contract_id, addr),
+        } => query_root_or_parent_or_children(deps, env, contract_id, token_id, target),
+        QueryMsg::GetPerms { contract_id, addr } => query_perms(deps, env, contract_id, addr),
         QueryMsg::GetApproved {
             contract_id,
             proxy,
             approver,
-        } => query_is_approved(deps, contract_id, proxy, approver),
-        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, proxy, contract_id),
+        } => query_is_approved(deps, env, contract_id, proxy, approver),
+        QueryMsg::GetApprovers { proxy, contract_id } => {
+            query_approvers(deps, env, proxy, contract_id)
+        }
     }
 }
 
-pub fn try_create<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_create(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     name: String,
     meta: String,
@@ -265,15 +273,16 @@ pub fn try_create<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "create")],
+        attributes: vec![attr("action", "create")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_issue_nft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_issue_nft(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
     name: String,
@@ -298,16 +307,17 @@ pub fn try_issue_nft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "issue_nft")],
+        attributes: vec![attr("action", "issue_nft")],
         data: None,
     };
     Ok(res)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn try_issue_ft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_issue_ft(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -338,15 +348,16 @@ pub fn try_issue_ft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "issue_ft")],
+        attributes: vec![attr("action", "issue_ft")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_mint_nft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_mint_nft(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -379,15 +390,16 @@ pub fn try_mint_nft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "mint_nft")],
+        attributes: vec![attr("action", "mint_nft")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_mint_ft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_mint_ft(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -417,15 +429,16 @@ pub fn try_mint_ft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "mint_ft")],
+        attributes: vec![attr("action", "mint_ft")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_burn_nft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_nft(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     token_id: String,
@@ -448,15 +461,16 @@ pub fn try_burn_nft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_nft")],
+        attributes: vec![attr("action", "burn_nft")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_burn_nft_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_nft_from(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -479,15 +493,16 @@ pub fn try_burn_nft_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_nft_from")],
+        attributes: vec![attr("action", "burn_nft_from")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_burn_ft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_ft(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     tokens: Vec<String>,
@@ -515,15 +530,16 @@ pub fn try_burn_ft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_nft")],
+        attributes: vec![attr("action", "burn_nft")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_burn_ft_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_ft_from(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -553,15 +569,16 @@ pub fn try_burn_ft_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_nft_from")],
+        attributes: vec![attr("action", "burn_nft_from")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_transfer_nft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer_nft(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -584,15 +601,17 @@ pub fn try_transfer_nft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_nft")],
+        attributes: vec![attr("action", "transfer_nft")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_transfer_nft_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+#[allow(clippy::too_many_arguments)]
+pub fn try_transfer_nft_from(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -617,15 +636,16 @@ pub fn try_transfer_nft_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_nft_from")],
+        attributes: vec![attr("action", "transfer_nft_from")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_transfer_ft<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer_ft(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -655,15 +675,17 @@ pub fn try_transfer_ft<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_ft")],
+        attributes: vec![attr("action", "transfer_ft")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_transfer_ft_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+#[allow(clippy::too_many_arguments)]
+pub fn try_transfer_ft_from(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -695,16 +717,17 @@ pub fn try_transfer_ft_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_ft_from")],
+        attributes: vec![attr("action", "transfer_ft_from")],
         data: None,
     };
     Ok(res)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn try_modify<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_modify(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
     token_type: String,
@@ -730,15 +753,16 @@ pub fn try_modify<S: Storage, A: Api, Q: Querier>(
         .into();
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "modify_collection")],
+        attributes: vec![attr("action", "modify_collection")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_approve<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_approve(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
@@ -758,15 +782,16 @@ pub fn try_approve<S: Storage, A: Api, Q: Querier>(
         .into();
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "approve")],
+        attributes: vec![attr("action", "approve")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_disapprove<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_disapprove(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
@@ -786,15 +811,16 @@ pub fn try_disapprove<S: Storage, A: Api, Q: Querier>(
         .into();
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "approve")],
+        attributes: vec![attr("action", "approve")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_grant_perm(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -818,15 +844,16 @@ pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "grant_perm")],
+        attributes: vec![attr("action", "grant_perm")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_revoke_perm(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     perm_str: String,
@@ -848,15 +875,16 @@ pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "revoke_perm")],
+        attributes: vec![attr("action", "revoke_perm")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_attach<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_attach(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to_token_id: String,
@@ -879,15 +907,16 @@ pub fn try_attach<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "attach")],
+        attributes: vec![attr("action", "attach")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_detach<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_detach(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     token_id: String,
@@ -908,15 +937,17 @@ pub fn try_detach<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "detach")],
+        attributes: vec![attr("action", "detach")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_attach_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+#[allow(clippy::too_many_arguments)]
+pub fn try_attach_from(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -941,15 +972,16 @@ pub fn try_attach_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "attach_from")],
+        attributes: vec![attr("action", "attach_from")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_detach_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_detach_from(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     contract_id: String,
     from: HumanAddr,
@@ -972,17 +1004,14 @@ pub fn try_detach_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "detach_from")],
+        attributes: vec![attr("action", "detach_from")],
         data: None,
     };
     Ok(res)
 }
 
-fn query_collection<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    contract_id: String,
-) -> StdResult<Binary> {
-    let res = match LinkCollectionQuerier::new(&deps.querier).query_collection(contract_id)? {
+fn query_collection(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
+    let res = match LinkCollectionQuerier::new(deps.querier).query_collection(contract_id)? {
         Some(collection_response) => collection_response,
         None => return to_binary(&None::<Box<Response<Collection>>>),
     };
@@ -990,79 +1019,72 @@ fn query_collection<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_balance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_balance(
+    deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
     addr: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_balance(contract_id, token_id, addr)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_token_type<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_token_type(
+    deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_token_type(contract_id, token_id)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_token_types<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    contract_id: String,
-) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+fn query_token_types(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_token_types(contract_id)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_token<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    contract_id: String,
-    token_id: String,
-) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+fn query_token(deps: Deps, _env: Env, contract_id: String, token_id: String) -> StdResult<Binary> {
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_token(contract_id, token_id)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_tokens<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    contract_id: String,
-) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+fn query_tokens(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_tokens(contract_id)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_nft_count<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_nft_count(
+    deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
     target: String,
 ) -> StdResult<Binary> {
     let res = match &*target {
-        "count" => LinkCollectionQuerier::new(&deps.querier)
+        "count" => LinkCollectionQuerier::new(deps.querier)
             .query_nft_count(contract_id, token_id)
             .unwrap(),
-        "mint" => LinkCollectionQuerier::new(&deps.querier)
+        "mint" => LinkCollectionQuerier::new(deps.querier)
             .query_nft_mint(contract_id, token_id)
             .unwrap(),
-        "burn" => LinkCollectionQuerier::new(&deps.querier)
+        "burn" => LinkCollectionQuerier::new(deps.querier)
             .query_nft_burn(contract_id, token_id)
             .unwrap(),
         _ => Uint128(0),
@@ -1071,27 +1093,28 @@ fn query_nft_count<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_total<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_total(
+    deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
     target_str: String,
 ) -> StdResult<Binary> {
     let target = Target::from_str(&target_str).unwrap();
     if Target::Supply == target {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_supply(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
         Ok(out)
     } else if Target::Mint == target {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_mint(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
         Ok(out)
     } else {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_burn(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
@@ -1099,26 +1122,27 @@ fn query_total<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn query_root_or_parent_or_children<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_root_or_parent_or_children(
+    deps: Deps,
+    _env: Env,
     contract_id: String,
     token_id: String,
     target: String,
 ) -> StdResult<Binary> {
     if target == "root" {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_root(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
         Ok(out)
     } else if target == "parent" {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_parent(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
         Ok(out)
     } else {
-        let res = LinkCollectionQuerier::new(&deps.querier)
+        let res = LinkCollectionQuerier::new(deps.querier)
             .query_children(contract_id, token_id)
             .unwrap();
         let out = to_binary(&res)?;
@@ -1126,37 +1150,35 @@ fn query_root_or_parent_or_children<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn query_perms<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    contract_id: String,
-    addr: HumanAddr,
-) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+fn query_perms(deps: Deps, _env: Env, contract_id: String, addr: HumanAddr) -> StdResult<Binary> {
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_perm(contract_id, addr)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_is_approved<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_is_approved(
+    deps: Deps,
+    _env: Env,
     contract_id: String,
     proxy: HumanAddr,
     approver: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkCollectionQuerier::new(&deps.querier)
+    let res = LinkCollectionQuerier::new(deps.querier)
         .query_is_approved(contract_id, proxy, approver)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_approvers<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_approvers(
+    deps: Deps,
+    _env: Env,
     proxy: HumanAddr,
     contract_id: String,
 ) -> StdResult<Binary> {
-    let res = match LinkCollectionQuerier::new(&deps.querier).query_approvers(proxy, contract_id)? {
+    let res = match LinkCollectionQuerier::new(deps.querier).query_approvers(proxy, contract_id)? {
         Some(approvers) => approvers,
         None => return to_binary(&None::<Box<Vec<HumanAddr>>>),
     };

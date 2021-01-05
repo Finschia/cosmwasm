@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, Querier, StdResult, Storage, Uint128,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HandleResponse, HandleResult,
+    HumanAddr, InitResponse, MessageInfo, StdResult, Uint128,
 };
 
 use cosmwasm_ext::{
@@ -13,23 +13,20 @@ use cosmwasm_ext::{
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, config_read, State};
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    _msg: InitMsg,
-) -> StdResult<InitResponse> {
+pub fn init(deps: DepsMut, _env: Env, info: MessageInfo, _msg: InitMsg) -> StdResult<InitResponse> {
     let state = State {
-        owner: deps.api.canonical_address(&env.message.sender)?,
+        owner: deps.api.canonical_address(&info.sender)?,
     };
 
-    config(&mut deps.storage).save(&state)?;
+    config(deps.storage).save(&state)?;
 
     Ok(InitResponse::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn handle(
+    deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     msg: HandleMsg,
 ) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
     match msg {
@@ -44,94 +41,94 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             mintable,
             decimals,
         } => try_issue(
-            deps, env, owner, to, name, symbol, img_uri, meta, amount, mintable, decimals,
+            deps, env, info, owner, to, name, symbol, img_uri, meta, amount, mintable, decimals,
         ),
         HandleMsg::Transfer {
             from,
             contract_id,
             to,
             amount,
-        } => try_transfer(deps, env, from, contract_id, to, amount),
+        } => try_transfer(deps, env, info, from, contract_id, to, amount),
         HandleMsg::TransferFrom {
             proxy,
             from,
             contract_id,
             to,
             amount,
-        } => try_transfer_from(deps, env, proxy, from, contract_id, to, amount),
+        } => try_transfer_from(deps, env, info, proxy, from, contract_id, to, amount),
         HandleMsg::Mint {
             from,
             contract_id,
             to,
             amount,
-        } => try_mint(deps, env, from, contract_id, to, amount),
+        } => try_mint(deps, env, info, from, contract_id, to, amount),
         HandleMsg::Burn {
             from,
             contract_id,
             amount,
-        } => try_burn(deps, env, from, contract_id, amount),
+        } => try_burn(deps, env, info, from, contract_id, amount),
         HandleMsg::BurnFrom {
             proxy,
             from,
             contract_id,
             amount,
-        } => try_burn_from(deps, env, proxy, from, contract_id, amount),
+        } => try_burn_from(deps, env, info, proxy, from, contract_id, amount),
         HandleMsg::GrantPerm {
             from,
             contract_id,
             to,
             permission,
-        } => try_grant_perm(deps, env, from, contract_id, to, permission),
+        } => try_grant_perm(deps, env, info, from, contract_id, to, permission),
         HandleMsg::RevokePerm {
             from,
             contract_id,
             permission,
-        } => try_revoke_perm(deps, env, from, contract_id, permission),
+        } => try_revoke_perm(deps, env, info, from, contract_id, permission),
         HandleMsg::Modify {
             owner,
             contract_id,
             key,
             value,
-        } => try_modify(deps, env, owner, contract_id, key, value),
+        } => try_modify(deps, env, info, owner, contract_id, key, value),
         HandleMsg::Approve {
             approver,
             contract_id,
             proxy,
-        } => try_approve(deps, env, approver, contract_id, proxy),
+        } => try_approve(deps, env, info, approver, contract_id, proxy),
     }
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetToken { contract_id } => query_token(deps, contract_id),
+        QueryMsg::GetToken { contract_id } => query_token(deps, env, contract_id),
         QueryMsg::GetBalance {
             contract_id,
             address,
-        } => query_balance(deps, contract_id, address),
+        } => query_balance(deps, env, contract_id, address),
         QueryMsg::GetTotal {
             contract_id,
             target,
-        } => query_total(deps, contract_id, target),
+        } => query_total(deps, env, contract_id, target),
         QueryMsg::GetPerm {
             contract_id,
             address,
-        } => query_perm(deps, contract_id, address),
+        } => query_perm(deps, env, contract_id, address),
         QueryMsg::GetIsApproved {
             proxy,
             contract_id,
             approver,
-        } => query_is_approved(deps, proxy, contract_id, approver),
-        QueryMsg::GetApprovers { proxy, contract_id } => query_approvers(deps, proxy, contract_id),
+        } => query_is_approved(deps, env, proxy, contract_id, approver),
+        QueryMsg::GetApprovers { proxy, contract_id } => {
+            query_approvers(deps, env, proxy, contract_id)
+        }
     }
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn try_issue<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_issue(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     to: HumanAddr,
     name: String,
@@ -164,15 +161,16 @@ pub fn try_issue<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "issue")],
+        attributes: vec![attr("action", "issue")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_transfer<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_transfer(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -196,15 +194,17 @@ pub fn try_transfer<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer")],
+        attributes: vec![attr("action", "transfer")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+#[allow(clippy::too_many_arguments)]
+pub fn try_transfer_from(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     from: HumanAddr,
     contract_id: String,
@@ -230,15 +230,16 @@ pub fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "transfer_from")],
+        attributes: vec![attr("action", "transfer_from")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_mint<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_mint(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -260,15 +261,16 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "mint")],
+        attributes: vec![attr("action", "mint")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_burn<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     amount: Uint128,
@@ -288,15 +290,16 @@ pub fn try_burn<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn")],
+        attributes: vec![attr("action", "burn")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_burn_from<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_burn_from(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     proxy: HumanAddr,
     from: HumanAddr,
     contract_id: String,
@@ -318,15 +321,16 @@ pub fn try_burn_from<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "burn_from")],
+        attributes: vec![attr("action", "burn_from")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_grant_perm(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     to: HumanAddr,
@@ -349,15 +353,16 @@ pub fn try_grant_perm<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "grant_perm")],
+        attributes: vec![attr("action", "grant_perm")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_revoke_perm(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     from: HumanAddr,
     contract_id: String,
     perm_str: String,
@@ -378,15 +383,16 @@ pub fn try_revoke_perm<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "revoke_perm")],
+        attributes: vec![attr("action", "revoke_perm")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_modify<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_modify(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     owner: HumanAddr,
     contract_id: String,
     key: String,
@@ -407,15 +413,16 @@ pub fn try_modify<S: Storage, A: Api, Q: Querier>(
     .into();
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "modify")],
+        attributes: vec![attr("action", "modify")],
         data: None,
     };
     Ok(res)
 }
 
-pub fn try_approve<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn try_approve(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
@@ -435,17 +442,14 @@ pub fn try_approve<S: Storage, A: Api, Q: Querier>(
 
     let res = HandleResponse {
         messages: vec![msg],
-        log: vec![log("action", "approve")],
+        attributes: vec![attr("action", "approve")],
         data: None,
     };
     Ok(res)
 }
 
-fn query_token<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    contract_id: String,
-) -> StdResult<Binary> {
-    let res = match LinkTokenQuerier::new(&deps.querier).query_token(contract_id)? {
+fn query_token(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
+    let res = match LinkTokenQuerier::new(deps.querier).query_token(contract_id)? {
         Some(token_response) => token_response,
         None => return to_binary(&None::<Box<Response<Token>>>),
     };
@@ -454,38 +458,40 @@ fn query_token<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_balance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_balance(
+    deps: Deps,
+    _env: Env,
     contract_id: String,
     address: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkTokenQuerier::new(&deps.querier)
+    let res = LinkTokenQuerier::new(deps.querier)
         .query_balance(contract_id, address)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_total<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_total(
+    deps: Deps,
+    _env: Env,
     contract_id: String,
     target_str: String,
 ) -> StdResult<Binary> {
     let target = Target::from_str(&target_str).unwrap();
     if Target::Supply == target {
-        let res = LinkTokenQuerier::new(&deps.querier)
+        let res = LinkTokenQuerier::new(deps.querier)
             .query_supply(contract_id)
             .unwrap();
         let out = to_binary(&res)?;
         Ok(out)
     } else if Target::Mint == target {
-        let res = LinkTokenQuerier::new(&deps.querier)
+        let res = LinkTokenQuerier::new(deps.querier)
             .query_mint(contract_id)
             .unwrap();
         let out = to_binary(&res)?;
         Ok(out)
     } else {
-        let res = LinkTokenQuerier::new(&deps.querier)
+        let res = LinkTokenQuerier::new(deps.querier)
             .query_burn(contract_id)
             .unwrap();
         let out = to_binary(&res)?;
@@ -493,12 +499,8 @@ fn query_total<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn query_perm<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    contract_id: String,
-    address: HumanAddr,
-) -> StdResult<Binary> {
-    let res = match LinkTokenQuerier::new(&deps.querier).query_perm(contract_id, address)? {
+fn query_perm(deps: Deps, _env: Env, contract_id: String, address: HumanAddr) -> StdResult<Binary> {
+    let res = match LinkTokenQuerier::new(deps.querier).query_perm(contract_id, address)? {
         Some(permissions) => permissions,
         None => return to_binary(&None::<Box<Vec<TokenPerm>>>),
     };
@@ -506,25 +508,27 @@ fn query_perm<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn query_is_approved<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_is_approved(
+    deps: Deps,
+    _env: Env,
     proxy: HumanAddr,
     contract_id: String,
     approver: HumanAddr,
 ) -> StdResult<Binary> {
-    let res = LinkTokenQuerier::new(&deps.querier)
+    let res = LinkTokenQuerier::new(deps.querier)
         .query_is_approved(proxy, contract_id, approver)
         .unwrap();
     let out = to_binary(&res)?;
     Ok(out)
 }
 
-fn query_approvers<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_approvers(
+    deps: Deps,
+    _env: Env,
     proxy: HumanAddr,
     contract_id: String,
 ) -> StdResult<Binary> {
-    let res = match LinkTokenQuerier::new(&deps.querier).query_approvers(proxy, contract_id)? {
+    let res = match LinkTokenQuerier::new(deps.querier).query_approvers(proxy, contract_id)? {
         Some(approvers) => approvers,
         None => return to_binary(&None::<Box<Vec<HumanAddr>>>),
     };
@@ -532,21 +536,24 @@ fn query_approvers<S: Storage, A: Api, Q: Querier>(
     Ok(out)
 }
 
-fn _query_owner<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<HumanAddr> {
-    let state = config_read(&deps.storage).load()?;
+fn _query_owner(deps: Deps, _env: Env) -> StdResult<HumanAddr> {
+    let state = config_read(deps.storage).load()?;
     Ok(deps.api.human_address(&state.owner)?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage};
-    use cosmwasm_std::{coins, Env};
+    use cosmwasm_std::testing::{
+        mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage,
+    };
+    use cosmwasm_std::{coins, Env, OwnedDeps};
 
-    fn create_contract(owner: String) -> (Extern<MockStorage, MockApi, MockQuerier>, Env) {
-        let mut deps = mock_dependencies(20, &coins(1000, "cony"));
-        let env = mock_env(owner, &coins(1000, "cony"));
-        let res = init(&mut deps, env.clone(), InitMsg {}).unwrap();
+    fn create_contract(owner: String) -> (OwnedDeps<MockStorage, MockApi, MockQuerier>, Env) {
+        let mut deps = mock_dependencies(&coins(1000, "cony"));
+        let env = mock_env();
+        let info = mock_info(owner, &coins(1000, "cony"));
+        let res = init(deps.as_mut(), env.clone(), info.clone(), InitMsg {}).unwrap();
         assert_eq!(0, res.messages.len());
         (deps, env)
     }
@@ -556,7 +563,8 @@ mod tests {
         let addr = "creator";
 
         let (deps, _) = create_contract(addr.to_string());
-        let value = _query_owner(&deps).unwrap();
-        assert_eq!("creator", value.as_str());
+        let env = mock_env();
+        let value = _query_owner(deps.as_ref(), env).unwrap();
+        assert_eq!(addr, value.as_str());
     }
 }

@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-use cosmwasm_std::QueryRequest;
+use cosmwasm_std::CustomQuery;
 
 use crate::querier_collection::{CollectionQuery, CollectionQueryRoute};
 use crate::querier_token::{TokenQuery, TokenQueryRoute};
@@ -28,21 +28,9 @@ pub struct QueryData<R, D> {
     pub data: D,
 }
 
-impl Into<QueryRequest<LinkQueryWrapper<TokenQueryRoute, TokenQuery>>>
-    for LinkQueryWrapper<TokenQueryRoute, TokenQuery>
-{
-    fn into(self) -> QueryRequest<LinkQueryWrapper<TokenQueryRoute, TokenQuery>> {
-        QueryRequest::Custom(self)
-    }
-}
+impl CustomQuery for LinkQueryWrapper<CollectionQueryRoute, CollectionQuery> {}
 
-impl Into<QueryRequest<LinkQueryWrapper<CollectionQueryRoute, CollectionQuery>>>
-    for LinkQueryWrapper<CollectionQueryRoute, CollectionQuery>
-{
-    fn into(self) -> QueryRequest<LinkQueryWrapper<CollectionQueryRoute, CollectionQuery>> {
-        QueryRequest::Custom(self)
-    }
-}
+impl CustomQuery for LinkQueryWrapper<TokenQueryRoute, TokenQuery> {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
