@@ -45,4 +45,9 @@ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_token_tester",target=/code/contracts/token-tester/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.10.5 ./contracts/token-tester
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_collection_tester",target=/code/contracts/collection-tester/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.10.5 ./contracts/collection-tester
 ```
