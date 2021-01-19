@@ -1,6 +1,6 @@
 # CosmWasm
 
-[![CircleCI](https://circleci.com/gh/CosmWasm/cosmwasm/tree/master.svg?style=shield)](https://circleci.com/gh/CosmWasm/cosmwasm/tree/master)
+[![CircleCI](https://circleci.com/gh/line/cosmwasm/tree/develop.svg?style=shield)](https://circleci.com/gh/line/cosmwasm/tree/develop)
 
 | Crate            | Download                                                                                                                            | Docs                                                                                    |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
