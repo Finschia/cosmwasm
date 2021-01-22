@@ -1,4 +1,6 @@
 # CHANGELOG LINK
+This is CHANGELOG after this repository was forked from CosmWasm/cosmwasm.
+
 ## Unreleased Version
 ### Add
 - Add the ext package and tests for it. It is a wrapper to use token and collection module from contracts. (#6)
