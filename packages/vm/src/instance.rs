@@ -11,6 +11,7 @@ use wasmer_runtime_core::{
     Instance as WasmerInstance,
 };
 
+use crate::backend::{Api, Backend, Querier, Storage};
 use crate::backends::{compile, get_gas_left, set_gas_left};
 use crate::context::{
     get_gas_state, get_gas_state_mut, move_into_context, move_out_of_context, set_storage_readonly,
@@ -21,11 +22,11 @@ use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::features::required_features_from_wasmer_instance;
 use crate::imports::{
     do_canonicalize_address, do_humanize_address, do_query_chain, do_read, do_remove, do_write,
+    print_debug_message,
 };
 #[cfg(feature = "iterator")]
 use crate::imports::{do_next, do_scan};
 use crate::memory::{get_memory_info, read_region, write_region};
-use crate::traits::{Api, Extern, Querier, Storage};
 
 const WASM_PAGE_SIZE: u64 = 64 * 1024;
 
@@ -42,7 +43,13 @@ pub struct GasReport {
     pub used_internally: u64,
 }
 
-pub struct Instance<S: Storage + 'static, A: Api + 'static, Q: Querier + 'static> {
+#[derive(Copy, Clone, Debug)]
+pub struct InstanceOptions {
+    pub gas_limit: u64,
+    pub print_debug: bool,
+}
+
+pub struct Instance<S: Storage, A: Api, Q: Querier> {
     /// We put this instance in a box to maintain a constant memory address for the entire
     /// lifetime of the instance in the cache. This is needed e.g. when linking the wasmer
     /// instance to a context. See also https://github.com/CosmWasm/cosmwasm/pull/245
@@ -56,27 +63,32 @@ pub struct Instance<S: Storage + 'static, A: Api + 'static, Q: Querier + 'static
 
 impl<S, A, Q> Instance<S, A, Q>
 where
-    S: Storage + 'static,
-    A: Api + 'static,
-    Q: Querier + 'static,
+    S: Storage,
+    A: Api + 'static, // 'static is needed here to allow copying API instances into closures
+    Q: Querier,
 {
     /// This is the only Instance constructor that can be called from outside of cosmwasm-vm,
     /// e.g. in test code that needs a customized variant of cosmwasm_vm::testing::mock_instance*.
-    pub fn from_code(code: &[u8], deps: Extern<S, A, Q>, gas_limit: u64) -> VmResult<Self> {
+    pub fn from_code(
+        code: &[u8],
+        backend: Backend<S, A, Q>,
+        options: InstanceOptions,
+    ) -> VmResult<Self> {
         let module = compile(code)?;
-        Instance::from_module(&module, deps, gas_limit)
+        Instance::from_module(&module, backend, options.gas_limit, options.print_debug)
     }
 
     pub(crate) fn from_module(
         module: &Module,
-        deps: Extern<S, A, Q>,
+        backend: Backend<S, A, Q>,
         gas_limit: u64,
+        print_debug: bool,
     ) -> VmResult<Self> {
         let mut import_obj =
             imports! { move || { setup_context::<S, Q>(gas_limit) }, "env" => {}, };
 
         // copy this so it can be moved into the closures, without pulling in deps
-        let api = deps.api;
+        let api = backend.api;
         import_obj.extend(imports! {
             "env" => {
                 // Reads the database entry at the given key into the the value.
@@ -112,6 +124,16 @@ where
                 "humanize_address" => Func::new(move |ctx: &mut Ctx, source_ptr: u32, destination_ptr: u32| -> VmResult<u32> {
                     do_humanize_address::<A, S, Q>(api, ctx, source_ptr, destination_ptr)
                 }),
+                // Allows the contract to emit debug logs that the host can either process or ignore.
+                // This is never written to chain.
+                // Takes a pointer argument of a memory region that must contain an UTF-8 encoded string.
+                // Ownership of both input and output pointer is not transferred to the host.
+                "debug" => Func::new(move |ctx: &mut Ctx, message_ptr: u32|-> VmResult<()> {
+                    if print_debug {
+                        print_debug_message(ctx, message_ptr)?;
+                    }
+                    Ok(())
+                }),
                 "query_chain" => Func::new(move |ctx: &mut Ctx, request_ptr: u32| -> VmResult<u32> {
                     do_query_chain::<S, Q>(ctx, request_ptr)
                 }),
@@ -141,37 +163,36 @@ where
             },
         });
 
-        let wasmer_instance = Box::from(module.instantiate(&import_obj).map_err(|original| {
-            VmError::instantiation_err(format!("Error instantiating module: {:?}", original))
-        })?);
-        Ok(Instance::from_wasmer(wasmer_instance, deps, gas_limit))
-    }
+        let mut wasmer_instance =
+            Box::from(module.instantiate(&import_obj).map_err(|original| {
+                VmError::instantiation_err(format!("Error instantiating module: {:?}", original))
+            })?);
 
-    pub(crate) fn from_wasmer(
-        mut wasmer_instance: Box<WasmerInstance>,
-        deps: Extern<S, A, Q>,
-        gas_limit: u64,
-    ) -> Self {
         set_gas_left(wasmer_instance.context_mut(), gas_limit);
         get_gas_state_mut::<S, Q>(wasmer_instance.context_mut()).set_gas_limit(gas_limit);
         let required_features = required_features_from_wasmer_instance(wasmer_instance.as_ref());
         let instance_ptr = NonNull::from(wasmer_instance.as_ref());
         set_wasmer_instance::<S, Q>(wasmer_instance.context_mut(), Some(instance_ptr));
-        move_into_context(wasmer_instance.context_mut(), deps.storage, deps.querier);
-        Instance {
+        move_into_context(
+            wasmer_instance.context_mut(),
+            backend.storage,
+            backend.querier,
+        );
+        let instance = Instance {
             inner: wasmer_instance,
-            api: deps.api,
+            api: backend.api,
             required_features,
             type_storage: PhantomData::<S> {},
             type_querier: PhantomData::<Q> {},
-        }
+        };
+        Ok(instance)
     }
 
     /// Decomposes this instance into its components.
     /// External dependencies are returned for reuse, the rest is dropped.
-    pub fn recycle(mut self) -> Option<Extern<S, A, Q>> {
+    pub fn recycle(mut self) -> Option<Backend<S, A, Q>> {
         if let (Some(storage), Some(querier)) = move_out_of_context(self.inner.context_mut()) {
-            Some(Extern {
+            Some(Backend {
                 storage,
                 api: self.api,
                 querier,
@@ -267,23 +288,22 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::backend::Storage;
     use crate::context::is_storage_readonly;
     use crate::errors::VmError;
     use crate::testing::{
-        mock_dependencies, mock_env, mock_instance, mock_instance_with_balances,
-        mock_instance_with_failing_api, mock_instance_with_gas_limit, MockQuerier, MockStorage,
+        mock_backend, mock_env, mock_info, mock_instance, mock_instance_options,
+        mock_instance_with_balances, mock_instance_with_failing_api, mock_instance_with_gas_limit,
+        MockQuerier, MockStorage,
     };
-    use crate::traits::Storage;
-    use crate::{call_init, FfiError};
+    use crate::{call_init, BackendError};
     use cosmwasm_std::{
         coin, coins, from_binary, AllBalanceResponse, BalanceResponse, BankQuery, Empty, HumanAddr,
         QueryRequest,
     };
-    use wabt::wat2wasm;
 
     const KIB: usize = 1024;
     const MIB: usize = 1024 * 1024;
-    const DEFAULT_GAS_LIMIT: u64 = 500_000;
     const DEFAULT_QUERY_GAS_LIMIT: u64 = 300_000;
     static CONTRACT: &[u8] = include_bytes!("../testdata/contract.wasm");
 
@@ -293,14 +313,14 @@ mod test {
 
     #[test]
     fn required_features_works() {
-        let deps = mock_dependencies(20, &[]);
-        let instance = Instance::from_code(CONTRACT, deps, DEFAULT_GAS_LIMIT).unwrap();
+        let backend = mock_backend(&[]);
+        let instance = Instance::from_code(CONTRACT, backend, mock_instance_options()).unwrap();
         assert_eq!(instance.required_features.len(), 0);
     }
 
     #[test]
     fn required_features_works_for_many_exports() {
-        let wasm = wat2wasm(
+        let wasm = wat::parse_str(
             r#"(module
             (type (func))
             (func (type 0) nop)
@@ -314,8 +334,8 @@ mod test {
         )
         .unwrap();
 
-        let deps = mock_dependencies(20, &[]);
-        let instance = Instance::from_code(&wasm, deps, DEFAULT_GAS_LIMIT).unwrap();
+        let backend = mock_backend(&[]);
+        let instance = Instance::from_code(&wasm, backend, mock_instance_options()).unwrap();
         assert_eq!(instance.required_features.len(), 3);
         assert!(instance.required_features.contains("nutrients"));
         assert!(instance.required_features.contains("sun"));
@@ -420,15 +440,16 @@ mod test {
         let mut instance = mock_instance_with_failing_api(&CONTRACT, &[], error_message);
         let init_result = call_init::<_, _, _, serde_json::Value>(
             &mut instance,
-            &mock_env("someone", &[]),
+            &mock_env(),
+            &mock_info("someone", &[]),
             b"{\"verifier\": \"some1\", \"beneficiary\": \"some2\"}",
         );
 
-        // in this case we get a `VmError::FfiError` rather than a `VmError::RuntimeErr` because the conversion
+        // in this case we get a `VmError::BackendErr` rather than a `VmError::RuntimeErr` because the conversion
         // from wasmer `RuntimeError` to `VmError` unwraps errors that happen in WASM imports.
         match init_result.unwrap_err() {
-            VmError::FfiErr {
-                source: FfiError::Unknown { msg, .. },
+            VmError::BackendErr {
+                source: BackendError::Unknown { msg, .. },
             } if msg == Some(error_message.to_string()) => {}
             other => panic!("unexpected error: {:?}", other),
         }
@@ -511,9 +532,9 @@ mod test {
         assert_eq!(report1.remaining, FAKE_REMANING);
 
         // init contract
-        let env = mock_env("creator", &coins(1000, "earth"));
+        let info = mock_info("creator", &coins(1000, "earth"));
         let msg = r#"{"verifier": "verifies", "beneficiary": "benefits"}"#.as_bytes();
-        call_init::<_, _, _, Empty>(&mut instance, &env, msg)
+        call_init::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
             .unwrap()
             .unwrap();
 
@@ -537,15 +558,15 @@ mod test {
         assert_eq!(report1.remaining, LIMIT);
 
         // init contract
-        let env = mock_env("creator", &coins(1000, "earth"));
+        let info = mock_info("creator", &coins(1000, "earth"));
         let msg = r#"{"verifier": "verifies", "beneficiary": "benefits"}"#.as_bytes();
-        call_init::<_, _, _, Empty>(&mut instance, &env, msg)
+        call_init::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
             .unwrap()
             .unwrap();
 
         let report2 = instance.create_gas_report();
-        assert_eq!(report2.used_externally, 134);
-        assert_eq!(report2.used_internally, 63027);
+        assert_eq!(report2.used_externally, 146);
+        assert_eq!(report2.used_internally, 76371);
         assert_eq!(report2.limit, LIMIT);
         assert_eq!(
             report2.remaining,
@@ -740,7 +761,7 @@ mod singlepass_test {
     use cosmwasm_std::{coins, Empty};
 
     use crate::calls::{call_handle, call_init, call_query};
-    use crate::testing::{mock_env, mock_instance, mock_instance_with_gas_limit};
+    use crate::testing::{mock_env, mock_info, mock_instance, mock_instance_with_gas_limit};
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/contract.wasm");
 
@@ -750,15 +771,14 @@ mod singlepass_test {
         let orig_gas = instance.get_gas_left();
 
         // init contract
-        let env = mock_env("creator", &coins(1000, "earth"));
+        let info = mock_info("creator", &coins(1000, "earth"));
         let msg = r#"{"verifier": "verifies", "beneficiary": "benefits"}"#.as_bytes();
-        call_init::<_, _, _, Empty>(&mut instance, &env, msg)
+        call_init::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
             .unwrap()
             .unwrap();
 
         let init_used = orig_gas - instance.get_gas_left();
-        println!("init used: {}", init_used);
-        assert_eq!(init_used, 63161);
+        assert_eq!(init_used, 76517);
     }
 
     #[test]
@@ -766,23 +786,22 @@ mod singlepass_test {
         let mut instance = mock_instance(&CONTRACT, &[]);
 
         // init contract
-        let env = mock_env("creator", &coins(1000, "earth"));
+        let info = mock_info("creator", &coins(1000, "earth"));
         let msg = r#"{"verifier": "verifies", "beneficiary": "benefits"}"#.as_bytes();
-        call_init::<_, _, _, Empty>(&mut instance, &env, msg)
+        call_init::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
             .unwrap()
             .unwrap();
 
         // run contract - just sanity check - results validate in contract unit tests
         let gas_before_handle = instance.get_gas_left();
-        let env = mock_env("verifies", &coins(15, "earth"));
+        let info = mock_info("verifies", &coins(15, "earth"));
         let msg = br#"{"release":{}}"#;
-        call_handle::<_, _, _, Empty>(&mut instance, &env, msg)
+        call_handle::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
             .unwrap()
             .unwrap();
 
         let handle_used = gas_before_handle - instance.get_gas_left();
-        println!("handle used: {}", handle_used);
-        assert_eq!(handle_used, 193119);
+        assert_eq!(handle_used, 208653);
     }
 
     #[test]
@@ -790,9 +809,9 @@ mod singlepass_test {
         let mut instance = mock_instance_with_gas_limit(&CONTRACT, 20_000);
 
         // init contract
-        let env = mock_env("creator", &coins(1000, "earth"));
+        let info = mock_info("creator", &coins(1000, "earth"));
         let msg = r#"{"verifier": "verifies", "beneficiary": "benefits"}"#.as_bytes();
-        let res = call_init::<_, _, _, Empty>(&mut instance, &env, msg);
+        let res = call_init::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg);
         assert!(res.is_err());
     }
 
@@ -801,9 +820,9 @@ mod singlepass_test {
         let mut instance = mock_instance(&CONTRACT, &[]);
 
         // init contract
-        let env = mock_env("creator", &coins(1000, "earth"));
+        let info = mock_info("creator", &coins(1000, "earth"));
         let msg = r#"{"verifier": "verifies", "beneficiary": "benefits"}"#.as_bytes();
-        let _res = call_init::<_, _, _, Empty>(&mut instance, &env, msg)
+        let _res = call_init::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
             .unwrap()
             .unwrap();
 
@@ -811,12 +830,11 @@ mod singlepass_test {
         let gas_before_query = instance.get_gas_left();
         // we need to encode the key in base64
         let msg = r#"{"verifier":{}}"#.as_bytes();
-        let res = call_query(&mut instance, msg).unwrap();
+        let res = call_query(&mut instance, &mock_env(), msg).unwrap();
         let answer = res.unwrap();
         assert_eq!(answer.as_slice(), b"{\"verifier\":\"verifies\"}");
 
         let query_used = gas_before_query - instance.get_gas_left();
-        println!("query used: {}", query_used);
-        assert_eq!(query_used, 32070);
+        assert_eq!(query_used, 61219);
     }
 }

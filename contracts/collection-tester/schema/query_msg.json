@@ -1,0 +1,295 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "get_collection"
+      ],
+      "properties": {
+        "get_collection": {
+          "type": "object",
+          "required": [
+            "contract_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_balance"
+      ],
+      "properties": {
+        "get_balance": {
+          "type": "object",
+          "required": [
+            "addr",
+            "contract_id",
+            "token_id"
+          ],
+          "properties": {
+            "addr": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_token_type"
+      ],
+      "properties": {
+        "get_token_type": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_token_types"
+      ],
+      "properties": {
+        "get_token_types": {
+          "type": "object",
+          "required": [
+            "contract_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_token"
+      ],
+      "properties": {
+        "get_token": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_tokens"
+      ],
+      "properties": {
+        "get_tokens": {
+          "type": "object",
+          "required": [
+            "contract_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_nft_count"
+      ],
+      "properties": {
+        "get_nft_count": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "target",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_total"
+      ],
+      "properties": {
+        "get_total": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "target",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_root_or_parent_or_children"
+      ],
+      "properties": {
+        "get_root_or_parent_or_children": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "target",
+            "token_id"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            },
+            "token_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_perms"
+      ],
+      "properties": {
+        "get_perms": {
+          "type": "object",
+          "required": [
+            "addr",
+            "contract_id"
+          ],
+          "properties": {
+            "addr": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_approved"
+      ],
+      "properties": {
+        "get_approved": {
+          "type": "object",
+          "required": [
+            "approver",
+            "contract_id",
+            "proxy"
+          ],
+          "properties": {
+            "approver": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "contract_id": {
+              "type": "string"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_approvers"
+      ],
+      "properties": {
+        "get_approvers": {
+          "type": "object",
+          "required": [
+            "contract_id",
+            "proxy"
+          ],
+          "properties": {
+            "contract_id": {
+              "type": "string"
+            },
+            "proxy": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    }
+  }
+}

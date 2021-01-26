@@ -1,13 +1,14 @@
 use cosmwasm_std::{
-    log, Api, BankMsg, Binary, Env, Extern, HandleResponse, InitResponse, MigrateResponse, Order,
-    Querier, StdError, StdResult, Storage,
+    attr, BankMsg, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo,
+    MigrateResponse, Order, StdError, StdResult,
 };
 
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn init(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     _msg: InitMsg,
 ) -> StdResult<InitResponse> {
     Err(StdError::generic_err(
@@ -15,9 +16,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     ))
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+pub fn handle(
+    _deps: DepsMut,
     _env: Env,
+    _info: MessageInfo,
     _msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     Err(StdError::generic_err(
@@ -25,9 +27,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     ))
 }
 
-pub fn migrate<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn migrate(
+    deps: DepsMut,
     env: Env,
+    _info: MessageInfo,
     msg: MigrateMsg,
 ) -> StdResult<MigrateResponse> {
     // delete all state
@@ -53,15 +56,12 @@ pub fn migrate<S: Storage, A: Api, Q: Querier>(
 
     Ok(MigrateResponse {
         messages: vec![send.into()],
-        log: vec![log("action", "burn"), log("payout", msg.payout)],
+        attributes: vec![attr("action", "burn"), attr("payout", msg.payout)],
         data: Some(data_msg.into()),
     })
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    _deps: &Extern<S, A, Q>,
-    _msg: QueryMsg,
-) -> StdResult<Binary> {
+pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
     Err(StdError::generic_err(
         "You can only use this contract for migrations",
     ))
@@ -70,17 +70,17 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, MOCK_CONTRACT_ADDR};
-    use cosmwasm_std::{coins, HumanAddr, ReadonlyStorage, StdError};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MOCK_CONTRACT_ADDR};
+    use cosmwasm_std::{coins, HumanAddr, StdError, Storage};
 
     #[test]
     fn init_fails() {
-        let mut deps = mock_dependencies(20, &[]);
+        let mut deps = mock_dependencies(&[]);
 
         let msg = InitMsg {};
-        let env = mock_env("creator", &coins(1000, "earth"));
+        let info = mock_info("creator", &coins(1000, "earth"));
         // we can just call .unwrap() to assert this was a success
-        let res = init(&mut deps, env, msg);
+        let res = init(deps.as_mut(), mock_env(), info, msg);
         match res.unwrap_err() {
             StdError::GenericErr { msg, .. } => {
                 assert_eq!(msg, "You can only use this contract for migrations")
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn migrate_cleans_up_data() {
-        let mut deps = mock_dependencies(20, &coins(123456, "gold"));
+        let mut deps = mock_dependencies(&coins(123456, "gold"));
 
         // store some sample data
         deps.storage.set(b"foo", b"bar");
@@ -105,8 +105,8 @@ mod tests {
         let msg = MigrateMsg {
             payout: payout.clone(),
         };
-        let env = mock_env("creator", &[]);
-        let res = migrate(&mut deps, env, msg).unwrap();
+        let info = mock_info("creator", &[]);
+        let res = migrate(deps.as_mut(), mock_env(), info, msg).unwrap();
         // check payout
         assert_eq!(1, res.messages.len());
         let msg = res.messages.get(0).expect("no message");

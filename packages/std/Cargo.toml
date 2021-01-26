@@ -1,6 +1,6 @@
 [package]
 name = "cosmwasm-std"
-version = "0.10.0"
+version = "0.12.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
 edition = "2018"
 description = "Standard library for Wasm based smart contracts on Cosmos blockchains"
@@ -25,14 +25,17 @@ iterator = []
 staking = []
 # backtraces provides much better context at runtime errors (in non-wasm code)
 # at the cost of a bit of code size and performance.
-backtraces = ["snafu/backtraces"]
+# This feature requires Rust nightly because it depends on the unstable backtrace feature.
+backtraces = []
 
 [dependencies]
 base64 = "0.11.0"
 serde-json-wasm = { version = "0.2.1" }
 schemars = "0.7"
 serde = { version = "1.0.103", default-features = false, features = ["derive", "alloc"] }
-snafu = { version = "0.6.6" }
+thiserror = "1.0"
 
 [dev-dependencies]
 cosmwasm-schema = { path = "../schema" }
+# The chrono dependency is only used in an example, which Rust compiles for us. If this causes trouble, remove it.
+chrono = "0.4"

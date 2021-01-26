@@ -1,5 +1,174 @@
 # CHANGELOG
 
+## 0.12.0 (2020-11-19)
+
+**cosmwasm-std**
+
+- Remove the previously deprecated `StdError::Unauthorized`. Contract specific
+  errors should be implemented using custom error types now (see
+  [migration guide](./MIGRATING.md) 0.10 -> 0.11).
+- Use dependency `thiserror` instead of `snafu` to implement `StdError`. Along
+  with this change, the `backtraces` feature now requires Rust nightly.
+- Rename `StdError::ParseErr::source` to `StdError::ParseErr::source_type` and
+  `StdError::SerializeErr::target` to `StdError::SerializeErr::target_type` to
+  work around speacial treatment of the field name `source` in thiserror.
+- Rename `Extern` to `Deps` to unify naming.
+- Simplify ownership of calling `handle`, etc. with `Deps` and `DepsMut` struct
+  that just contains references (`DepsMut` has `&mut Storage` otherwise the
+  same)
+- Remove unused `Deps::change_querier`. If you need this or similar
+  functionality, create a new struct with the right querier.
+- Remove `ReadonlyStorage`. You can just use `Storage` everywhere. And use
+  `&Storage` to provide readonly access. This was only needed to let
+  `PrefixedStorage`/`ReadonlyPrefixedStorage` implement the common interface,
+  which is something we don't need.
+
+**cosmwasm-storage**
+
+- `PrefixedStorage`/`ReadonlyPrefixedStorage` do not implement the
+  `Storage`/`ReadonlyStorage` traits anymore. If you need nested prefixes, you
+  need to construct them directly via `PrefixedStorage::multilevel` and
+  `ReadonlyPrefixedStorage::multilevel`.
+- Remove unused `TypedStorage`. If you need this or similar functionality, you
+  probably want to use `Bucket` or `Singleton`. If you really need it, please
+  copy the v0.11 code into your project.
+- Remove `StorageTransaction` along with `transactional` and `RepLog`. This has
+  not been used actively for contract development and is now maintained in a
+  contract testing framework.
+
+**cosmwasm-vm**
+
+- Remove `Storage::range` and `StorageIterator`. The storage implementation is
+  now responsible for maintaining iterators internally and make them accessible
+  via the new `Storage::scan` and `Storage::next` methods.
+- Add `FfiError::IteratorDoesNotExist`. Looking at this, `FfiError` should
+  probably be renamed to something that includes before, on and behind the FFI
+  boundary to Go.
+- `MockStorage` now implementes the new `Storage` trait and has an additional
+  `MockStorage::all` for getting all elements of an iterator in tests.
+- Remove unused `Extern::change_querier`. If you need this or similar
+  functionality, create a new struct with the right querier.
+- Let `Instance::from_code` and `CosmCache::get_instance` take options as an
+  `InstanceOptions` struct. This contains `gas_limit` and `print_debug` for now
+  and can easily be extended. `cosmwasm_vm::testing::mock_instance_options` can
+  be used for creating such a struct in integration tests.
+- Make `FileSystemCache` crate internal. This should be used via `CosmCache`.
+- Fix return type of `FileSystemCache::load` to `VmResult<Option<Module>>` in
+  order to differentiate missing files from errors.
+- Add in-memory caching for recently used Wasm modules.
+- Rename `CosmCache` to just `cosmwasm_vm::Cache` and add `CacheOptions` to
+  configure it.
+- Rename `Extern` to `Backend`.
+- Rename `mock_dependencies` to `mock_backend` and
+  `mock_dependencies_with_balances` to `mock_backend_with_balances`.
+- Rename `FfiError`/`FfiResult` to `BackendError`/`BackendResult` and adapt
+  `VmError` accordingly.
+
+## 0.11.2 (2020-10-26)
+
+**cosmwasm-std**
+
+- Implement `From<std::str::Utf8Error>` and `From<std::string::FromUtf8Error>`
+  for `StdError`.
+- Generalize denom argument from `&str` to `S: Into<String>` in `coin`, `coins`
+  and `Coin::new`.
+- Implement `PartialEq` between `Binary` and `Vec<u8>`/`&[u8]`.
+- Add missing `PartialEq` implementations between `HumanAddr` and `str`/`&str`.
+- Add `Binary::to_array`, which allows you to copy binary content into a
+  fixed-length `u8` array. This is espeically useful for creating integers from
+  binary data.
+
+## 0.11.1 (2020-10-12)
+
+**cosmwasm-std**
+
+- Implement `Hash` and `Eq` for `Binary` to allow using `Binary` in `HashSet`
+  and `HashMap`.
+- Implement `Hash` and `Eq` for `CanonicalAddr` to allow using `CanonicalAddr`
+  in `HashSet` and `HashMap`.
+- Implement `Add`, `AddAssign` and `Sub` with references on the right hand side
+  for `Uint128`.
+- Implement `Sum<Uint128>` and `Sum<&'a Uint128>` for `Uint128`.
+
+## 0.11.0 (2020-10-08)
+
+**all**
+
+- Drop support for Rust versions lower than 1.45.2.
+- The serialization of the result from `init`/`migrate`/`handle`/`query` changed
+  in an incompatible way. See the new `ContractResult` and `SystemResult` types
+  and their documentation.
+- Pass `Env` into `query` as well. As this doesn't have `MessageInfo`, we
+  removed `MessageInfo` from `Env` and pass that as a separate argument to
+  `init`, `handle`, and `query`. See the example
+  [type definitions in the README](README.md#implementing-the-smart-contract) to
+  see how to update your contract exports (just add one extra arg each).
+
+**cosmwasm-std**
+
+- Add `time_nanos` to `BlockInfo` allowing access to high precision block times.
+- Change `FullDelegation::accumulated_rewards` from `Coin` to `Vec<Coin>`.
+- Rename `InitResponse::log`, `MigrateResponse::log` and `HandleResponse::log`
+  to `InitResponse::attributes`, `MigrateResponse::attributes` and
+  `HandleResponse::attributes`.
+- Rename `LogAttribute` to `Attribute`.
+- Rename `log` to `attr`.
+- Rename `Context::add_log` to `Context::add_attribute`.
+- Add `Api::debug` for emitting debug messages during development.
+- Fix error type for response parsing errors in `ExternalQuerier::raw_query`.
+  This was `Ok(Err(StdError::ParseErr))` instead of
+  `Err(SystemError::InvalidResponse)`, implying an error created in the target
+  contract.
+- Deprecate `StdError::Unauthorized` and `StdError::unauthorized` in favour of
+  custom errors. From now on `StdError` should only be created by the standard
+  library and should only contain cases the standard library needs.
+- Let `impl Display for CanonicalAddr` use upper case hex instead of base64.
+  This also affects `CanonicalAddr::to_string`.
+- Create trait `CustomQuery` for the generic argument in
+  `QueryRequest<C: CustomQuery>`. This allows us to provide
+  `impl<C: CustomQuery> From<C> for QueryRequest<C>` for any custom query.
+- Implement `From<Binary> for Vec<u8>`.
+- Implement `From<CanonicalAddr> for Vec<u8>`.
+- Add `Binary::into_vec` and `CanonicalAddr::into_vec`.
+- The `canonical_length` argument was removed from `mock_dependencies`,
+  `mock_dependencies_with_balances`. In the now deprecated `MockApi::new`, the
+  argument is unused. Contracts should not need to set this value and usually
+  should not make assumptions about the value.
+- The canonical address encoding in `MockApi::canonical_address` and
+  `MockApi::human_address` was changed to an unpredicatable represenation of
+  non-standard length that aims to destroy most of the input structure.
+
+**cosmwasm-storage**
+
+- Change order of arguments such that `storage` is always first followed by
+  namespace in `Bucket::new`, `Bucket::multilevel`, `ReadonlyBucket::new`,
+  `ReadonlyBucket::multilevel`, `bucket` and `bucket_read`.
+- Change order of arguments such that `storage` is always first followed by
+  namespace in `PrefixedStorage::new`, `PrefixedStorage::multilevel`,
+  `ReadonlyPrefixedStorage::new`, `ReadonlyPrefixedStorage::multilevel`,
+  `prefixed` and `prefixed_read`.
+
+**cosmwasm-vm**
+
+- `CosmCache::new`, `Instance::from_code` and `Instance::from_module` now take
+  an additional argument to enable/disable printing debug logs from contracts.
+- Bump required export `cosmwasm_vm_version_3` to `cosmwasm_vm_version_4`.
+- The `canonical_length` argument was removed from `mock_dependencies`,
+  `mock_dependencies_with_balances` and `MockApi::new_failing`. In the now
+  deprecated `MockApi::new`, the argument is unused. Contracts should not need
+  to set this value and usually should not make assumptions about the value.
+- The canonical address encoding in `MockApi::canonical_address` and
+  `MockApi::human_address` was changed to an unpredicatable represenation of
+  non-standard length that aims to destroy most of the input structure.
+
+## 0.10.1 (2020-08-25)
+
+**cosmwasm-std**
+
+- Fix bug where `ExternalStorage.range()` would cause VM error if either lower
+  or upper bound was set
+  ([#508](https://github.com/CosmWasm/cosmwasm/issues/508))
+
 ## 0.10.0 (2020-07-30)
 
 **all**
