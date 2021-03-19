@@ -2,34 +2,46 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HandleResponse, HandleResult,
-    HumanAddr, InitResponse, MessageInfo, StdResult, Uint128,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo, Response,
+    StdError, StdResult, Uint128,
 };
 
 use cosmwasm_ext::{
     Change, Coin, Collection, CollectionMsg, CollectionPerm, CollectionRoute,
-    LinkCollectionQuerier, LinkMsgWrapper, MintNFTParam, Module, MsgData, Response, Target,
+    LinkCollectionQuerier, LinkMsgWrapper, MintNFTParam, Module, MsgData, Response as ExtResponse,
+    Target,
 };
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, State};
 
-pub fn init(deps: DepsMut, _env: Env, info: MessageInfo, _msg: InitMsg) -> StdResult<InitResponse> {
+pub fn instantiate(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    _msg: InitMsg,
+) -> StdResult<Response> {
     let state = State {
         owner: deps.api.canonical_address(&info.sender)?,
     };
 
     config(deps.storage).save(&state)?;
 
-    Ok(InitResponse::default())
+    Ok(Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![attr("action", "instantiate")],
+        data: None,
+    })
 }
 
-pub fn handle(
+type CollectionExecuteResponse = Response<LinkMsgWrapper<CollectionRoute, CollectionMsg>>;
+pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: HandleMsg,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     match msg {
         HandleMsg::Create {
             owner,
@@ -253,7 +265,7 @@ pub fn try_create(
     name: String,
     meta: String,
     base_img_uri: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     // Some kind of logic.
 
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
@@ -271,8 +283,9 @@ pub fn try_create(
         }
         .into();
 
-    let res = HandleResponse {
-        messages: vec![msg],
+    let res = Response {
+        submessages: vec![],
+        messages: vec![msg.into()],
         attributes: vec![attr("action", "create")],
         data: None,
     };
@@ -287,7 +300,7 @@ pub fn try_issue_nft(
     contract_id: String,
     name: String,
     meta: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     // Some kind of logic.
 
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
@@ -305,7 +318,8 @@ pub fn try_issue_nft(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "issue_nft")],
         data: None,
@@ -326,7 +340,7 @@ pub fn try_issue_ft(
     amount: Uint128,
     mintable: bool,
     decimals: Uint128,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -346,7 +360,8 @@ pub fn try_issue_ft(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "issue_ft")],
         data: None,
@@ -362,7 +377,7 @@ pub fn try_mint_nft(
     contract_id: String,
     to: HumanAddr,
     token_types: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let mut params: Vec<MintNFTParam> = vec![];
     for (i, _) in token_types.iter().enumerate() {
         let mint_nft_param = MintNFTParam::new(
@@ -388,7 +403,8 @@ pub fn try_mint_nft(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "mint_nft")],
         data: None,
@@ -404,7 +420,7 @@ pub fn try_mint_ft(
     contract_id: String,
     to: HumanAddr,
     tokens: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let mut amount: Vec<Coin> = vec![];
     tokens.iter().for_each(|token| {
         let v: Vec<&str> = (token).split(':').collect();
@@ -427,7 +443,8 @@ pub fn try_mint_ft(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "mint_ft")],
         data: None,
@@ -442,7 +459,7 @@ pub fn try_burn_nft(
     from: HumanAddr,
     contract_id: String,
     token_id: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let token_ids = vec![token_id];
 
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
@@ -459,7 +476,8 @@ pub fn try_burn_nft(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "burn_nft")],
         data: None,
@@ -475,7 +493,7 @@ pub fn try_burn_nft_from(
     contract_id: String,
     from: HumanAddr,
     token_ids: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -491,7 +509,8 @@ pub fn try_burn_nft_from(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "burn_nft_from")],
         data: None,
@@ -506,7 +525,7 @@ pub fn try_burn_ft(
     from: HumanAddr,
     contract_id: String,
     tokens: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let mut amount: Vec<Coin> = vec![];
     tokens.iter().for_each(|token| {
         let v: Vec<&str> = (token).split(':').collect();
@@ -528,7 +547,8 @@ pub fn try_burn_ft(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "burn_nft")],
         data: None,
@@ -544,7 +564,7 @@ pub fn try_burn_ft_from(
     contract_id: String,
     from: HumanAddr,
     tokens: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let mut amount: Vec<Coin> = vec![];
     tokens.iter().for_each(|token| {
         let v: Vec<&str> = (token).split(':').collect();
@@ -567,7 +587,8 @@ pub fn try_burn_ft_from(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "burn_nft_from")],
         data: None,
@@ -583,7 +604,7 @@ pub fn try_transfer_nft(
     contract_id: String,
     to: HumanAddr,
     token_ids: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -599,7 +620,8 @@ pub fn try_transfer_nft(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "transfer_nft")],
         data: None,
@@ -617,7 +639,7 @@ pub fn try_transfer_nft_from(
     from: HumanAddr,
     to: HumanAddr,
     token_ids: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -634,7 +656,8 @@ pub fn try_transfer_nft_from(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "transfer_nft_from")],
         data: None,
@@ -650,7 +673,7 @@ pub fn try_transfer_ft(
     contract_id: String,
     to: HumanAddr,
     tokens: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let mut amount: Vec<Coin> = vec![];
     tokens.iter().for_each(|token| {
         let v: Vec<&str> = (token).split(':').collect();
@@ -673,7 +696,8 @@ pub fn try_transfer_ft(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "transfer_ft")],
         data: None,
@@ -691,7 +715,7 @@ pub fn try_transfer_ft_from(
     from: HumanAddr,
     to: HumanAddr,
     tokens: Vec<String>,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let mut amount: Vec<Coin> = vec![];
     tokens.iter().for_each(|token| {
         let v: Vec<&str> = (token).split(':').collect();
@@ -715,7 +739,8 @@ pub fn try_transfer_ft_from(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "transfer_ft_from")],
         data: None,
@@ -734,7 +759,7 @@ pub fn try_modify(
     token_index: String,
     key: String,
     value: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let change = Change::new(key, value);
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
@@ -751,7 +776,8 @@ pub fn try_modify(
             },
         }
         .into();
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "modify_collection")],
         data: None,
@@ -766,7 +792,7 @@ pub fn try_approve(
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -780,7 +806,8 @@ pub fn try_approve(
             },
         }
         .into();
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "approve")],
         data: None,
@@ -795,7 +822,7 @@ pub fn try_disapprove(
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -809,7 +836,8 @@ pub fn try_disapprove(
             },
         }
         .into();
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "approve")],
         data: None,
@@ -825,7 +853,7 @@ pub fn try_grant_perm(
     contract_id: String,
     to: HumanAddr,
     perm_str: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let permission = CollectionPerm::from_str(&perm_str).unwrap();
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
@@ -842,7 +870,8 @@ pub fn try_grant_perm(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "grant_perm")],
         data: None,
@@ -857,7 +886,7 @@ pub fn try_revoke_perm(
     from: HumanAddr,
     contract_id: String,
     perm_str: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let permission = CollectionPerm::from_str(&perm_str).unwrap();
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
@@ -873,7 +902,8 @@ pub fn try_revoke_perm(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "revoke_perm")],
         data: None,
@@ -889,7 +919,7 @@ pub fn try_attach(
     contract_id: String,
     to_token_id: String,
     token_id: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -905,7 +935,8 @@ pub fn try_attach(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "attach")],
         data: None,
@@ -920,7 +951,7 @@ pub fn try_detach(
     from: HumanAddr,
     contract_id: String,
     token_id: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -935,7 +966,8 @@ pub fn try_detach(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "detach")],
         data: None,
@@ -953,7 +985,7 @@ pub fn try_attach_from(
     from: HumanAddr,
     to_token_id: String,
     token_id: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<Response<LinkMsgWrapper<CollectionRoute, CollectionMsg>>> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -970,7 +1002,8 @@ pub fn try_attach_from(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "attach_from")],
         data: None,
@@ -986,7 +1019,7 @@ pub fn try_detach_from(
     contract_id: String,
     from: HumanAddr,
     token_id: String,
-) -> HandleResult<LinkMsgWrapper<CollectionRoute, CollectionMsg>> {
+) -> StdResult<CollectionExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<CollectionRoute, CollectionMsg>> =
         LinkMsgWrapper::<CollectionRoute, CollectionMsg> {
             module: Module::Collectionencode,
@@ -1002,7 +1035,8 @@ pub fn try_detach_from(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "detach_from")],
         data: None,
@@ -1013,7 +1047,7 @@ pub fn try_detach_from(
 fn query_collection(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
     let res = match LinkCollectionQuerier::new(deps.querier).query_collection(contract_id)? {
         Some(collection_response) => collection_response,
-        None => return to_binary(&None::<Box<Response<Collection>>>),
+        None => return to_binary(&None::<Box<ExtResponse<Collection>>>),
     };
     let out = to_binary(&res)?;
     Ok(out)
