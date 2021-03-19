@@ -1,34 +1,45 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HandleResponse, HandleResult,
-    HumanAddr, InitResponse, MessageInfo, StdResult, Uint128,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo, Response,
+    StdResult, Uint128,
 };
 
 use cosmwasm_ext::{
-    Change, LinkMsgWrapper, LinkTokenQuerier, Module, MsgData, Response, Target, Token, TokenMsg,
-    TokenPerm, TokenRoute,
+    Change, LinkMsgWrapper, LinkTokenQuerier, Module, MsgData, Response as ExtResponse, Target,
+    Token, TokenMsg, TokenPerm, TokenRoute,
 };
 
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, config_read, State};
 
-pub fn init(deps: DepsMut, _env: Env, info: MessageInfo, _msg: InitMsg) -> StdResult<InitResponse> {
+pub fn instantiate(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    _msg: InitMsg,
+) -> StdResult<Response> {
     let state = State {
         owner: deps.api.canonical_address(&info.sender)?,
     };
 
     config(deps.storage).save(&state)?;
 
-    Ok(InitResponse::default())
+    Ok(Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![attr("action", "instantiate")],
+        data: None,
+    })
 }
 
-pub fn handle(
+type TokenExecuteResponse = Response<LinkMsgWrapper<TokenRoute, TokenMsg>>;
+pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: HandleMsg,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     match msg {
         HandleMsg::Issue {
             owner,
@@ -138,7 +149,7 @@ pub fn try_issue(
     amount: Uint128,
     mintable: bool,
     decimals: Uint128,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> =
         LinkMsgWrapper::<TokenRoute, TokenMsg> {
             module: Module::Tokenencode,
@@ -159,7 +170,8 @@ pub fn try_issue(
         }
         .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "issue")],
         data: None,
@@ -175,7 +187,7 @@ pub fn try_transfer(
     contract_id: String,
     to: HumanAddr,
     amount: Uint128,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     // Some kind of logic.
 
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
@@ -192,7 +204,8 @@ pub fn try_transfer(
     }
     .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "transfer")],
         data: None,
@@ -210,7 +223,7 @@ pub fn try_transfer_from(
     contract_id: String,
     to: HumanAddr,
     amount: Uint128,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     // Some kind of logic.
 
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
@@ -228,7 +241,8 @@ pub fn try_transfer_from(
     }
     .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "transfer_from")],
         data: None,
@@ -244,7 +258,7 @@ pub fn try_mint(
     contract_id: String,
     to: HumanAddr,
     amount: Uint128,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
         msg_data: MsgData {
@@ -259,7 +273,8 @@ pub fn try_mint(
     }
     .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "mint")],
         data: None,
@@ -274,7 +289,7 @@ pub fn try_burn(
     from: HumanAddr,
     contract_id: String,
     amount: Uint128,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
         msg_data: MsgData {
@@ -288,7 +303,8 @@ pub fn try_burn(
     }
     .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "burn")],
         data: None,
@@ -304,7 +320,7 @@ pub fn try_burn_from(
     from: HumanAddr,
     contract_id: String,
     amount: Uint128,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
         msg_data: MsgData {
@@ -319,7 +335,8 @@ pub fn try_burn_from(
     }
     .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "burn_from")],
         data: None,
@@ -335,7 +352,7 @@ pub fn try_grant_perm(
     contract_id: String,
     to: HumanAddr,
     perm_str: String,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     let permission = TokenPerm::from_str(&perm_str).unwrap();
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
@@ -351,7 +368,8 @@ pub fn try_grant_perm(
     }
     .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "grant_perm")],
         data: None,
@@ -366,7 +384,7 @@ pub fn try_revoke_perm(
     from: HumanAddr,
     contract_id: String,
     perm_str: String,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     let permission = TokenPerm::from_str(&perm_str).unwrap();
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
@@ -381,7 +399,8 @@ pub fn try_revoke_perm(
     }
     .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "revoke_perm")],
         data: None,
@@ -397,7 +416,7 @@ pub fn try_modify(
     contract_id: String,
     key: String,
     value: String,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     let change = Change::new(key, value);
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
@@ -411,7 +430,8 @@ pub fn try_modify(
         },
     }
     .into();
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "modify")],
         data: None,
@@ -426,7 +446,7 @@ pub fn try_approve(
     approver: HumanAddr,
     contract_id: String,
     proxy: HumanAddr,
-) -> HandleResult<LinkMsgWrapper<TokenRoute, TokenMsg>> {
+) -> StdResult<TokenExecuteResponse> {
     let msg: CosmosMsg<LinkMsgWrapper<TokenRoute, TokenMsg>> = LinkMsgWrapper {
         module: Module::Tokenencode,
         msg_data: MsgData {
@@ -440,7 +460,8 @@ pub fn try_approve(
     }
     .into();
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![msg],
         attributes: vec![attr("action", "approve")],
         data: None,
@@ -451,7 +472,7 @@ pub fn try_approve(
 fn query_token(deps: Deps, _env: Env, contract_id: String) -> StdResult<Binary> {
     let res = match LinkTokenQuerier::new(deps.querier).query_token(contract_id)? {
         Some(token_response) => token_response,
-        None => return to_binary(&None::<Box<Response<Token>>>),
+        None => return to_binary(&None::<Box<ExtResponse<Token>>>),
     };
 
     let out = to_binary(&res)?;
@@ -553,7 +574,7 @@ mod tests {
         let mut deps = mock_dependencies(&coins(1000, "cony"));
         let env = mock_env();
         let info = mock_info(owner, &coins(1000, "cony"));
-        let res = init(deps.as_mut(), env.clone(), info.clone(), InitMsg {}).unwrap();
+        let res = instantiate(deps.as_mut(), env.clone(), info.clone(), InitMsg {}).unwrap();
         assert_eq!(0, res.messages.len());
         (deps, env)
     }
