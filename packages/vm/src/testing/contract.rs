@@ -17,6 +17,9 @@ pub struct Contract<'a> {
     options: MockInstanceOptions<'a>,
 }
 
+const ERR_GET_INSTANCE_TWICE: &str = "get_instance is called twice without called recycle. After get_instance in called, Contract::recycle needs to be called before get_instance is called the next time.";
+const ERR_RECYCLE_BEFORE_GET_INSTANCE: &str = "recycle is called before get_instance. The parameter instance of the recycle should be created with Contract::get_instance of the same Contract.";
+
 /// representing a contract in integration test
 ///
 /// This enables tests instantiate a new instance every time testing call_(init/handle/query/migrate) like actual wasmd's behavior.
@@ -52,7 +55,10 @@ impl<'a> Contract<'a> {
     ///
     /// once this is called, result instance needs to be recycled by Contract::recycle to get new instance next time.
     pub fn get_instance(&mut self) -> TestingResult<Instance<MockStorage, MockApi, MockQuerier>> {
-        let backend = self.backend.take().ok_or_else(|| TestingError::ContractError("This contract has no backend. After you use instance, you need call Contract::recycle to return the backend.".to_string()))?;
+        let backend = self
+            .backend
+            .take()
+            .ok_or_else(|| TestingError::ContractError(ERR_GET_INSTANCE_TWICE.to_string()))?;
         let instance = Instance::from_module(
             &self.module,
             backend,
@@ -69,6 +75,11 @@ impl<'a> Contract<'a> {
         &mut self,
         instance: Instance<MockStorage, MockApi, MockQuerier>,
     ) -> TestingResult<()> {
+        if self.backend.is_some() {
+            return Err(TestingError::ContractError(
+                ERR_RECYCLE_BEFORE_GET_INSTANCE.to_string(),
+            ));
+        };
         let backend = instance.recycle().ok_or_else(|| {
             TestingError::ContractError(
                 "Cannot recycle the instance with cosmwasm_vm::Instance::recycle".to_string(),
@@ -89,7 +100,7 @@ impl<'a> Contract<'a> {
 mod test {
     use super::*;
     use crate::calls::{call_handle, call_init, call_migrate, call_query};
-    use crate::testing::{mock_backend, mock_env, mock_info, MockInstanceOptions};
+    use crate::testing::{mock_backend, mock_env, mock_info, mock_instance, MockInstanceOptions};
     use cosmwasm_std::{HandleResponse, HumanAddr, InitResponse, MigrateResponse, QueryResponse};
 
     static CONTRACT_WITHOUT_MIGRATE: &[u8] = include_bytes!("../../testdata/queue-12-2.wasm");
@@ -182,5 +193,33 @@ mod test {
             .unwrap();
         assert_eq!(res, "{\"sum\":303}".as_bytes());
         let _ = contract.recycle(instance).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "get_instance is called twice")]
+    fn test_err_call_get_instance_twice() {
+        let options = MockInstanceOptions::default();
+        let backend = mock_backend(&[]);
+        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
+
+        // get_instance
+        let _instance = contract.get_instance().unwrap();
+
+        // should panic when call get_instance before recycle
+        contract.get_instance().unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "recycle is called before get_instance")]
+    fn test_err_call_recycle_before_get_instance() {
+        let options = MockInstanceOptions::default();
+        let backend = mock_backend(&[]);
+        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
+
+        // make a dummy instance
+        let dummy_instance = mock_instance(CONTRACT_WITHOUT_MIGRATE, &[]);
+
+        // should panic when call recycle before get_instance
+        contract.recycle(dummy_instance).unwrap();
     }
 }
