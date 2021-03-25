@@ -54,7 +54,9 @@ impl<'a> Contract<'a> {
     /// generate instance for testing
     ///
     /// once this is called, result instance needs to be recycled by Contract::recycle_instance to generate new instance next time.
-    pub fn generate_instance(&mut self) -> TestingResult<Instance<MockStorage, MockApi, MockQuerier>> {
+    pub fn generate_instance(
+        &mut self,
+    ) -> TestingResult<Instance<MockStorage, MockApi, MockQuerier>> {
         let backend = self
             .backend
             .take()
