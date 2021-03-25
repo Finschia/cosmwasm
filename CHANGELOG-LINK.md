@@ -1,6 +1,11 @@
 # CHANGELOG LINK
 This is CHANGELOG after this repository was forked from CosmWasm/cosmwasm.
 
+## 0.12.0-0.2.0
+### Add
+- Add vm::testing::Contract for integration test using more actual flow (#87)
+- Add vm::testing::MockApi::new_with_gas_cost to specify how much gas api consume (#89)
+
 ## 0.12.0-0.1.0
 ### Add
 - Add the ext package and tests for it. It is a wrapper to use token and collection module from contracts. (#6)
