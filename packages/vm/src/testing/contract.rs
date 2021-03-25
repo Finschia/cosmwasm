@@ -17,8 +17,8 @@ pub struct Contract<'a> {
     options: MockInstanceOptions<'a>,
 }
 
-const ERR_GET_INSTANCE_TWICE: &str = "get_instance is called twice without called recycle. After get_instance in called, Contract::recycle needs to be called before get_instance is called the next time.";
-const ERR_RECYCLE_BEFORE_GET_INSTANCE: &str = "recycle is called before get_instance. The parameter instance of the recycle should be created with Contract::get_instance of the same Contract.";
+const ERR_GENERATE_INSTANCE_TWICE: &str = "generate_instance is called twice without called recycle. After generate_instance in called, Contract::recycle needs to be called before generate_instance is called the next time.";
+const ERR_RECYCLE_BEFORE_GENERATE_INSTANCE: &str = "recycle_instance is called before generate_instance. The parameter instance of the recycle_instance should be created with Contract::generate_instance of the same Contract.";
 
 /// representing a contract in integration test
 ///
@@ -43,7 +43,7 @@ impl<'a> Contract<'a> {
 
     /// change the wasm code for testing migrate
     ///
-    /// use it before `get_instance` for testing `call_migrate`.
+    /// call this before `generate_instance` for testing `call_migrate`.
     pub fn change_wasm(&mut self, wasm: &[u8]) -> TestingResult<()> {
         check_wasm(wasm, &self.options.supported_features)?;
         let module = compile(wasm)?;
@@ -51,14 +51,14 @@ impl<'a> Contract<'a> {
         Ok(())
     }
 
-    /// get instance for testing
+    /// generate instance for testing
     ///
-    /// once this is called, result instance needs to be recycled by Contract::recycle to get new instance next time.
-    pub fn get_instance(&mut self) -> TestingResult<Instance<MockStorage, MockApi, MockQuerier>> {
+    /// once this is called, result instance needs to be recycled by Contract::recycle_instance to generate new instance next time.
+    pub fn generate_instance(&mut self) -> TestingResult<Instance<MockStorage, MockApi, MockQuerier>> {
         let backend = self
             .backend
             .take()
-            .ok_or_else(|| TestingError::ContractError(ERR_GET_INSTANCE_TWICE.to_string()))?;
+            .ok_or_else(|| TestingError::ContractError(ERR_GENERATE_INSTANCE_TWICE.to_string()))?;
         let instance = Instance::from_module(
             &self.module,
             backend,
@@ -71,13 +71,13 @@ impl<'a> Contract<'a> {
     /// recycle passed instance and take the ownership of the backend
     ///
     /// instance of a contract must be singleton and this is for recycling the instance.
-    pub fn recycle(
+    pub fn recycle_instance(
         &mut self,
         instance: Instance<MockStorage, MockApi, MockQuerier>,
     ) -> TestingResult<()> {
         if self.backend.is_some() {
             return Err(TestingError::ContractError(
-                ERR_RECYCLE_BEFORE_GET_INSTANCE.to_string(),
+                ERR_RECYCLE_BEFORE_GENERATE_INSTANCE.to_string(),
             ));
         };
         let backend = instance.recycle().ok_or_else(|| {
@@ -117,101 +117,101 @@ mod test {
         let info = mock_info(HumanAddr::from("sender"), &[]);
 
         // init
-        let mut instance = contract.get_instance().unwrap();
+        let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
         let _: InitResponse = call_init(&mut instance, &env, &info, &msg)
             .unwrap()
             .into_result()
             .unwrap();
-        let _ = contract.recycle(instance).unwrap();
+        let _ = contract.recycle_instance(instance).unwrap();
 
         // query and confirm the queue is empty
-        let mut instance = contract.get_instance().unwrap();
+        let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"count\": {}}".as_bytes();
         let res: QueryResponse = call_query(&mut instance, &env, &msg)
             .unwrap()
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"count\":0}".as_bytes());
-        let _ = contract.recycle(instance).unwrap();
+        let _ = contract.recycle_instance(instance).unwrap();
 
         // handle and enqueue 42
-        let mut instance = contract.get_instance().unwrap();
+        let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"enqueue\": {\"value\": 42}}".as_bytes();
         let _: HandleResponse = call_handle(&mut instance, &env, &info, &msg)
             .unwrap()
             .into_result()
             .unwrap();
-        let _ = contract.recycle(instance).unwrap();
+        let _ = contract.recycle_instance(instance).unwrap();
 
         // query and confirm the length of the queue is 1
-        let mut instance = contract.get_instance().unwrap();
+        let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"count\": {}}".as_bytes();
         let res: QueryResponse = call_query(&mut instance, &env, &msg)
             .unwrap()
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"count\":1}".as_bytes());
-        let _ = contract.recycle(instance).unwrap();
+        let _ = contract.recycle_instance(instance).unwrap();
 
         // query and confirm the sum of the queue is 42
-        let mut instance = contract.get_instance().unwrap();
+        let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"sum\": {}}".as_bytes();
         let res: QueryResponse = call_query(&mut instance, &env, &msg)
             .unwrap()
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"sum\":42}".as_bytes());
-        let _ = contract.recycle(instance).unwrap();
+        let _ = contract.recycle_instance(instance).unwrap();
 
         // change the code and migrate
         contract.change_wasm(CONTRACT_WITH_MIGRATE).unwrap();
-        let mut instance = contract.get_instance().unwrap();
+        let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
         let _: MigrateResponse = call_migrate(&mut instance, &env, &info, &msg)
             .unwrap()
             .into_result()
             .unwrap();
-        let _ = contract.recycle(instance).unwrap();
+        let _ = contract.recycle_instance(instance).unwrap();
 
         // query and check the length of the queue is 3
-        let mut instance = contract.get_instance().unwrap();
+        let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"count\": {}}".as_bytes();
         let res: QueryResponse = call_query(&mut instance, &env, &msg)
             .unwrap()
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"count\":3}".as_bytes());
-        let _ = contract.recycle(instance).unwrap();
+        let _ = contract.recycle_instance(instance).unwrap();
 
         // query and check the sum of the queue is 303
-        let mut instance = contract.get_instance().unwrap();
+        let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"sum\": {}}".as_bytes();
         let res: QueryResponse = call_query(&mut instance, &env, &msg)
             .unwrap()
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"sum\":303}".as_bytes());
-        let _ = contract.recycle(instance).unwrap();
+        let _ = contract.recycle_instance(instance).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "get_instance is called twice")]
-    fn test_err_call_get_instance_twice() {
+    #[should_panic(expected = "generate_instance is called twice")]
+    fn test_err_call_generate_instance_twice() {
         let options = MockInstanceOptions::default();
         let backend = mock_backend(&[]);
         let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
 
-        // get_instance
-        let _instance = contract.get_instance().unwrap();
+        // generate_instance
+        let _instance = contract.generate_instance().unwrap();
 
-        // should panic when call get_instance before recycle
-        contract.get_instance().unwrap();
+        // should panic when call generate_instance before recycle
+        contract.generate_instance().unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "recycle is called before get_instance")]
-    fn test_err_call_recycle_before_get_instance() {
+    #[should_panic(expected = "recycle_instance is called before generate_instance")]
+    fn test_err_call_recycle_before_generate_instance() {
         let options = MockInstanceOptions::default();
         let backend = mock_backend(&[]);
         let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
@@ -219,7 +219,7 @@ mod test {
         // make a dummy instance
         let dummy_instance = mock_instance(CONTRACT_WITHOUT_MIGRATE, &[]);
 
-        // should panic when call recycle before get_instance
-        contract.recycle(dummy_instance).unwrap();
+        // should panic when call recycle before generate_instance
+        contract.recycle_instance(dummy_instance).unwrap();
     }
 }
