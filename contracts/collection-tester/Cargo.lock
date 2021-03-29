@@ -105,7 +105,7 @@ checksum = "44e10ee132778350b0390b347b47e4bbb098e23f0ee34ded4a03b078cae19024"
 
 [[package]]
 name = "collection-tester"
-version = "0.12.0"
+version = "0.12.0-0.2.0"
 dependencies = [
  "cosmwasm-ext",
  "cosmwasm-schema",
@@ -131,7 +131,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "cosmwasm-ext"
-version = "0.12.0-0.1.0"
+version = "0.12.0-0.2.0"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -141,7 +141,7 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-schema"
-version = "0.12.0-0.1.0"
+version = "0.12.0-0.2.0"
 dependencies = [
  "schemars",
  "serde_json",
@@ -149,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-std"
-version = "0.12.0-0.1.0"
+version = "0.12.0-0.2.0"
 dependencies = [
  "base64",
  "schemars",
@@ -160,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-storage"
-version = "0.12.0-0.1.0"
+version = "0.12.0-0.2.0"
 dependencies = [
  "cosmwasm-std",
  "serde",
@@ -168,7 +168,7 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-vm"
-version = "0.12.0-0.1.0"
+version = "0.12.0-0.2.0"
 dependencies = [
  "clru",
  "cosmwasm-std",
