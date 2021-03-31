@@ -1,10 +1,12 @@
 // The external interface is `use cosmwasm_vm::testing::X` for all integration testing symbols, no matter where they live internally.
 
 mod calls;
+mod contract;
 mod ibc_calls;
 mod instance;
 mod mock;
 mod querier;
+mod result;
 mod storage;
 
 pub use calls::{execute, instantiate, migrate, query, reply, sudo};
