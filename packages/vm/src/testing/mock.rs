@@ -3,19 +3,19 @@ use cosmwasm_std::{BlockInfo, CanonicalAddr, Coin, ContractInfo, Env, HumanAddr,
 
 use super::querier::MockQuerier;
 use super::storage::MockStorage;
-use crate::{Backend, BackendApi, BackendError, BackendResult, GasInfo};
+use crate::{Api, Backend, BackendError, BackendResult, GasInfo};
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
-const GAS_COST_HUMANIZE: u64 = 44;
-const GAS_COST_CANONICALIZE: u64 = 55;
+const DEFAULT_GAS_COST_HUMANIZE: u64 = 44;
+const DEFAULT_GAS_COST_CANONICALIZE: u64 = 55;
 
 /// All external requirements that can be injected for unit tests.
 /// It sets the given balance for the contract itself, nothing else
-pub fn mock_backend(contract_balance: &[Coin]) -> Backend<MockApi, MockStorage, MockQuerier> {
+pub fn mock_backend(contract_balance: &[Coin]) -> Backend<MockStorage, MockApi, MockQuerier> {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
     Backend {
-        api: MockApi::default(),
         storage: MockStorage::default(),
+        api: MockApi::default(),
         querier: MockQuerier::new(&[(&contract_addr, contract_balance)]),
     }
 }
@@ -24,10 +24,10 @@ pub fn mock_backend(contract_balance: &[Coin]) -> Backend<MockApi, MockStorage, 
 /// Sets all balances provided (yoy must explicitly set contract balance if desired)
 pub fn mock_backend_with_balances(
     balances: &[(&HumanAddr, &[Coin])],
-) -> Backend<MockApi, MockStorage, MockQuerier> {
+) -> Backend<MockStorage, MockApi, MockQuerier> {
     Backend {
-        api: MockApi::default(),
         storage: MockStorage::default(),
+        api: MockApi::default(),
         querier: MockQuerier::new(balances),
     }
 }
@@ -40,11 +40,32 @@ pub struct MockApi {
     /// Length of canonical addresses created with this API. Contracts should not make any assumtions
     /// what this value is.
     pub canonical_length: usize,
+    /// `canonicalize_cost` is consumed gas value when the contract all api `canonical_address`
+    pub canonicalize_cost: u64,
+    /// `humanize_cost` is consumed gas value when the contract all api `human_address`
+    pub humanize_cost: u64,
     /// When set, all calls to the API fail with BackendError::Unknown containing this message
     backend_error: Option<&'static str>,
 }
 
 impl MockApi {
+    #[deprecated(
+        since = "0.11.0",
+        note = "The canonical length argument is unused. Use MockApi::default() instead."
+    )]
+    pub fn new(_canonical_length: usize) -> Self {
+        MockApi::default()
+    }
+
+    /// create a `MockApi` instance with specified gas costs to call api
+    pub fn new_with_gas_cost(canonicalize_cost: u64, humanize_cost: u64) -> Self {
+        MockApi {
+            canonicalize_cost,
+            humanize_cost,
+            ..MockApi::default()
+        }
+    }
+
     pub fn new_failing(backend_error: &'static str) -> Self {
         MockApi {
             backend_error: Some(backend_error),
@@ -57,14 +78,16 @@ impl Default for MockApi {
     fn default() -> Self {
         MockApi {
             canonical_length: 24,
+            canonicalize_cost: DEFAULT_GAS_COST_CANONICALIZE,
+            humanize_cost: DEFAULT_GAS_COST_HUMANIZE,
             backend_error: None,
         }
     }
 }
 
-impl BackendApi for MockApi {
+impl Api for MockApi {
     fn canonical_address(&self, human: &HumanAddr) -> BackendResult<CanonicalAddr> {
-        let gas_info = GasInfo::with_cost(GAS_COST_CANONICALIZE);
+        let gas_info = GasInfo::with_cost(self.canonicalize_cost);
 
         if let Some(backend_error) = self.backend_error {
             return (Err(BackendError::unknown(backend_error)), gas_info);
@@ -102,7 +125,7 @@ impl BackendApi for MockApi {
     }
 
     fn human_address(&self, canonical: &CanonicalAddr) -> BackendResult<HumanAddr> {
-        let gas_info = GasInfo::with_cost(GAS_COST_HUMANIZE);
+        let gas_info = GasInfo::with_cost(self.humanize_cost);
 
         if let Some(backend_error) = self.backend_error {
             return (Err(BackendError::unknown(backend_error)), gas_info);
@@ -155,17 +178,17 @@ pub fn mock_env() -> Env {
     }
 }
 
-/// Just set sender and funds for the message.
+/// Just set sender and sent funds for the message. The essential for
 /// This is intended for use in test code only.
-pub fn mock_info<U: Into<HumanAddr>>(sender: U, funds: &[Coin]) -> MessageInfo {
+pub fn mock_info<U: Into<HumanAddr>>(sender: U, sent: &[Coin]) -> MessageInfo {
     MessageInfo {
         sender: sender.into(),
-        funds: funds.to_vec(),
+        sent_funds: sent.to_vec(),
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
     use crate::BackendError;
     use cosmwasm_std::{coins, Binary};
@@ -223,5 +246,37 @@ mod tests {
             BackendError::UserErr { .. } => {}
             err => panic!("Unexpected error: {:?}", err),
         }
+    }
+
+    #[test]
+    fn test_default_gas_cost() {
+        let api = MockApi::default();
+
+        let original = HumanAddr::from("alice");
+        let (canonical_res, gas_cost) = api.canonical_address(&original);
+        assert_eq!(gas_cost.cost, DEFAULT_GAS_COST_CANONICALIZE);
+        assert_eq!(gas_cost.externally_used, 0);
+        let canonical = canonical_res.unwrap();
+        let (_recovered, gas_cost) = api.human_address(&canonical);
+        assert_eq!(gas_cost.cost, DEFAULT_GAS_COST_HUMANIZE);
+        assert_eq!(gas_cost.externally_used, 0);
+    }
+
+    #[test]
+    fn test_specified_gas_cost() {
+        let canonicalize_cost: u64 = 42;
+        let humanize_cost: u64 = 10101010;
+        assert_ne!(canonicalize_cost, DEFAULT_GAS_COST_CANONICALIZE);
+        assert_ne!(humanize_cost, DEFAULT_GAS_COST_HUMANIZE);
+        let api = MockApi::new_with_gas_cost(canonicalize_cost, humanize_cost);
+
+        let original = HumanAddr::from("bob");
+        let (canonical_res, gas_cost) = api.canonical_address(&original);
+        assert_eq!(gas_cost.cost, canonicalize_cost);
+        assert_eq!(gas_cost.externally_used, 0);
+        let canonical = canonical_res.unwrap();
+        let (_recovered, gas_cost) = api.human_address(&canonical);
+        assert_eq!(gas_cost.cost, humanize_cost);
+        assert_eq!(gas_cost.externally_used, 0);
     }
 }
