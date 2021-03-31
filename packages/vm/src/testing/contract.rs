@@ -1,9 +1,9 @@
 use wasmer::Module;
 
 use crate::backend::Backend;
-use crate::wasm_backend::compile;
 use crate::compatibility::check_wasm;
 use crate::instance::Instance;
+use crate::wasm_backend::compile;
 
 use super::instance::MockInstanceOptions;
 use super::mock::MockApi;
@@ -105,8 +105,10 @@ mod test {
     use crate::testing::{mock_backend, mock_env, mock_info, mock_instance, MockInstanceOptions};
     use cosmwasm_std::{HandleResponse, HumanAddr, InitResponse, MigrateResponse, QueryResponse};
 
-    static CONTRACT_WITHOUT_MIGRATE: &[u8] = include_bytes!("../../testdata/queue_0.14_without_migrate.wasm");
-    static CONTRACT_WITH_MIGRATE: &[u8] = include_bytes!("../../testdata/queue_0.14_with_migrate.wasm");
+    static CONTRACT_WITHOUT_MIGRATE: &[u8] =
+        include_bytes!("../../testdata/queue_0.14_without_migrate.wasm");
+    static CONTRACT_WITH_MIGRATE: &[u8] =
+        include_bytes!("../../testdata/queue_0.14_with_migrate.wasm");
 
     #[test]
     fn test_sanity_integration_test_flow() {
