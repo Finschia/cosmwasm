@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// This is the final result type that is created and serialized in a contract for
-/// every init/handle/migrate call. The VM then deserializes this type to distinguish
+/// every init/execute/migrate call. The VM then deserializes this type to distinguish
 /// between successful and failed executions.
 ///
 /// We use a custom type here instead of Rust's Result because we want to be able to
@@ -15,18 +15,18 @@ use std::fmt;
 /// Success:
 ///
 /// ```
-/// # use cosmwasm_std::{to_vec, ContractResult, HandleResponse};
-/// let response: HandleResponse = HandleResponse::default();
-/// let result: ContractResult<HandleResponse> = ContractResult::Ok(response);
-/// assert_eq!(to_vec(&result).unwrap(), br#"{"ok":{"messages":[],"attributes":[],"data":null}}"#.to_vec());
+/// # use cosmwasm_std::{to_vec, ContractResult, Response};
+/// let response: Response = Response::default();
+/// let result: ContractResult<Response> = ContractResult::Ok(response);
+/// assert_eq!(to_vec(&result).unwrap(), br#"{"ok":{"submessages":[],"messages":[],"attributes":[],"data":null}}"#.to_vec());
 /// ```
 ///
 /// Failure:
 ///
 /// ```
-/// # use cosmwasm_std::{to_vec, ContractResult, HandleResponse};
+/// # use cosmwasm_std::{to_vec, ContractResult, Response};
 /// let error_msg = String::from("Something went wrong");
-/// let result: ContractResult<HandleResponse> = ContractResult::Err(error_msg);
+/// let result: ContractResult<Response> = ContractResult::Err(error_msg);
 /// assert_eq!(to_vec(&result).unwrap(), br#"{"error":"Something went wrong"}"#.to_vec());
 /// ```
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -50,6 +50,14 @@ impl<S> ContractResult<S> {
 
     pub fn unwrap(self) -> S {
         self.into_result().unwrap()
+    }
+
+    pub fn is_ok(&self) -> bool {
+        matches!(self, ContractResult::Ok(_))
+    }
+
+    pub fn is_err(&self) -> bool {
+        matches!(self, ContractResult::Err(_))
     }
 }
 
@@ -78,9 +86,9 @@ impl<S> From<ContractResult<S>> for Result<S, String> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
-    use crate::{from_slice, to_vec, HandleResponse, HandleResult, StdError, StdResult};
+    use crate::{from_slice, to_vec, Response, StdError, StdResult};
 
     #[test]
     fn contract_result_serialization_works() {
@@ -90,13 +98,13 @@ mod test {
         let result = ContractResult::Ok("foo");
         assert_eq!(&to_vec(&result).unwrap(), b"{\"ok\":\"foo\"}");
 
-        let result: ContractResult<HandleResponse> = ContractResult::Ok(HandleResponse::default());
+        let result: ContractResult<Response> = ContractResult::Ok(Response::default());
         assert_eq!(
             to_vec(&result).unwrap(),
-            br#"{"ok":{"messages":[],"attributes":[],"data":null}}"#.to_vec()
+            br#"{"ok":{"submessages":[],"messages":[],"attributes":[],"data":null}}"#.to_vec()
         );
 
-        let result: ContractResult<HandleResponse> = ContractResult::Err("broken".to_string());
+        let result: ContractResult<Response> = ContractResult::Err("broken".to_string());
         assert_eq!(&to_vec(&result).unwrap(), b"{\"error\":\"broken\"}");
     }
 
@@ -108,11 +116,12 @@ mod test {
         let result: ContractResult<String> = from_slice(br#"{"ok":"foo"}"#).unwrap();
         assert_eq!(result, ContractResult::Ok("foo".to_string()));
 
-        let result: ContractResult<HandleResponse> =
-            from_slice(br#"{"ok":{"messages":[],"attributes":[],"data":null}}"#).unwrap();
-        assert_eq!(result, ContractResult::Ok(HandleResponse::default()));
+        let result: ContractResult<Response> =
+            from_slice(br#"{"ok":{"submessages":[],"messages":[],"attributes":[],"data":null}}"#)
+                .unwrap();
+        assert_eq!(result, ContractResult::Ok(Response::default()));
 
-        let result: ContractResult<HandleResponse> = from_slice(br#"{"error":"broken"}"#).unwrap();
+        let result: ContractResult<Response> = from_slice(br#"{"error":"broken"}"#).unwrap();
         assert_eq!(result, ContractResult::Err("broken".to_string()));
 
         // ignores whitespace
@@ -140,12 +149,12 @@ mod test {
 
     #[test]
     fn can_convert_from_core_result() {
-        let original: HandleResult = Ok(HandleResponse::default());
-        let converted: ContractResult<HandleResponse> = original.into();
-        assert_eq!(converted, ContractResult::Ok(HandleResponse::default()));
+        let original: Result<Response, StdError> = Ok(Response::default());
+        let converted: ContractResult<Response> = original.into();
+        assert_eq!(converted, ContractResult::Ok(Response::default()));
 
-        let original: HandleResult = Err(StdError::generic_err("broken"));
-        let converted: ContractResult<HandleResponse> = original.into();
+        let original: Result<Response, StdError> = Err(StdError::generic_err("broken"));
+        let converted: ContractResult<Response> = original.into();
         assert_eq!(
             converted,
             ContractResult::Err("Generic error: broken".to_string())
@@ -154,12 +163,12 @@ mod test {
 
     #[test]
     fn can_convert_to_core_result() {
-        let original = ContractResult::Ok(HandleResponse::default());
-        let converted: Result<HandleResponse, String> = original.into();
-        assert_eq!(converted, Ok(HandleResponse::default()));
+        let original = ContractResult::Ok(Response::default());
+        let converted: Result<Response, String> = original.into();
+        assert_eq!(converted, Ok(Response::default()));
 
         let original = ContractResult::Err("went wrong".to_string());
-        let converted: Result<HandleResponse, String> = original.into();
+        let converted: Result<Response, String> = original.into();
         assert_eq!(converted, Err("went wrong".to_string()));
     }
 }

@@ -1,38 +1,23 @@
 use cosmwasm_std::{
-    attr, BankMsg, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo,
-    MigrateResponse, Order, StdError, StdResult,
+    attr, entry_point, BankMsg, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
 };
 
-use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
+use crate::msg::{InstantiateMsg, MigrateMsg};
 
-pub fn init(
+#[entry_point]
+pub fn instantiate(
     _deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _msg: InitMsg,
-) -> StdResult<InitResponse> {
+    _msg: InstantiateMsg,
+) -> StdResult<Response> {
     Err(StdError::generic_err(
         "You can only use this contract for migrations",
     ))
 }
 
-pub fn handle(
-    _deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _msg: HandleMsg,
-) -> StdResult<HandleResponse> {
-    Err(StdError::generic_err(
-        "You can only use this contract for migrations",
-    ))
-}
-
-pub fn migrate(
-    deps: DepsMut,
-    env: Env,
-    _info: MessageInfo,
-    msg: MigrateMsg,
-) -> StdResult<MigrateResponse> {
+#[entry_point]
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
     // delete all state
     let keys: Vec<_> = deps
         .storage
@@ -47,40 +32,34 @@ pub fn migrate(
     // get balance and send all to recipient
     let balance = deps.querier.query_all_balances(&env.contract.address)?;
     let send = BankMsg::Send {
-        from_address: env.contract.address,
         to_address: msg.payout.clone(),
         amount: balance,
     };
 
     let data_msg = format!("burnt {} keys", count).into_bytes();
 
-    Ok(MigrateResponse {
+    Ok(Response {
+        submessages: vec![],
         messages: vec![send.into()],
         attributes: vec![attr("action", "burn"), attr("payout", msg.payout)],
         data: Some(data_msg.into()),
     })
 }
 
-pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
-    Err(StdError::generic_err(
-        "You can only use this contract for migrations",
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MOCK_CONTRACT_ADDR};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, HumanAddr, StdError, Storage};
 
     #[test]
-    fn init_fails() {
+    fn instantiate_fails() {
         let mut deps = mock_dependencies(&[]);
 
-        let msg = InitMsg {};
+        let msg = InstantiateMsg {};
         let info = mock_info("creator", &coins(1000, "earth"));
         // we can just call .unwrap() to assert this was a success
-        let res = init(deps.as_mut(), mock_env(), info, msg);
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg);
         match res.unwrap_err() {
             StdError::GenericErr { msg, .. } => {
                 assert_eq!(msg, "You can only use this contract for migrations")
@@ -105,15 +84,13 @@ mod tests {
         let msg = MigrateMsg {
             payout: payout.clone(),
         };
-        let info = mock_info("creator", &[]);
-        let res = migrate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
         // check payout
         assert_eq!(1, res.messages.len());
         let msg = res.messages.get(0).expect("no message");
         assert_eq!(
             msg,
             &BankMsg::Send {
-                from_address: HumanAddr::from(MOCK_CONTRACT_ADDR),
                 to_address: payout,
                 amount: coins(123456, "gold"),
             }

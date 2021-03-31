@@ -4,18 +4,28 @@ mod attribute;
 mod context;
 mod contract_result;
 mod cosmos_msg;
-mod handle;
-mod init;
-mod migrate;
+mod empty;
 mod query;
+mod response;
+mod subcall;
 mod system_result;
 
 pub use attribute::{attr, Attribute};
+#[allow(deprecated)]
 pub use context::Context;
 pub use contract_result::ContractResult;
-pub use cosmos_msg::{BankMsg, CosmosMsg, StakingMsg, WasmMsg};
-pub use handle::{HandleResponse, HandleResult};
-pub use init::{InitResponse, InitResult};
-pub use migrate::{MigrateResponse, MigrateResult};
-pub use query::{QueryResponse, QueryResult};
+pub use cosmos_msg::{wasm_execute, wasm_instantiate, BankMsg, CosmosMsg, StakingMsg, WasmMsg};
+pub use empty::Empty;
+pub use query::QueryResponse;
+pub use response::Response;
+pub use subcall::{Event, Reply, SubMsg, SubcallResponse};
 pub use system_result::SystemResult;
+
+#[deprecated(since = "0.14.0", note = "Renamed to Response.")]
+pub type InitResponse<T = Empty> = Response<T>;
+
+#[deprecated(since = "0.14.0", note = "Renamed to Response.")]
+pub type HandleResponse<T = Empty> = Response<T>;
+
+#[deprecated(since = "0.14.0", note = "Renamed to Response.")]
+pub type MigrateResponse<T = Empty> = Response<T>;

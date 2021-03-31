@@ -1,11 +1,12 @@
 use cosmwasm_std::{
-    attr, coin, to_binary, BankMsg, Binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr,
-    InitResponse, MessageInfo, QuerierWrapper, StakingMsg, StdError, StdResult, Uint128, WasmMsg,
+    attr, coin, entry_point, to_binary, BankMsg, Decimal, Deps, DepsMut, Env, HumanAddr,
+    MessageInfo, QuerierWrapper, QueryResponse, Response, StakingMsg, StdError, StdResult, Uint128,
+    WasmMsg,
 };
 
 use crate::errors::{StakingError, Unauthorized};
 use crate::msg::{
-    BalanceResponse, ClaimsResponse, HandleMsg, InitMsg, InvestmentResponse, QueryMsg,
+    BalanceResponse, ClaimsResponse, ExecuteMsg, InstantiateMsg, InvestmentResponse, QueryMsg,
     TokenInfoResponse,
 };
 use crate::state::{
@@ -15,7 +16,13 @@ use crate::state::{
 
 const FALLBACK_RATIO: Decimal = Decimal::one();
 
-pub fn init(deps: DepsMut, _env: Env, info: MessageInfo, msg: InitMsg) -> StdResult<InitResponse> {
+#[entry_point]
+pub fn instantiate(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
     // ensure the validator is registered
     let vals = deps.querier.query_validators()?;
     if !vals.iter().any(|v| v.address == msg.validator) {
@@ -46,24 +53,25 @@ pub fn init(deps: DepsMut, _env: Env, info: MessageInfo, msg: InitMsg) -> StdRes
     let supply = Supply::default();
     total_supply(deps.storage).save(&supply)?;
 
-    Ok(InitResponse::default())
+    Ok(Response::default())
 }
 
-pub fn handle(
+#[entry_point]
+pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: HandleMsg,
-) -> Result<HandleResponse, StakingError> {
+    msg: ExecuteMsg,
+) -> Result<Response, StakingError> {
     match msg {
-        HandleMsg::Transfer { recipient, amount } => {
+        ExecuteMsg::Transfer { recipient, amount } => {
             Ok(transfer(deps, env, info, recipient, amount)?)
         }
-        HandleMsg::Bond {} => Ok(bond(deps, env, info)?),
-        HandleMsg::Unbond { amount } => Ok(unbond(deps, env, info, amount)?),
-        HandleMsg::Claim {} => Ok(claim(deps, env, info)?),
-        HandleMsg::Reinvest {} => Ok(reinvest(deps, env, info)?),
-        HandleMsg::_BondAllTokens {} => _bond_all_tokens(deps, env, info),
+        ExecuteMsg::Bond {} => Ok(bond(deps, env, info)?),
+        ExecuteMsg::Unbond { amount } => Ok(unbond(deps, env, info, amount)?),
+        ExecuteMsg::Claim {} => Ok(claim(deps, env, info)?),
+        ExecuteMsg::Reinvest {} => Ok(reinvest(deps, env, info)?),
+        ExecuteMsg::_BondAllTokens {} => _bond_all_tokens(deps, env, info),
     }
 }
 
@@ -73,7 +81,7 @@ pub fn transfer(
     info: MessageInfo,
     recipient: HumanAddr,
     send: Uint128,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let rcpt_raw = deps.api.canonical_address(&recipient)?;
     let sender_raw = deps.api.canonical_address(&info.sender)?;
 
@@ -85,7 +93,8 @@ pub fn transfer(
         Ok(balance.unwrap_or_default() + send)
     })?;
 
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![],
         attributes: vec![
             attr("action", "transfer"),
@@ -130,14 +139,14 @@ fn assert_bonds(supply: &Supply, bonded: Uint128) -> StdResult<()> {
     }
 }
 
-pub fn bond(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<HandleResponse> {
+pub fn bond(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Response> {
     let sender_raw = deps.api.canonical_address(&info.sender)?;
 
     // ensure we have the proper denom
     let invest = invest_info_read(deps.storage).load()?;
     // payment finds the proper coin (or throws an error)
     let payment = info
-        .sent_funds
+        .funds
         .iter()
         .find(|x| x.denom == invest.bond_denom)
         .ok_or_else(|| StdError::generic_err(format!("No {} tokens sent", &invest.bond_denom)))?;
@@ -165,7 +174,8 @@ pub fn bond(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<HandleRespo
     })?;
 
     // bond them to the validator
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![StakingMsg::Delegate {
             validator: invest.validator,
             amount: payment.clone(),
@@ -182,12 +192,7 @@ pub fn bond(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<HandleRespo
     Ok(res)
 }
 
-pub fn unbond(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    amount: Uint128,
-) -> StdResult<HandleResponse> {
+pub fn unbond(deps: DepsMut, env: Env, info: MessageInfo, amount: Uint128) -> StdResult<Response> {
     let sender_raw = deps.api.canonical_address(&info.sender)?;
 
     let invest = invest_info_read(deps.storage).load()?;
@@ -235,7 +240,8 @@ pub fn unbond(
     })?;
 
     // unbond them
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![StakingMsg::Undelegate {
             validator: invest.validator,
             amount: coin(unbond.u128(), &invest.bond_denom),
@@ -252,7 +258,7 @@ pub fn unbond(
     Ok(res)
 }
 
-pub fn claim(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<HandleResponse> {
+pub fn claim(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Response> {
     // find how many tokens the contract has
     let invest = invest_info_read(deps.storage).load()?;
     let mut balance = deps
@@ -281,9 +287,9 @@ pub fn claim(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<HandleResp
 
     // transfer tokens to the sender
     balance.amount = to_send;
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![BankMsg::Send {
-            from_address: env.contract.address,
             to_address: info.sender.clone(),
             amount: vec![balance],
         }
@@ -301,13 +307,14 @@ pub fn claim(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<HandleResp
 /// reinvest will withdraw all pending rewards,
 /// then issue a callback to itself via _bond_all_tokens
 /// to reinvest the new earnings (and anything else that accumulated)
-pub fn reinvest(deps: DepsMut, env: Env, _info: MessageInfo) -> StdResult<HandleResponse> {
+pub fn reinvest(deps: DepsMut, env: Env, _info: MessageInfo) -> StdResult<Response> {
     let contract_addr = env.contract.address;
     let invest = invest_info_read(deps.storage).load()?;
-    let msg = to_binary(&HandleMsg::_BondAllTokens {})?;
+    let msg = to_binary(&ExecuteMsg::_BondAllTokens {})?;
 
     // and bond them to the validator
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![
             StakingMsg::Withdraw {
                 validator: invest.validator,
@@ -331,7 +338,7 @@ pub fn _bond_all_tokens(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-) -> Result<HandleResponse, StakingError> {
+) -> Result<Response, StakingError> {
     // this is just meant as a call-back to ourself
     if info.sender != env.contract.address {
         return Err(Unauthorized {}.build());
@@ -354,12 +361,13 @@ pub fn _bond_all_tokens(
     }) {
         Ok(_) => {}
         // if it is below the minimum, we do a no-op (do not revert other state from withdrawal)
-        Err(StdError::Underflow { .. }) => return Ok(HandleResponse::default()),
+        Err(StdError::Underflow { .. }) => return Ok(Response::default()),
         Err(e) => return Err(e.into()),
     }
 
     // and bond them to the validator
-    let res = HandleResponse {
+    let res = Response {
+        submessages: vec![],
         messages: vec![StakingMsg::Delegate {
             validator: invest.validator,
             amount: balance.clone(),
@@ -371,7 +379,8 @@ pub fn _bond_all_tokens(
     Ok(res)
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+#[entry_point]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
     match msg {
         QueryMsg::TokenInfo {} => to_binary(&query_token_info(deps)?),
         QueryMsg::Investment {} => to_binary(&query_investment(deps)?),
@@ -463,8 +472,8 @@ mod tests {
 
     const DEFAULT_VALIDATOR: &str = "default-validator";
 
-    fn default_init(tax_percent: u64, min_withdrawal: u128) -> InitMsg {
-        InitMsg {
+    fn default_init(tax_percent: u64, min_withdrawal: u128) -> InstantiateMsg {
+        InstantiateMsg {
             name: "Cool Derivative".to_string(),
             symbol: "DRV".to_string(),
             decimals: 9,
@@ -489,7 +498,7 @@ mod tests {
             .update_staking("ustake", &[sample_validator("john")], &[]);
 
         let creator = HumanAddr::from("creator");
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             name: "Cool Derivative".to_string(),
             symbol: "DRV".to_string(),
             decimals: 9,
@@ -499,8 +508,8 @@ mod tests {
         };
         let info = mock_info(&creator, &[]);
 
-        // make sure we can init with this
-        let res = init(deps.as_mut(), mock_env(), info, msg.clone());
+        // make sure we can instantiate with this
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg);
         match res.unwrap_err() {
             StdError::GenericErr { msg, .. } => {
                 assert_eq!(msg, "my-validator is not in the current validator set")
@@ -523,7 +532,7 @@ mod tests {
         );
 
         let creator = HumanAddr::from("creator");
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             name: "Cool Derivative".to_string(),
             symbol: "DRV".to_string(),
             decimals: 0,
@@ -533,8 +542,8 @@ mod tests {
         };
         let info = mock_info(&creator, &[]);
 
-        // make sure we can init with this
-        let res = init(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        // make sure we can instantiate with this
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
         assert_eq!(0, res.messages.len());
 
         // token info is proper
@@ -566,20 +575,20 @@ mod tests {
         set_validator(&mut deps.querier);
 
         let creator = HumanAddr::from("creator");
-        let init_msg = default_init(2, 50);
+        let instantiate_msg = default_init(2, 50);
         let info = mock_info(&creator, &[]);
 
-        // make sure we can init with this
-        let res = init(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+        // make sure we can instantiate with this
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // let's bond some tokens now
         let bob = HumanAddr::from("bob");
-        let bond_msg = HandleMsg::Bond {};
+        let bond_msg = ExecuteMsg::Bond {};
         let info = mock_info(&bob, &[coin(10, "random"), coin(1000, "ustake")]);
 
         // try to bond and make sure we trigger delegation
-        let res = handle(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
         assert_eq!(1, res.messages.len());
         let delegate = &res.messages[0];
         match delegate {
@@ -606,29 +615,29 @@ mod tests {
         set_validator(&mut deps.querier);
 
         let creator = HumanAddr::from("creator");
-        let init_msg = default_init(2, 50);
+        let instantiate_msg = default_init(2, 50);
         let info = mock_info(&creator, &[]);
 
-        // make sure we can init with this
-        let res = init(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+        // make sure we can instantiate with this
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // let's bond some tokens now
         let bob = HumanAddr::from("bob");
-        let bond_msg = HandleMsg::Bond {};
+        let bond_msg = ExecuteMsg::Bond {};
         let info = mock_info(&bob, &[coin(10, "random"), coin(1000, "ustake")]);
-        let res = handle(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
         assert_eq!(1, res.messages.len());
 
         // update the querier with new bond
         set_delegation(&mut deps.querier, 1000, "ustake");
 
         // fake a reinvestment (this must be sent by the contract itself)
-        let rebond_msg = HandleMsg::_BondAllTokens {};
+        let rebond_msg = ExecuteMsg::_BondAllTokens {};
         let info = mock_info(MOCK_CONTRACT_ADDR, &[]);
         deps.querier
             .update_balance(MOCK_CONTRACT_ADDR, coins(500, "ustake"));
-        let _ = handle(deps.as_mut(), mock_env(), info, rebond_msg).unwrap();
+        let _ = execute(deps.as_mut(), mock_env(), info, rebond_msg).unwrap();
 
         // update the querier with new bond
         set_delegation(&mut deps.querier, 1500, "ustake");
@@ -642,9 +651,9 @@ mod tests {
 
         // we bond some other tokens and get a different issuance price (maintaining the ratio)
         let alice = HumanAddr::from("alice");
-        let bond_msg = HandleMsg::Bond {};
+        let bond_msg = ExecuteMsg::Bond {};
         let info = mock_info(&alice, &[coin(3000, "ustake")]);
-        let res = handle(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
         assert_eq!(1, res.messages.len());
 
         // update the querier with new bond
@@ -665,20 +674,20 @@ mod tests {
         set_validator(&mut deps.querier);
 
         let creator = HumanAddr::from("creator");
-        let init_msg = default_init(2, 50);
+        let instantiate_msg = default_init(2, 50);
         let info = mock_info(&creator, &[]);
 
-        // make sure we can init with this
-        let res = init(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+        // make sure we can instantiate with this
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // let's bond some tokens now
         let bob = HumanAddr::from("bob");
-        let bond_msg = HandleMsg::Bond {};
+        let bond_msg = ExecuteMsg::Bond {};
         let info = mock_info(&bob, &[coin(500, "photon")]);
 
         // try to bond and make sure we trigger delegation
-        let res = handle(deps.as_mut(), mock_env(), info, bond_msg);
+        let res = execute(deps.as_mut(), mock_env(), info, bond_msg);
         match res.unwrap_err() {
             StakingError::Std {
                 original: StdError::GenericErr { msg, .. },
@@ -693,18 +702,18 @@ mod tests {
         set_validator(&mut deps.querier);
 
         let creator = HumanAddr::from("creator");
-        let init_msg = default_init(10, 50);
+        let instantiate_msg = default_init(10, 50);
         let info = mock_info(&creator, &[]);
 
-        // make sure we can init with this
-        let res = init(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+        // make sure we can instantiate with this
+        let res = instantiate(deps.as_mut(), mock_env(), info, instantiate_msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // let's bond some tokens now
         let bob = HumanAddr::from("bob");
-        let bond_msg = HandleMsg::Bond {};
+        let bond_msg = ExecuteMsg::Bond {};
         let info = mock_info(&bob, &[coin(10, "random"), coin(1000, "ustake")]);
-        let res = handle(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info, bond_msg).unwrap();
         assert_eq!(1, res.messages.len());
 
         // update the querier with new bond
@@ -712,22 +721,22 @@ mod tests {
 
         // fake a reinvestment (this must be sent by the contract itself)
         // after this, we see 1000 issues and 1500 bonded (and a price of 1.5)
-        let rebond_msg = HandleMsg::_BondAllTokens {};
+        let rebond_msg = ExecuteMsg::_BondAllTokens {};
         let info = mock_info(MOCK_CONTRACT_ADDR, &[]);
         deps.querier
             .update_balance(MOCK_CONTRACT_ADDR, coins(500, "ustake"));
-        let _ = handle(deps.as_mut(), mock_env(), info, rebond_msg).unwrap();
+        let _ = execute(deps.as_mut(), mock_env(), info, rebond_msg).unwrap();
 
         // update the querier with new bond, lower balance
         set_delegation(&mut deps.querier, 1500, "ustake");
         deps.querier.update_balance(MOCK_CONTRACT_ADDR, vec![]);
 
         // creator now tries to unbond these tokens - this must fail
-        let unbond_msg = HandleMsg::Unbond {
+        let unbond_msg = ExecuteMsg::Unbond {
             amount: Uint128(600),
         };
         let info = mock_info(&creator, &[]);
-        let res = handle(deps.as_mut(), mock_env(), info, unbond_msg);
+        let res = execute(deps.as_mut(), mock_env(), info, unbond_msg);
         match res.unwrap_err() {
             StakingError::Std {
                 original: StdError::Underflow { .. },
@@ -738,14 +747,14 @@ mod tests {
         // bob unbonds 600 tokens at 10% tax...
         // 60 are taken and send to the owner
         // 540 are unbonded in exchange for 540 * 1.5 = 810 native tokens
-        let unbond_msg = HandleMsg::Unbond {
+        let unbond_msg = ExecuteMsg::Unbond {
             amount: Uint128(600),
         };
         let owner_cut = Uint128(60);
         let bobs_claim = Uint128(810);
         let bobs_balance = Uint128(400);
         let info = mock_info(&bob, &[]);
-        let res = handle(deps.as_mut(), mock_env(), info, unbond_msg).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info, unbond_msg).unwrap();
         assert_eq!(1, res.messages.len());
         let delegate = &res.messages[0];
         match delegate {

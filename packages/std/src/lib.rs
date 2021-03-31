@@ -1,18 +1,23 @@
 #![cfg_attr(feature = "backtraces", feature(backtrace))]
+#![allow(clippy::field_reassign_with_default)] // see https://github.com/CosmWasm/cosmwasm/issues/685
 
 // Exposed on all platforms
 
 mod addresses;
 mod binary;
 mod coins;
+mod conversion;
 mod deps;
 mod entry_points;
 mod errors;
+mod ibc;
+mod import_helpers;
 #[cfg(feature = "iterator")]
 mod iterator;
 mod math;
 mod query;
 mod results;
+mod sections;
 mod serde;
 mod storage;
 mod traits;
@@ -22,7 +27,13 @@ pub use crate::addresses::{CanonicalAddr, HumanAddr};
 pub use crate::binary::{Binary, ByteArray};
 pub use crate::coins::{coin, coins, has_coins, Coin};
 pub use crate::deps::{Deps, DepsMut, OwnedDeps};
-pub use crate::errors::{StdError, StdResult, SystemError};
+pub use crate::errors::{RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError};
+#[cfg(feature = "stargate")]
+pub use crate::ibc::{
+    ChannelResponse, IbcAcknowledgement, IbcBasicResponse, IbcChannel, IbcEndpoint, IbcMsg,
+    IbcOrder, IbcPacket, IbcQuery, IbcReceiveResponse, IbcTimeoutBlock, ListChannelsResponse,
+    PortIdResponse,
+};
 #[cfg(feature = "iterator")]
 pub use crate::iterator::{Order, KV};
 pub use crate::math::{Decimal, Uint128};
@@ -32,14 +43,16 @@ pub use crate::query::{
     ValidatorsResponse, WasmQuery,
 };
 pub use crate::results::{
-    attr, Attribute, BankMsg, Context, ContractResult, CosmosMsg, HandleResponse, HandleResult,
-    InitResponse, InitResult, MigrateResponse, MigrateResult, QueryResponse, QueryResult,
-    StakingMsg, SystemResult, WasmMsg,
+    attr, wasm_execute, wasm_instantiate, Attribute, BankMsg, ContractResult, CosmosMsg, Empty,
+    Event, QueryResponse, Reply, Response, StakingMsg, SubMsg, SubcallResponse, SystemResult,
+    WasmMsg,
 };
+#[allow(deprecated)]
+pub use crate::results::{Context, HandleResponse, InitResponse, MigrateResponse};
 pub use crate::serde::{from_binary, from_slice, to_binary, to_vec};
 pub use crate::storage::MemoryStorage;
 pub use crate::traits::{Api, Querier, QuerierResult, QuerierWrapper, Storage};
-pub use crate::types::{BlockInfo, ContractInfo, Empty, Env, MessageInfo};
+pub use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo};
 
 // Exposed in wasm build only
 
@@ -51,9 +64,17 @@ mod imports;
 mod memory; // Used by exports and imports only. This assumes pointers are 32 bit long, which makes it untestable on dev machines.
 
 #[cfg(target_arch = "wasm32")]
-pub use crate::exports::{do_handle, do_init, do_migrate, do_query};
+pub use crate::exports::{do_execute, do_instantiate, do_migrate, do_query, do_reply, do_sudo};
 #[cfg(target_arch = "wasm32")]
 pub use crate::imports::{ExternalApi, ExternalQuerier, ExternalStorage};
+
+#[cfg(all(feature = "stargate", target_arch = "wasm32"))]
+mod ibc_exports;
+#[cfg(all(feature = "stargate", target_arch = "wasm32"))]
+pub use crate::ibc_exports::{
+    do_ibc_channel_close, do_ibc_channel_connect, do_ibc_channel_open, do_ibc_packet_ack,
+    do_ibc_packet_receive, do_ibc_packet_timeout,
+};
 
 // Exposed for testing only
 // Both unit tests and integration tests are compiled to native code, so everything in here does not need to compile to Wasm.
@@ -67,4 +88,10 @@ pub mod testing {
         riffle_shuffle, BankQuerier, MockApi, MockQuerier, MockQuerierCustomHandlerResult,
         MockStorage, StakingQuerier, MOCK_CONTRACT_ADDR,
     };
+    #[cfg(feature = "stargate")]
+    pub use crate::mock::{mock_ibc_channel, mock_ibc_packet_ack, mock_ibc_packet_recv};
 }
+
+// Re-exports
+
+pub use cosmwasm_derive::entry_point;

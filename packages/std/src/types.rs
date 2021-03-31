@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 use crate::addresses::HumanAddr;
 use crate::coins::Coin;
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Env {
     pub block: BlockInfo,
     pub contract: ContractInfo,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct BlockInfo {
     pub height: u64,
     /// Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).
@@ -64,55 +64,32 @@ pub struct BlockInfo {
     pub chain_id: String,
 }
 
-/// MessageInfo is sent with `init`, `handle`, and `migrate` calls, but not with queries.
-/// It contains the essential info for authorization - identity of the call, and payment
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
+/// Additional information from [MsgInstantiateContract] and [MsgExecuteContract], which is passed
+/// along with the contract execution message into the `instantiate` and `execute` entry points.
+///
+/// It contains the essential info for authorization - identity of the call, and payment.
+///
+/// [MsgInstantiateContract]: https://github.com/CosmWasm/wasmd/blob/v0.15.0/x/wasm/internal/types/tx.proto#L47-L61
+/// [MsgExecuteContract]: https://github.com/CosmWasm/wasmd/blob/v0.15.0/x/wasm/internal/types/tx.proto#L68-L78
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MessageInfo {
-    /// The `sender` field from the `wasm/MsgStoreCode`, `wasm/MsgInstantiateContract`, `wasm/MsgMigrateContract`
-    /// or `wasm/MsgExecuteContract` message.
+    /// The `sender` field from `MsgInstantiateContract` and `MsgExecuteContract`.
     /// You can think of this as the address that initiated the action (i.e. the message). What that
     /// means exactly heavily depends on the application.
     ///
-    /// The x/wasm module ensures that the sender address signed the transaction.
+    /// The x/wasm module ensures that the sender address signed the transaction or
+    /// is otherwise authorized to send the message.
+    ///
     /// Additional signers of the transaction that are either needed for other messages or contain unnecessary
     /// signatures are not propagated into the contract.
-    ///
-    /// There is a discussion to open up this field to multiple initiators, which you're welcome to join
-    /// if you have a specific need for that feature: https://github.com/CosmWasm/cosmwasm/issues/293
     pub sender: HumanAddr,
-    pub sent_funds: Vec<Coin>,
+    /// The funds that are sent to the contract as part of `MsgInstantiateContract`
+    /// or `MsgExecuteContract`. The transfer is processed in bank before the contract
+    /// is executed such that the new balance is visible during contract execution.
+    pub funds: Vec<Coin>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ContractInfo {
     pub address: HumanAddr,
-}
-
-/// An empty struct that serves as a placeholder in different places,
-/// such as contracts that don't set a custom message.
-///
-/// It is designed to be expressable in correct JSON and JSON Schema but
-/// contains no meaningful data. Previously we used enums without cases,
-/// but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Empty {}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    use crate::serde::{from_slice, to_vec};
-
-    #[test]
-    fn empty_can_be_instantiated_serialized_and_deserialized() {
-        let instance = Empty {};
-        let serialized = to_vec(&instance).unwrap();
-        assert_eq!(serialized, b"{}");
-
-        let deserialized: Empty = from_slice(b"{}").unwrap();
-        assert_eq!(deserialized, instance);
-
-        let deserialized: Empty = from_slice(b"{\"stray\":\"data\"}").unwrap();
-        assert_eq!(deserialized, instance);
-    }
 }

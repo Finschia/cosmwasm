@@ -1,21 +1,25 @@
 use serde::de::DeserializeOwned;
+#[cfg(feature = "stargate")]
+use serde::Serialize;
 use std::collections::HashMap;
 
 use crate::addresses::{CanonicalAddr, HumanAddr};
 use crate::binary::Binary;
 use crate::coins::Coin;
 use crate::deps::OwnedDeps;
-use crate::errors::{StdError, StdResult, SystemError};
+use crate::errors::{RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError};
+#[cfg(feature = "stargate")]
+use crate::ibc::{IbcChannel, IbcEndpoint, IbcOrder, IbcPacket, IbcTimeoutBlock};
 use crate::query::{
     AllBalanceResponse, AllDelegationsResponse, BalanceResponse, BankQuery, BondedDenomResponse,
     CustomQuery, DelegationResponse, FullDelegation, QueryRequest, StakingQuery, Validator,
     ValidatorsResponse, WasmQuery,
 };
-use crate::results::{ContractResult, SystemResult};
+use crate::results::{ContractResult, Empty, SystemResult};
 use crate::serde::{from_slice, to_binary};
 use crate::storage::MemoryStorage;
 use crate::traits::{Api, Querier, QuerierResult};
-use crate::types::{BlockInfo, ContractInfo, Empty, Env, MessageInfo};
+use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo};
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 
@@ -56,16 +60,6 @@ pub struct MockApi {
     /// Length of canonical addresses created with this API. Contracts should not make any assumtions
     /// what this value is.
     pub canonical_length: usize,
-}
-
-impl MockApi {
-    #[deprecated(
-        since = "0.11.0",
-        note = "The canonical length argument is unused. Use MockApi::default() instead."
-    )]
-    pub fn new(_canonical_length: usize) -> Self {
-        MockApi::default()
-    }
 }
 
 impl Default for MockApi {
@@ -126,6 +120,54 @@ impl Api for MockApi {
         Ok(human.into())
     }
 
+    fn secp256k1_verify(
+        &self,
+        message_hash: &[u8],
+        signature: &[u8],
+        public_key: &[u8],
+    ) -> Result<bool, VerificationError> {
+        Ok(cosmwasm_crypto::secp256k1_verify(
+            message_hash,
+            signature,
+            public_key,
+        )?)
+    }
+
+    fn secp256k1_recover_pubkey(
+        &self,
+        message_hash: &[u8],
+        signature: &[u8],
+        recovery_param: u8,
+    ) -> Result<Vec<u8>, RecoverPubkeyError> {
+        let pubkey =
+            cosmwasm_crypto::secp256k1_recover_pubkey(message_hash, signature, recovery_param)?;
+        Ok(pubkey.to_vec())
+    }
+
+    fn ed25519_verify(
+        &self,
+        message: &[u8],
+        signature: &[u8],
+        public_key: &[u8],
+    ) -> Result<bool, VerificationError> {
+        Ok(cosmwasm_crypto::ed25519_verify(
+            message, signature, public_key,
+        )?)
+    }
+
+    fn ed25519_batch_verify(
+        &self,
+        messages: &[&[u8]],
+        signatures: &[&[u8]],
+        public_keys: &[&[u8]],
+    ) -> Result<bool, VerificationError> {
+        Ok(cosmwasm_crypto::ed25519_batch_verify(
+            messages,
+            signatures,
+            public_keys,
+        )?)
+    }
+
     fn debug(&self, message: &str) {
         println!("{}", message);
     }
@@ -150,13 +192,80 @@ pub fn mock_env() -> Env {
     }
 }
 
-/// Just set sender and sent funds for the message. The essential for
+/// Just set sender and funds for the message.
 /// This is intended for use in test code only.
-pub fn mock_info<U: Into<HumanAddr>>(sender: U, sent: &[Coin]) -> MessageInfo {
+pub fn mock_info<U: Into<HumanAddr>>(sender: U, funds: &[Coin]) -> MessageInfo {
     MessageInfo {
         sender: sender.into(),
-        sent_funds: sent.to_vec(),
+        funds: funds.to_vec(),
     }
+}
+
+#[cfg(feature = "stargate")]
+/// Creates an IbcChannel for testing. You set a few key parameters for handshaking,
+/// If you want to set more, use this as a default and mutate other fields
+pub fn mock_ibc_channel(my_channel_id: &str, order: IbcOrder, version: &str) -> IbcChannel {
+    IbcChannel {
+        endpoint: IbcEndpoint {
+            port_id: "my_port".to_string(),
+            channel_id: my_channel_id.to_string(),
+        },
+        counterparty_endpoint: IbcEndpoint {
+            port_id: "their_port".to_string(),
+            channel_id: "channel-7".to_string(),
+        },
+        order,
+        version: version.to_string(),
+        counterparty_version: Some(version.to_string()),
+        connection_id: "connection-2".to_string(),
+    }
+}
+
+#[cfg(feature = "stargate")]
+/// Creates a IbcPacket for testing ibc_packet_receive. You set a few key parameters that are
+/// often parsed. If you want to set more, use this as a default and mutate other fields
+pub fn mock_ibc_packet_recv<T: Serialize>(my_channel_id: &str, data: &T) -> StdResult<IbcPacket> {
+    Ok(IbcPacket {
+        data: to_binary(data)?,
+        src: IbcEndpoint {
+            port_id: "their-port".to_string(),
+            channel_id: "channel-1234".to_string(),
+        },
+        dest: IbcEndpoint {
+            port_id: "our-port".to_string(),
+            channel_id: my_channel_id.into(),
+        },
+        sequence: 27,
+        timeout_block: Some(IbcTimeoutBlock {
+            revision: 1,
+            height: 12345678,
+        }),
+        timeout_timestamp: None,
+    })
+}
+
+#[cfg(feature = "stargate")]
+/// Creates a IbcPacket for testing ibc_packet_{ack,timeout}. You set a few key parameters that are
+/// often parsed. If you want to set more, use this as a default and mutate other fields.
+/// The difference between mock_ibc_packet_recv is if `my_channel_id` is src or dest.
+pub fn mock_ibc_packet_ack<T: Serialize>(my_channel_id: &str, data: &T) -> StdResult<IbcPacket> {
+    Ok(IbcPacket {
+        data: to_binary(data)?,
+        src: IbcEndpoint {
+            port_id: "their-port".to_string(),
+            channel_id: my_channel_id.into(),
+        },
+        dest: IbcEndpoint {
+            port_id: "our-port".to_string(),
+            channel_id: "channel-1234".to_string(),
+        },
+        sequence: 29,
+        timeout_block: Some(IbcTimeoutBlock {
+            revision: 1,
+            height: 432332552,
+        }),
+        timeout_timestamp: None,
+    })
 }
 
 /// The same type as cosmwasm-std's QuerierResult, but easier to reuse in
@@ -242,6 +351,14 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
             QueryRequest::Custom(custom_query) => (*self.custom_handler)(custom_query),
             QueryRequest::Staking(staking_query) => self.staking.query(staking_query),
             QueryRequest::Wasm(msg) => self.wasm.query(msg),
+            #[cfg(feature = "stargate")]
+            QueryRequest::Stargate { .. } => SystemResult::Err(SystemError::UnsupportedRequest {
+                kind: "Stargate".to_string(),
+            }),
+            #[cfg(feature = "stargate")]
+            QueryRequest::Ibc(_) => SystemResult::Err(SystemError::UnsupportedRequest {
+                kind: "Ibc".to_string(),
+            }),
         }
     }
 }
@@ -390,10 +507,21 @@ pub fn digit_sum(input: &[u8]) -> usize {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use crate::query::Delegation;
     use crate::{coin, coins, from_binary, Decimal, HumanAddr};
+    use hex_literal::hex;
+
+    const SECP256K1_MSG_HASH_HEX: &str =
+        "5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0";
+    const SECP256K1_SIG_HEX: &str = "207082eb2c3dfa0b454e0906051270ba4074ac93760ba9e7110cd9471475111151eb0dbbc9920e72146fb564f99d039802bf6ef2561446eb126ef364d21ee9c4";
+    const SECP256K1_PUBKEY_HEX: &str = "04051c1ee2190ecfb174bfe4f90763f2b4ff7517b70a2aec1876ebcfd644c4633fb03f3cfbd94b1f376e34592d9d41ccaf640bb751b00a1fadeb0c01157769eb73";
+
+    const ED25519_MSG_HEX: &str = "72";
+    const ED25519_SIG_HEX: &str = "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00";
+    const ED25519_PUBKEY_HEX: &str =
+        "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c";
 
     #[test]
     fn mock_info_arguments() {
@@ -441,6 +569,211 @@ mod test {
         let api = MockApi::default();
         let human = HumanAddr::from("some-extremely-long-address-not-supported-by-this-api");
         let _ = api.canonical_address(&human).unwrap();
+    }
+
+    // Basic "works" test. Exhaustive tests on VM's side (packages/vm/src/imports.rs)
+    #[test]
+    fn secp256k1_verify_works() {
+        let api = MockApi::default();
+
+        let hash = hex::decode(SECP256K1_MSG_HASH_HEX).unwrap();
+        let signature = hex::decode(SECP256K1_SIG_HEX).unwrap();
+        let public_key = hex::decode(SECP256K1_PUBKEY_HEX).unwrap();
+
+        assert!(api
+            .secp256k1_verify(&hash, &signature, &public_key)
+            .unwrap());
+    }
+
+    // Basic "fails" test. Exhaustive tests on VM's side (packages/vm/src/imports.rs)
+    #[test]
+    fn secp256k1_verify_fails() {
+        let api = MockApi::default();
+
+        let mut hash = hex::decode(SECP256K1_MSG_HASH_HEX).unwrap();
+        // alter hash
+        hash[0] ^= 0x01;
+        let signature = hex::decode(SECP256K1_SIG_HEX).unwrap();
+        let public_key = hex::decode(SECP256K1_PUBKEY_HEX).unwrap();
+
+        assert!(!api
+            .secp256k1_verify(&hash, &signature, &public_key)
+            .unwrap());
+    }
+
+    // Basic "errors" test. Exhaustive tests on VM's side (packages/vm/src/imports.rs)
+    #[test]
+    fn secp256k1_verify_errs() {
+        let api = MockApi::default();
+
+        let hash = hex::decode(SECP256K1_MSG_HASH_HEX).unwrap();
+        let signature = hex::decode(SECP256K1_SIG_HEX).unwrap();
+        let public_key = vec![];
+
+        let res = api.secp256k1_verify(&hash, &signature, &public_key);
+        assert_eq!(res.unwrap_err(), VerificationError::InvalidPubkeyFormat);
+    }
+
+    #[test]
+    fn secp256k1_recover_pubkey_works() {
+        let api = MockApi::default();
+
+        // https://gist.github.com/webmaster128/130b628d83621a33579751846699ed15
+        let hash = hex!("5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0");
+        let signature = hex!("45c0b7f8c09a9e1f1cea0c25785594427b6bf8f9f878a8af0b1abbb48e16d0920d8becd0c220f67c51217eecfd7184ef0732481c843857e6bc7fc095c4f6b788");
+        let recovery_param = 1;
+        let expected = hex!("044a071e8a6e10aada2b8cf39fa3b5fb3400b04e99ea8ae64ceea1a977dbeaf5d5f8c8fbd10b71ab14cd561f7df8eb6da50f8a8d81ba564342244d26d1d4211595");
+
+        let pubkey = api
+            .secp256k1_recover_pubkey(&hash, &signature, recovery_param)
+            .unwrap();
+        assert_eq!(pubkey, expected);
+    }
+
+    #[test]
+    fn secp256k1_recover_pubkey_fails_for_wrong_recovery_param() {
+        let api = MockApi::default();
+
+        // https://gist.github.com/webmaster128/130b628d83621a33579751846699ed15
+        let hash = hex!("5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0");
+        let signature = hex!("45c0b7f8c09a9e1f1cea0c25785594427b6bf8f9f878a8af0b1abbb48e16d0920d8becd0c220f67c51217eecfd7184ef0732481c843857e6bc7fc095c4f6b788");
+        let _recovery_param = 1;
+        let expected = hex!("044a071e8a6e10aada2b8cf39fa3b5fb3400b04e99ea8ae64ceea1a977dbeaf5d5f8c8fbd10b71ab14cd561f7df8eb6da50f8a8d81ba564342244d26d1d4211595");
+
+        // Wrong recovery param leads to different pubkey
+        let pubkey = api.secp256k1_recover_pubkey(&hash, &signature, 0).unwrap();
+        assert_eq!(pubkey.len(), 65);
+        assert_ne!(pubkey, expected);
+
+        // Invalid recovery param leads to error
+        let result = api.secp256k1_recover_pubkey(&hash, &signature, 42);
+        match result.unwrap_err() {
+            RecoverPubkeyError::InvalidRecoveryParam => {}
+            err => panic!("Unexpected error: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn secp256k1_recover_pubkey_fails_for_wrong_hash() {
+        let api = MockApi::default();
+
+        // https://gist.github.com/webmaster128/130b628d83621a33579751846699ed15
+        let hash = hex!("5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0");
+        let signature = hex!("45c0b7f8c09a9e1f1cea0c25785594427b6bf8f9f878a8af0b1abbb48e16d0920d8becd0c220f67c51217eecfd7184ef0732481c843857e6bc7fc095c4f6b788");
+        let recovery_param = 1;
+        let expected = hex!("044a071e8a6e10aada2b8cf39fa3b5fb3400b04e99ea8ae64ceea1a977dbeaf5d5f8c8fbd10b71ab14cd561f7df8eb6da50f8a8d81ba564342244d26d1d4211595");
+
+        // Wrong hash
+        let mut corrupted_hash = hash.clone();
+        corrupted_hash[0] ^= 0x01;
+        let pubkey = api
+            .secp256k1_recover_pubkey(&corrupted_hash, &signature, recovery_param)
+            .unwrap();
+        assert_eq!(pubkey.len(), 65);
+        assert_ne!(pubkey, expected);
+
+        // Malformed hash
+        let mut malformed_hash = hash.to_vec();
+        malformed_hash.push(0x8a);
+        let result = api.secp256k1_recover_pubkey(&malformed_hash, &signature, recovery_param);
+        match result.unwrap_err() {
+            RecoverPubkeyError::InvalidHashFormat => {}
+            err => panic!("Unexpected error: {:?}", err),
+        }
+    }
+
+    // Basic "works" test. Exhaustive tests on VM's side (packages/vm/src/imports.rs)
+    #[test]
+    fn ed25519_verify_works() {
+        let api = MockApi::default();
+
+        let msg = hex::decode(ED25519_MSG_HEX).unwrap();
+        let signature = hex::decode(ED25519_SIG_HEX).unwrap();
+        let public_key = hex::decode(ED25519_PUBKEY_HEX).unwrap();
+
+        assert!(api.ed25519_verify(&msg, &signature, &public_key).unwrap());
+    }
+
+    // Basic "fails" test. Exhaustive tests on VM's side (packages/vm/src/imports.rs)
+    #[test]
+    fn ed25519_verify_fails() {
+        let api = MockApi::default();
+
+        let mut msg = hex::decode(ED25519_MSG_HEX).unwrap();
+        // alter msg
+        msg[0] ^= 0x01;
+        let signature = hex::decode(ED25519_SIG_HEX).unwrap();
+        let public_key = hex::decode(ED25519_PUBKEY_HEX).unwrap();
+
+        assert!(!api.ed25519_verify(&msg, &signature, &public_key).unwrap());
+    }
+
+    // Basic "errors" test. Exhaustive tests on VM's side (packages/vm/src/imports.rs)
+    #[test]
+    fn ed25519_verify_errs() {
+        let api = MockApi::default();
+
+        let msg = hex::decode(ED25519_MSG_HEX).unwrap();
+        let signature = hex::decode(ED25519_SIG_HEX).unwrap();
+        let public_key = vec![];
+
+        let res = api.ed25519_verify(&msg, &signature, &public_key);
+        assert_eq!(res.unwrap_err(), VerificationError::InvalidPubkeyFormat);
+    }
+
+    // Basic "works" test.
+    #[test]
+    fn ed25519_batch_verify_works() {
+        let api = MockApi::default();
+
+        let msg = hex::decode(ED25519_MSG_HEX).unwrap();
+        let signature = hex::decode(ED25519_SIG_HEX).unwrap();
+        let public_key = hex::decode(ED25519_PUBKEY_HEX).unwrap();
+
+        let msgs: Vec<&[u8]> = vec![&msg];
+        let signatures: Vec<&[u8]> = vec![&signature];
+        let public_keys: Vec<&[u8]> = vec![&public_key];
+
+        assert!(api
+            .ed25519_batch_verify(&msgs, &signatures, &public_keys)
+            .unwrap());
+    }
+
+    // Basic "fails" test.
+    #[test]
+    fn ed25519_batch_verify_fails() {
+        let api = MockApi::default();
+
+        let mut msg = hex::decode(ED25519_MSG_HEX).unwrap();
+        // alter msg
+        msg[0] ^= 0x01;
+        let signature = hex::decode(ED25519_SIG_HEX).unwrap();
+        let public_key = hex::decode(ED25519_PUBKEY_HEX).unwrap();
+
+        let msgs: Vec<&[u8]> = vec![&msg];
+        let signatures: Vec<&[u8]> = vec![&signature];
+        let public_keys: Vec<&[u8]> = vec![&public_key];
+
+        assert!(!api
+            .ed25519_batch_verify(&msgs, &signatures, &public_keys)
+            .unwrap());
+    }
+
+    // Basic "errors" test.
+    #[test]
+    fn ed25519_batch_verify_errs() {
+        let api = MockApi::default();
+
+        let msg = hex::decode(ED25519_MSG_HEX).unwrap();
+        let signature = hex::decode(ED25519_SIG_HEX).unwrap();
+        let public_key: Vec<u8> = vec![0u8; 0];
+
+        let msgs: Vec<&[u8]> = vec![&msg.as_slice()];
+        let signatures: Vec<&[u8]> = vec![&signature.as_slice()];
+        let public_keys: Vec<&[u8]> = vec![&public_key];
+
+        let res = api.ed25519_batch_verify(&msgs, &signatures, &public_keys);
+        assert_eq!(res.unwrap_err(), VerificationError::InvalidPubkeyFormat);
     }
 
     #[test]

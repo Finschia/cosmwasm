@@ -5,7 +5,7 @@ use std::ops::Deref;
 
 use crate::binary::Binary;
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq, Hash, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash, JsonSchema)]
 pub struct HumanAddr(pub String);
 
 impl HumanAddr {
@@ -41,6 +41,12 @@ impl From<&&HumanAddr> for HumanAddr {
 impl From<String> for HumanAddr {
     fn from(addr: String) -> Self {
         HumanAddr(addr)
+    }
+}
+
+impl From<HumanAddr> for String {
+    fn from(addr: HumanAddr) -> Self {
+        addr.0
     }
 }
 
@@ -88,7 +94,7 @@ impl PartialEq<HumanAddr> for &str {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq, Hash, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash, JsonSchema)]
 pub struct CanonicalAddr(pub Binary);
 
 impl From<&[u8]> for CanonicalAddr {
@@ -138,7 +144,7 @@ impl fmt::Display for CanonicalAddr {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use std::collections::hash_map::DefaultHasher;
     use std::collections::HashSet;

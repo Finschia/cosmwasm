@@ -1,26 +1,21 @@
 # CosmWasm
 
-[![CircleCI](https://circleci.com/gh/line/cosmwasm/tree/develop.svg?style=shield)](https://circleci.com/gh/line/cosmwasm/tree/develop)
+[![CircleCI](https://circleci.com/gh/CosmWasm/cosmwasm/tree/main.svg?style=shield)](https://circleci.com/gh/CosmWasm/cosmwasm/tree/main)
 
-| Crate            | Download                                                                                                                            | Docs                                                                                    |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| cosmwasm-schema  | [![cosmwasm-schema on crates.io](https://img.shields.io/crates/v/cosmwasm-schema.svg)](https://crates.io/crates/cosmwasm-schema)    | [![Docs](https://docs.rs/cosmwasm-schema/badge.svg)](https://docs.rs/cosmwasm-schema)   |
-| cosmwasm-std     | [![cosmwasm-std on crates.io](https://img.shields.io/crates/v/cosmwasm-std.svg)](https://crates.io/crates/cosmwasm-std)             | [![Docs](https://docs.rs/cosmwasm-std/badge.svg)](https://docs.rs/cosmwasm-std)         |
-| cosmwasm-storage | [![cosmwasm-storage on crates.io](https://img.shields.io/crates/v/cosmwasm-storage.svg)](https://crates.io/crates/cosmwasm-storage) | [![Docs](https://docs.rs/cosmwasm-storage/badge.svg)](https://docs.rs/cosmwasm-storage) |
-| cosmwasm-vm      | [![cosmwasm-vm on crates.io](https://img.shields.io/crates/v/cosmwasm-vm.svg)](https://crates.io/crates/cosmwasm-vm)                | [![Docs](https://docs.rs/cosmwasm-vm/badge.svg)](https://docs.rs/cosmwasm-vm)           |
+**WebAssembly Smart Contracts for the Cosmos SDK.**
 
-**WebAssembly Smart Contracts for the Cosmos SDK**
+## Packages
 
-This repo provides a useful functionality to build smart contracts that are
-compatible with a Cosmos SDK based runtime,
-[wasmd](https://github.com/CosmWasm/wasmd).
+The following packages are maintained here:
 
-Compatibility:
-
-- Contracts built with CosmWasm `v0.8.x` (unreleased) will run on wasmd `v0.8.x`
-  (unreleased) (master branch)
-- Contracts built with CosmWasm `v0.7.x` will run on wasmd `v0.7.x` (0.7 branch)
-- Contracts built with CosmWasm `v0.6.3+` will run on wasmd `v0.6.x`
+| Crate            | Usage                | Download                                                                                                                            | Docs                                                                                    |
+| ---------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| cosmwasm-crypto  | Internal only        | [![cosmwasm-crypto on crates.io](https://img.shields.io/crates/v/cosmwasm-crypto.svg)](https://crates.io/crates/cosmwasm-crypto)    | [![Docs](https://docs.rs/cosmwasm-crypto/badge.svg)](https://docs.rs/cosmwasm-crypto)   |
+| cosmwasm-derive  | Internal only        | [![cosmwasm-derive on crates.io](https://img.shields.io/crates/v/cosmwasm-derive.svg)](https://crates.io/crates/cosmwasm-derive)    | [![Docs](https://docs.rs/cosmwasm-derive/badge.svg)](https://docs.rs/cosmwasm-derive)   |
+| cosmwasm-schema  | Contract development | [![cosmwasm-schema on crates.io](https://img.shields.io/crates/v/cosmwasm-schema.svg)](https://crates.io/crates/cosmwasm-schema)    | [![Docs](https://docs.rs/cosmwasm-schema/badge.svg)](https://docs.rs/cosmwasm-schema)   |
+| cosmwasm-std     | Contract development | [![cosmwasm-std on crates.io](https://img.shields.io/crates/v/cosmwasm-std.svg)](https://crates.io/crates/cosmwasm-std)             | [![Docs](https://docs.rs/cosmwasm-std/badge.svg)](https://docs.rs/cosmwasm-std)         |
+| cosmwasm-storage | Contract development | [![cosmwasm-storage on crates.io](https://img.shields.io/crates/v/cosmwasm-storage.svg)](https://crates.io/crates/cosmwasm-storage) | [![Docs](https://docs.rs/cosmwasm-storage/badge.svg)](https://docs.rs/cosmwasm-storage) |
+| cosmwasm-vm      | Host environments    | [![cosmwasm-vm on crates.io](https://img.shields.io/crates/v/cosmwasm-vm.svg)](https://crates.io/crates/cosmwasm-vm)                | [![Docs](https://docs.rs/cosmwasm-vm/badge.svg)](https://docs.rs/cosmwasm-vm)           |
 
 ## Overview
 
@@ -31,10 +26,10 @@ oriented, here is a list of the various components of the CosmWasm ecosystem:
 
 This code is compiled into Wasm bytecode as part of the smart contract.
 
-- [cosmwasm-std](https://github.com/CosmWasm/cosmwasm/tree/master/packages/std) -
+- [cosmwasm-std](https://github.com/CosmWasm/cosmwasm/tree/main/packages/std) -
   A crate in this workspace. Provides the bindings and all imports needed to
   build a smart contract.
-- [cosmwasm-storage](https://github.com/CosmWasm/cosmwasm/tree/master/packages/storage) -
+- [cosmwasm-storage](https://github.com/CosmWasm/cosmwasm/tree/main/packages/storage) -
   A crate in this workspace. This optional addition to `cosmwasm-std` includes
   convenience helpers for interacting with storage.
 
@@ -60,11 +55,10 @@ This code is compiled into Wasm bytecode as part of the smart contract.
 
 **Executing contracts:**
 
-- [cosmwasm-vm](https://github.com/CosmWasm/cosmwasm/tree/master/packages/vm) -
-  A crate in this workspace. Uses the
-  [wasmer](https://github.com/wasmerio/wasmer) engine to execute a given smart
-  contract. Also contains code for gas metering, storing, and caching wasm
-  artifacts.
+- [cosmwasm-vm](https://github.com/CosmWasm/cosmwasm/tree/main/packages/vm) - A
+  crate in this workspace. Uses the [wasmer](https://github.com/wasmerio/wasmer)
+  engine to execute a given smart contract. Also contains code for gas metering,
+  storing, and caching wasm artifacts.
 - [go-cosmwasm](https://github.com/CosmWasm/go-cosmwasm) - High-level go
   bindings to all the power inside `cosmwasm-vm`. Easily allows you to upload,
   instantiate and execute contracts, making use of all the optimizations and
@@ -87,9 +81,6 @@ and follow the instructions. This will give you a simple contract along with
 tests, and a properly configured build environment. From there you can edit the
 code to add your desired logic and publish it as an independent repo.
 
-If you want to understand a bit more, you can read some instructions on how we
-[configure a library for wasm](./Building.md)
-
 ## API entry points
 
 WebAssembly contracts are basically black boxes. The have no default entry
@@ -107,8 +98,8 @@ The required exports provided by the cosmwasm smart contract are:
 extern "C" fn allocate(size: usize) -> u32;
 extern "C" fn deallocate(pointer: u32);
 
-extern "C" fn init(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32;
-extern "C" fn handle(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32;
+extern "C" fn instantiate(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32;
+extern "C" fn execute(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32;
 extern "C" fn query(env_ptr: u32, msg_ptr: u32) -> u32;
 extern "C" fn migrate(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32;
 ```
@@ -116,7 +107,7 @@ extern "C" fn migrate(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32;
 `allocate`/`deallocate` allow the host to manage data within the Wasm VM. If
 you're using Rust, you can implement them by simply
 [re-exporting them from cosmwasm::exports](https://github.com/CosmWasm/cosmwasm/blob/v0.6.3/contracts/hackatom/src/lib.rs#L5).
-`init`, `handle` and `query` must be defined by your contract.
+`instantiate`, `execute` and `query` must be defined by your contract.
 
 ### Imports
 
@@ -140,6 +131,24 @@ extern "C" {
 
     fn canonicalize_address(source: u32, destination: u32) -> u32;
     fn humanize_address(source: u32, destination: u32) -> u32;
+
+    /// Verifies message hashes against a signature with a public key, using the
+    /// secp256k1 ECDSA parametrization.
+    /// Returns 0 on verification success, 1 on verification failure, and values
+    /// greater than 1 in case of error.
+    fn secp256k1_verify(message_hash_ptr: u32, signature_ptr: u32, public_key_ptr: u32) -> u32;
+
+    /// Verifies a message against a signature with a public key, using the
+    /// ed25519 EdDSA scheme.
+    /// Returns 0 on verification success, 1 on verification failure, and values
+    /// greater than 1 in case of error.
+    fn ed25519_verify(message_ptr: u32, signature_ptr: u32, public_key_ptr: u32) -> u32;
+
+    /// Verifies a batch of messages against a batch of signatures and public keys, using the
+    /// ed25519 EdDSA scheme.
+    /// Returns 0 on verification success, 1 on verification failure, and values
+    /// greater than 1 in case of error.
+    fn ed25519_batch_verify(messages_ptr: u32, signatures_ptr: u32, public_keys_ptr: u32) -> u32;
 
     /// Executes a query on the chain (import). Not to be confused with the
     /// query export, which queries the state of the contract.
@@ -175,44 +184,44 @@ pub struct Region {
 ```
 
 (from
-[memory.rs](https://github.com/CosmWasm/cosmwasm/blob/master/src/memory.rs#L7-L13))
+[memory.rs](https://github.com/CosmWasm/cosmwasm/blob/main/src/memory.rs#L7-L13))
 
 ## Implementing the Smart Contract
 
 If you followed the [instructions above](#Creating), you should have a runable
 smart contract. You may notice that all of the Wasm exports are taken care of by
 `lib.rs`, which should shouldn't need to modify. What you need to do is simply
-look in `contract.rs` and implement `init` and `handle` functions, defining your
-custom `InitMsg` and `HandleMsg` structs for parsing your custom message types
-(as json):
+look in `contract.rs` and implement `instantiate` and `execute` functions,
+defining your custom `InstantiateMsg` and `ExecuteMsg` structs for parsing your
+custom message types (as json):
 
 ```rust
-pub fn init<S: Storage, A: Api, Q: Querier>(
+pub fn instantiate<S: Storage, A: Api, Q: Querier>(
     deps: &mut Deps<S, A, Q>,
     env: Env,
     info: MessageInfo,
-    msg: InitMsg,
-) -> StdResult<InitResponse> {}
+    msg: InstantiateMsg,
+) -> StdResult<Response> {}
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
+pub fn execute<S: Storage, A: Api, Q: Querier>(
     deps: &mut Deps<S, A, Q>,
     env: Env,
     info: MessageInfo,
-    msg: HandleMsg,
-) -> Result<HandleResponse, ContractError> { }
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> { }
+
+pub fn migrate<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Deps<S, A, Q>,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, MigrateError> { }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Deps<S, A, Q>,
     env: Env,
     msg: QueryMsg,
 ) -> StdResult<Binary> { }
-
-pub fn migrate<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
-    env: Env,
-    info: MessageInfo,
-    msg: HandleMsg,
-) -> Result<HandleResponse, MigrateError> { }
 ```
 
 The low-level `c_read` and `c_write` imports are nicely wrapped for you by a
@@ -255,12 +264,12 @@ properly. To do so, you will want to create a canonical release build of the
 `<contract>.wasm` file and then write tests in with the same VM tooling we will
 use in production. This is a bit more complicated but we added some tools to
 help in
-[cosmwasm-vm](https://github.com/CosmWasm/cosmwasm/tree/master/packages/vm)
-which can be added as a `dev-dependency`.
+[cosmwasm-vm](https://github.com/CosmWasm/cosmwasm/tree/main/packages/vm) which
+can be added as a `dev-dependency`.
 
 You will need to first compile the contract using `cargo wasm`, then load this
 file in the integration tests. Take a
-[look at the sample tests](https://github.com/CosmWasm/cosmwasm/blob/master/contracts/hackatom/tests/integration.rs)
+[look at the sample tests](https://github.com/CosmWasm/cosmwasm/blob/main/contracts/hackatom/tests/integration.rs)
 to see how to do this... it is often quite easy to port a unit test to an
 integration test.
 
@@ -283,7 +292,7 @@ but the quickstart guide is:
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.10.3
+  cosmwasm/rust-optimizer:0.10.8
 ```
 
 It will output a highly size-optimized build as `contract.wasm` in `$CODE`. With
@@ -310,23 +319,13 @@ nightly toolchain installed as well.
 **Workspace**
 
 ```sh
-cargo fmt \
-  && (cd packages/std && cargo wasm-debug --features iterator && cargo test --features iterator && cargo clippy --features iterator -- -D warnings && cargo schema) \
-  && (cd packages/storage && cargo build && cargo test --features iterator && cargo clippy --features iterator -- -D warnings) \
-  && (cd packages/schema && cargo build && cargo test && cargo clippy -- -D warnings) \
-  && (cd packages/vm && cargo +nightly build --features iterator && cargo +nightly test --features iterator && cargo +nightly clippy --features iterator -- -D warnings)
+./devtools/check_workspace.sh
 ```
 
 **Contracts**
 
-Step 1 (fast checks)
-
-```sh
-for contract_dir in contracts/*/; do (cd "$contract_dir" && cargo fmt && cargo check --tests && cargo wasm-debug && cargo unit-test && cargo clippy -- -D warnings && cargo schema) || break; done
-```
-
-Step 2 (slower checks)
-
-```sh
-for contract_dir in contracts/*/; do (cd "$contract_dir" && cargo wasm && cargo integration-test) || break; done
-```
+| Step | Description                      | Command                                |
+| ---- | -------------------------------- | -------------------------------------- |
+| 1    | fast checks, rebuilds lock files | `./devtools/check_contracts_fast.sh`   |
+| 2    | medium fast checks               | `./devtools/check_contracts_medium.sh` |
+| 3    | slower checks                    | `./devtools/check_contracts_full.sh`   |

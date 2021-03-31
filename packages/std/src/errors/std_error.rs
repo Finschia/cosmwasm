@@ -2,7 +2,9 @@
 use std::backtrace::Backtrace;
 use thiserror::Error;
 
-/// Structured error type for init, handle and query.
+use crate::errors::{RecoverPubkeyError, VerificationError};
+
+/// Structured error type for init, execute and query.
 ///
 /// This can be serialized and passed over the Wasm/VM boundary, which allows us to use structured
 /// error types in e.g. integration tests. In that process backtraces are stripped off.
@@ -19,6 +21,18 @@ use thiserror::Error;
 /// - Add creator function in std_error_helpers.rs
 #[derive(Error, Debug)]
 pub enum StdError {
+    #[error("Verification error: {source}")]
+    VerificationErr {
+        source: VerificationError,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("Recover pubkey error: {source}")]
+    RecoverPubkeyErr {
+        source: RecoverPubkeyError,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
     /// Whenever there is no specific error type available
     #[error("Generic error: {msg}")]
     GenericErr {
@@ -78,6 +92,22 @@ pub enum StdError {
 }
 
 impl StdError {
+    pub fn verification_err(source: VerificationError) -> Self {
+        StdError::VerificationErr {
+            source,
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub fn recover_pubkey_err(source: RecoverPubkeyError) -> Self {
+        StdError::RecoverPubkeyErr {
+            source,
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
     pub fn generic_err<S: Into<String>>(msg: S) -> Self {
         StdError::GenericErr {
             msg: msg.into(),
@@ -148,6 +178,181 @@ impl StdError {
     }
 }
 
+impl PartialEq<StdError> for StdError {
+    fn eq(&self, rhs: &StdError) -> bool {
+        match self {
+            StdError::VerificationErr {
+                source,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::VerificationErr {
+                    source: rhs_source,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    source == rhs_source
+                } else {
+                    false
+                }
+            }
+            StdError::RecoverPubkeyErr {
+                source,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::RecoverPubkeyErr {
+                    source: rhs_source,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    source == rhs_source
+                } else {
+                    false
+                }
+            }
+            StdError::GenericErr {
+                msg,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::GenericErr {
+                    msg: rhs_msg,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    msg == rhs_msg
+                } else {
+                    false
+                }
+            }
+            StdError::InvalidBase64 {
+                msg,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::InvalidBase64 {
+                    msg: rhs_msg,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    msg == rhs_msg
+                } else {
+                    false
+                }
+            }
+            StdError::InvalidDataSize {
+                expected,
+                actual,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::InvalidDataSize {
+                    expected: rhs_expected,
+                    actual: rhs_actual,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    expected == rhs_expected && actual == rhs_actual
+                } else {
+                    false
+                }
+            }
+            StdError::InvalidUtf8 {
+                msg,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::InvalidUtf8 {
+                    msg: rhs_msg,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    msg == rhs_msg
+                } else {
+                    false
+                }
+            }
+            StdError::NotFound {
+                kind,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::NotFound {
+                    kind: rhs_kind,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    kind == rhs_kind
+                } else {
+                    false
+                }
+            }
+            StdError::ParseErr {
+                target_type,
+                msg,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::ParseErr {
+                    target_type: rhs_target_type,
+                    msg: rhs_msg,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    target_type == rhs_target_type && msg == rhs_msg
+                } else {
+                    false
+                }
+            }
+            StdError::SerializeErr {
+                source_type,
+                msg,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::SerializeErr {
+                    source_type: rhs_source_type,
+                    msg: rhs_msg,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    source_type == rhs_source_type && msg == rhs_msg
+                } else {
+                    false
+                }
+            }
+            StdError::Underflow {
+                minuend,
+                subtrahend,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::Underflow {
+                    minuend: rhs_minuend,
+                    subtrahend: rhs_subtrahend,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    minuend == rhs_minuend && subtrahend == rhs_subtrahend
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
 impl From<std::str::Utf8Error> for StdError {
     fn from(source: std::str::Utf8Error) -> Self {
         Self::invalid_utf8(source)
@@ -160,7 +365,19 @@ impl From<std::string::FromUtf8Error> for StdError {
     }
 }
 
-/// The return type for init, handle and query. Since the error type cannot be serialized to JSON,
+impl From<VerificationError> for StdError {
+    fn from(source: VerificationError) -> Self {
+        Self::verification_err(source)
+    }
+}
+
+impl From<RecoverPubkeyError> for StdError {
+    fn from(source: RecoverPubkeyError) -> Self {
+        Self::recover_pubkey_err(source)
+    }
+}
+
+/// The return type for init, execute and query. Since the error type cannot be serialized to JSON,
 /// this is only available within the contract and its unit tests.
 ///
 /// The prefix "Std" means "the standard result within the standard library". This is not the only
@@ -168,7 +385,7 @@ impl From<std::string::FromUtf8Error> for StdError {
 pub type StdResult<T> = core::result::Result<T, StdError>;
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use std::str;
 
@@ -341,6 +558,21 @@ mod test {
         let error: StdError = StdError::underflow(3, 5);
         let embedded = format!("Display message: {}", error);
         assert_eq!(embedded, "Display message: Cannot subtract 5 from 3");
+    }
+
+    #[test]
+    fn implements_partial_eq() {
+        let u1 = StdError::underflow(3, 5);
+        let u2 = StdError::underflow(3, 5);
+        let u3 = StdError::underflow(3, 7);
+        let s1 = StdError::serialize_err("Book", "Content too long");
+        let s2 = StdError::serialize_err("Book", "Content too long");
+        let s3 = StdError::serialize_err("Book", "Title too long");
+        assert_eq!(u1, u2);
+        assert_ne!(u1, u3);
+        assert_ne!(u1, s1);
+        assert_eq!(s1, s2);
+        assert_ne!(s1, s3);
     }
 
     #[test]
