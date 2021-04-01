@@ -1,3 +1,5 @@
+#![allow(dead_code)] // Disable unused code lint with the code used in https://github.com/line/cosmwasm-simulator.
+
 use wasmer::Module;
 
 use crate::backend::Backend;
