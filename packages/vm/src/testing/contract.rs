@@ -1,7 +1,7 @@
-use wasmer_runtime_core::Module;
+use wasmer::Module;
 
 use crate::backend::Backend;
-use crate::backends::compile;
+use crate::wasm_backend::compile;
 use crate::compatibility::check_wasm;
 use crate::instance::Instance;
 
@@ -13,7 +13,7 @@ use super::storage::MockStorage;
 
 pub struct Contract<'a> {
     module: Module,
-    backend: Option<Backend<MockStorage, MockApi, MockQuerier>>,
+    backend: Option<Backend<MockApi, MockStorage, MockQuerier>>,
     options: MockInstanceOptions<'a>,
 }
 
@@ -22,16 +22,16 @@ const ERR_RECYCLE_BEFORE_GENERATE_INSTANCE: &str = "recycle_instance is called b
 
 /// representing a contract in integration test
 ///
-/// This enables tests instantiate a new instance every time testing call_(init/handle/query/migrate) like actual wasmd's behavior.
+/// This enables tests instantiate a new instance every time testing call_(instantiate/execute/query/migrate) like actual wasmd's behavior.
 /// This is like Cache but it is for single contract and cannot save data in disk.
 impl<'a> Contract<'a> {
     pub fn from_code(
         wasm: &[u8],
-        backend: Backend<MockStorage, MockApi, MockQuerier>,
+        backend: Backend<MockApi, MockStorage, MockQuerier>,
         options: MockInstanceOptions<'a>,
     ) -> TestingResult<Self> {
         check_wasm(wasm, &options.supported_features)?;
-        let module = compile(wasm)?;
+        let module = compile(wasm, None)?;
         let backend = Some(backend);
         let contract = Self {
             module,
@@ -46,7 +46,7 @@ impl<'a> Contract<'a> {
     /// call this before `generate_instance` for testing `call_migrate`.
     pub fn change_wasm(&mut self, wasm: &[u8]) -> TestingResult<()> {
         check_wasm(wasm, &self.options.supported_features)?;
-        let module = compile(wasm)?;
+        let module = compile(wasm, None)?;
         self.module = module;
         Ok(())
     }
@@ -56,7 +56,7 @@ impl<'a> Contract<'a> {
     /// once this is called, result instance needs to be recycled by Contract::recycle_instance to generate new instance next time.
     pub fn generate_instance(
         &mut self,
-    ) -> TestingResult<Instance<MockStorage, MockApi, MockQuerier>> {
+    ) -> TestingResult<Instance<MockApi, MockStorage, MockQuerier>> {
         let backend = self
             .backend
             .take()
@@ -75,7 +75,7 @@ impl<'a> Contract<'a> {
     /// instance of a contract must be singleton and this is for recycling the instance.
     pub fn recycle_instance(
         &mut self,
-        instance: Instance<MockStorage, MockApi, MockQuerier>,
+        instance: Instance<MockApi, MockStorage, MockQuerier>,
     ) -> TestingResult<()> {
         if self.backend.is_some() {
             return Err(TestingError::ContractError(
@@ -101,12 +101,12 @@ impl<'a> Contract<'a> {
 #[cfg(feature = "iterator")]
 mod test {
     use super::*;
-    use crate::calls::{call_handle, call_init, call_migrate, call_query};
+    use crate::calls::{call_execute, call_instantiate, call_migrate, call_query};
     use crate::testing::{mock_backend, mock_env, mock_info, mock_instance, MockInstanceOptions};
     use cosmwasm_std::{HandleResponse, HumanAddr, InitResponse, MigrateResponse, QueryResponse};
 
-    static CONTRACT_WITHOUT_MIGRATE: &[u8] = include_bytes!("../../testdata/queue-12-2.wasm");
-    static CONTRACT_WITH_MIGRATE: &[u8] = include_bytes!("../../testdata/queue-13-2.wasm");
+    static CONTRACT_WITHOUT_MIGRATE: &[u8] = include_bytes!("../../testdata/queue_0.14_without_migrate.wasm");
+    static CONTRACT_WITH_MIGRATE: &[u8] = include_bytes!("../../testdata/queue_0.14_with_migrate.wasm");
 
     #[test]
     fn test_sanity_integration_test_flow() {
@@ -121,7 +121,7 @@ mod test {
         // init
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
-        let _: InitResponse = call_init(&mut instance, &env, &info, &msg)
+        let _: InitResponse = call_instantiate(&mut instance, &env, &info, &msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -140,7 +140,7 @@ mod test {
         // handle and enqueue 42
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"enqueue\": {\"value\": 42}}".as_bytes();
-        let _: HandleResponse = call_handle(&mut instance, &env, &info, &msg)
+        let _: HandleResponse = call_execute(&mut instance, &env, &info, &msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -170,7 +170,7 @@ mod test {
         contract.change_wasm(CONTRACT_WITH_MIGRATE).unwrap();
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
-        let _: MigrateResponse = call_migrate(&mut instance, &env, &info, &msg)
+        let _: MigrateResponse = call_migrate(&mut instance, &env, &msg)
             .unwrap()
             .into_result()
             .unwrap();
