@@ -1,10 +1,12 @@
+#![allow(clippy::field_reassign_with_default)] // see https://github.com/CosmWasm/cosmwasm/issues/685
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Coin, Decimal, HumanAddr, Uint128};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     /// name of the derivative token (FIXME: auto-generate?)
     pub name: String,
     /// symbol / ticker of the derivative token
@@ -27,7 +29,7 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     /// Transfer moves the derivative token
     Transfer {
         recipient: HumanAddr,

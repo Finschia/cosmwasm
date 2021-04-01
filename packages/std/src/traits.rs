@@ -1,9 +1,10 @@
 use serde::{de::DeserializeOwned, Serialize};
+use std::ops::Deref;
 
 use crate::addresses::{CanonicalAddr, HumanAddr};
 use crate::binary::Binary;
 use crate::coins::Coin;
-use crate::errors::{StdError, StdResult};
+use crate::errors::{RecoverPubkeyError, StdError, StdResult, VerificationError};
 #[cfg(feature = "iterator")]
 use crate::iterator::{Order, KV};
 use crate::query::{
@@ -14,9 +15,8 @@ use crate::query::{
     AllDelegationsResponse, BondedDenomResponse, Delegation, DelegationResponse, FullDelegation,
     StakingQuery, Validator, ValidatorsResponse,
 };
-use crate::results::{ContractResult, SystemResult};
+use crate::results::{ContractResult, Empty, SystemResult};
 use crate::serde::{from_binary, to_binary, to_vec};
-use crate::types::Empty;
 
 /// Storage provides read and write access to a persistent storage.
 /// If you only want to provide read access, provide `&Storage`
@@ -66,6 +66,35 @@ pub trait Storage {
 pub trait Api {
     fn canonical_address(&self, human: &HumanAddr) -> StdResult<CanonicalAddr>;
     fn human_address(&self, canonical: &CanonicalAddr) -> StdResult<HumanAddr>;
+
+    fn secp256k1_verify(
+        &self,
+        message_hash: &[u8],
+        signature: &[u8],
+        public_key: &[u8],
+    ) -> Result<bool, VerificationError>;
+
+    fn secp256k1_recover_pubkey(
+        &self,
+        message_hash: &[u8],
+        signature: &[u8],
+        recovery_param: u8,
+    ) -> Result<Vec<u8>, RecoverPubkeyError>;
+
+    fn ed25519_verify(
+        &self,
+        message: &[u8],
+        signature: &[u8],
+        public_key: &[u8],
+    ) -> Result<bool, VerificationError>;
+
+    fn ed25519_batch_verify(
+        &self,
+        messages: &[&[u8]],
+        signatures: &[&[u8]],
+        public_keys: &[&[u8]],
+    ) -> Result<bool, VerificationError>;
+
     /// Emits a debugging message that is handled depending on the environment (typically printed to console or ignored).
     /// Those messages are not persisted to chain.
     fn debug(&self, message: &str);
@@ -86,16 +115,19 @@ pub trait Querier {
 #[derive(Copy, Clone)]
 pub struct QuerierWrapper<'a>(&'a dyn Querier);
 
+/// This allows us to use self.raw_query to access the querier.
+/// It also allows external callers to access the querier easily.
+impl<'a> Deref for QuerierWrapper<'a> {
+    type Target = dyn Querier + 'a;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
 impl<'a> QuerierWrapper<'a> {
     pub fn new(querier: &'a dyn Querier) -> Self {
         QuerierWrapper(querier)
-    }
-
-    /// This allows us to pass through binary queries from one level to another without
-    /// knowing the custom format, or we can decode it, with the knowledge of the allowed
-    /// types. You probably want one of the simpler auto-generated helper methods
-    pub fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
-        self.0.raw_query(bin_request)
     }
 
     /// query is a shorthand for custom_query when we are not using a custom type,
@@ -244,5 +276,50 @@ impl<'a> QuerierWrapper<'a> {
         .into();
         let res: DelegationResponse = self.query(&request)?;
         Ok(res.delegation)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mock::MockQuerier;
+    use crate::{coins, from_slice, Uint128};
+
+    // this is a simple demo helper to prove we can use it
+    fn demo_helper(_querier: &dyn Querier) -> u64 {
+        2
+    }
+
+    // this just needs to compile to prove we can use it
+    #[test]
+    fn use_querier_wrapper_as_querier() {
+        let querier: MockQuerier<Empty> = MockQuerier::new(&[]);
+        let wrapper = QuerierWrapper::new(&querier);
+
+        // call with deref shortcut
+        let res = demo_helper(&*wrapper);
+        assert_eq!(2, res);
+
+        // call with explicit deref
+        let res = demo_helper(wrapper.deref());
+        assert_eq!(2, res);
+    }
+
+    #[test]
+    fn auto_deref_raw_query() {
+        let acct = HumanAddr::from("foobar");
+        let querier: MockQuerier<Empty> = MockQuerier::new(&[(&acct, &coins(5, "BTC"))]);
+        let wrapper = QuerierWrapper::new(&querier);
+        let query = QueryRequest::<Empty>::Bank(BankQuery::Balance {
+            address: acct,
+            denom: "BTC".to_string(),
+        });
+
+        let raw = wrapper
+            .raw_query(&to_vec(&query).unwrap())
+            .unwrap()
+            .unwrap();
+        let balance: BalanceResponse = from_slice(&raw).unwrap();
+        assert_eq!(balance.amount.amount, Uint128(5));
     }
 }

@@ -3,7 +3,7 @@ use cosmwasm_std::{BlockInfo, CanonicalAddr, Coin, ContractInfo, Env, HumanAddr,
 
 use super::querier::MockQuerier;
 use super::storage::MockStorage;
-use crate::{Api, Backend, BackendError, BackendResult, GasInfo};
+use crate::{Backend, BackendApi, BackendError, BackendResult, GasInfo};
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 const DEFAULT_GAS_COST_HUMANIZE: u64 = 44;
@@ -11,11 +11,11 @@ const DEFAULT_GAS_COST_CANONICALIZE: u64 = 55;
 
 /// All external requirements that can be injected for unit tests.
 /// It sets the given balance for the contract itself, nothing else
-pub fn mock_backend(contract_balance: &[Coin]) -> Backend<MockStorage, MockApi, MockQuerier> {
+pub fn mock_backend(contract_balance: &[Coin]) -> Backend<MockApi, MockStorage, MockQuerier> {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
     Backend {
-        storage: MockStorage::default(),
         api: MockApi::default(),
+        storage: MockStorage::default(),
         querier: MockQuerier::new(&[(&contract_addr, contract_balance)]),
     }
 }
@@ -24,10 +24,10 @@ pub fn mock_backend(contract_balance: &[Coin]) -> Backend<MockStorage, MockApi, 
 /// Sets all balances provided (yoy must explicitly set contract balance if desired)
 pub fn mock_backend_with_balances(
     balances: &[(&HumanAddr, &[Coin])],
-) -> Backend<MockStorage, MockApi, MockQuerier> {
+) -> Backend<MockApi, MockStorage, MockQuerier> {
     Backend {
-        storage: MockStorage::default(),
         api: MockApi::default(),
+        storage: MockStorage::default(),
         querier: MockQuerier::new(balances),
     }
 }
@@ -85,7 +85,7 @@ impl Default for MockApi {
     }
 }
 
-impl Api for MockApi {
+impl BackendApi for MockApi {
     fn canonical_address(&self, human: &HumanAddr) -> BackendResult<CanonicalAddr> {
         let gas_info = GasInfo::with_cost(self.canonicalize_cost);
 
@@ -183,7 +183,7 @@ pub fn mock_env() -> Env {
 pub fn mock_info<U: Into<HumanAddr>>(sender: U, sent: &[Coin]) -> MessageInfo {
     MessageInfo {
         sender: sender.into(),
-        sent_funds: sent.to_vec(),
+        funds: sent.to_vec(),
     }
 }
 

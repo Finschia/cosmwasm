@@ -6,27 +6,27 @@
 /// The second module should export three functions with the following signatures:
 /// ```
 /// # use cosmwasm_std::{
-/// #     Storage, Api, Querier, DepsMut, Deps, Env, StdResult, Binary, MessageInfo,
-/// #     InitResult, HandleResult, QueryResult,
+/// #     Storage, Api, Querier, DepsMut, Deps, Env, StdError, MessageInfo,
+/// #     Response, QueryResponse,
 /// # };
 /// #
-/// # type InitMsg = ();
-/// pub fn init(
+/// # type InstantiateMsg = ();
+/// pub fn instantiate(
 ///     deps: DepsMut,
 ///     env: Env,
 ///     info: MessageInfo,
-///     msg: InitMsg,
-/// ) -> InitResult {
+///     msg: InstantiateMsg,
+/// ) -> Result<Response, StdError> {
 /// #   Ok(Default::default())
 /// }
 ///
-/// # type HandleMsg = ();
-/// pub fn handle(
+/// # type ExecuteMsg = ();
+/// pub fn execute(
 ///     deps: DepsMut,
 ///     env: Env,
 ///     info: MessageInfo,
-///     msg: HandleMsg,
-/// ) -> HandleResult {
+///     msg: ExecuteMsg,
+/// ) -> Result<Response, StdError> {
 /// #   Ok(Default::default())
 /// }
 ///
@@ -35,11 +35,11 @@
 ///     deps: Deps,
 ///     env: Env,
 ///     msg: QueryMsg,
-/// ) -> QueryResult {
-/// #   Ok(Binary(Vec::new()))
+/// ) -> Result<QueryResponse, StdError> {
+/// #   Ok(Default::default())
 /// }
 /// ```
-/// Where `InitMsg`, `HandleMsg`, and `QueryMsg` are types that implement `DeserializeOwned + JsonSchema`
+/// where `InstantiateMsg`, `ExecuteMsg`, and `QueryMsg` are types that implement `DeserializeOwned + JsonSchema`.
 ///
 /// # Example
 ///
@@ -52,8 +52,8 @@
 macro_rules! create_entry_points {
     (@migration; $contract:ident, true) => {
         #[no_mangle]
-        extern "C" fn migrate(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32 {
-            do_migrate(&$contract::migrate, env_ptr, info_ptr, msg_ptr)
+        extern "C" fn migrate(env_ptr: u32, msg_ptr: u32) -> u32 {
+            do_migrate(&$contract::migrate, env_ptr, msg_ptr)
         }
     };
 
@@ -62,16 +62,16 @@ macro_rules! create_entry_points {
     (@inner; $contract:ident, migration = $migration:tt) => {
         mod wasm {
             use super::$contract;
-            use cosmwasm_std::{do_handle, do_init, do_migrate, do_query};
+            use cosmwasm_std::{do_execute, do_instantiate, do_migrate, do_query};
 
             #[no_mangle]
-            extern "C" fn init(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32 {
-                do_init(&$contract::init, env_ptr, info_ptr, msg_ptr)
+            extern "C" fn instantiate(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32 {
+                do_instantiate(&$contract::instantiate, env_ptr, info_ptr, msg_ptr)
             }
 
             #[no_mangle]
-            extern "C" fn handle(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32 {
-                do_handle(&$contract::handle, env_ptr, info_ptr, msg_ptr)
+            extern "C" fn execute(env_ptr: u32, info_ptr: u32, msg_ptr: u32) -> u32 {
+                do_execute(&$contract::execute, env_ptr, info_ptr, msg_ptr)
             }
 
             #[no_mangle]
@@ -81,7 +81,7 @@ macro_rules! create_entry_points {
 
             $crate::create_entry_points!(@migration; $contract, $migration);
 
-            // Other C externs like cosmwasm_vm_version_4, allocate, deallocate are available
+            // Other C externs like interface_version_5, allocate, deallocate are available
             // automatically because we `use cosmwasm_std`.
         }
     };
@@ -94,19 +94,18 @@ macro_rules! create_entry_points {
 /// This macro is very similar to the `create_entry_points` macro, except it also requires the `migrate` method:
 /// ```
 /// # use cosmwasm_std::{
-/// #     Storage, Api, Querier, DepsMut, Env, StdResult, Binary, MigrateResult, MessageInfo,
+/// #     Storage, Api, Querier, DepsMut, Env, StdError, MigrateResponse, MessageInfo,
 /// # };
 /// # type MigrateMsg = ();
 /// pub fn migrate(
 ///     deps: DepsMut,
 ///     _env: Env,
-///     _info: MessageInfo,
 ///     msg: MigrateMsg,
-/// ) -> MigrateResult {
+/// ) -> Result<MigrateResponse, StdError> {
 /// #   Ok(Default::default())
 /// }
 /// ```
-/// Where `MigrateMsg` is a type that implements `DeserializeOwned + JsonSchema`
+/// where `MigrateMsg` is a type that implements `DeserializeOwned + JsonSchema`.
 ///
 /// # Example
 ///

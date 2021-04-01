@@ -1,23 +1,24 @@
+#![allow(clippy::field_reassign_with_default)] // see https://github.com/CosmWasm/cosmwasm/issues/685
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::convert::TryInto;
 
 use cosmwasm_std::{
-    from_slice, to_binary, to_vec, AllBalanceResponse, Api, BankMsg, Binary, CanonicalAddr,
-    Context, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
-    MigrateResponse, QueryRequest, QueryResponse, StdError, StdResult, WasmQuery,
+    entry_point, from_slice, to_binary, to_vec, AllBalanceResponse, Api, BankMsg, Binary,
+    CanonicalAddr, Coin, Deps, DepsMut, Env, HumanAddr, MessageInfo, QueryRequest, QueryResponse,
+    Response, StdError, StdResult, WasmQuery,
 };
 
 use crate::errors::HackError;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     pub verifier: HumanAddr,
     pub beneficiary: HumanAddr,
 }
 
-/// MigrateMsg allows a priviledged contract administrator to run
+/// MigrateMsg allows a privileged contract administrator to run
 /// a migration on the contract. In this (demo) case it is just migrating
 /// from one hackatom code to the same code, but taking advantage of the
 /// migration step to set a new validator.
@@ -27,6 +28,18 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MigrateMsg {
     pub verifier: HumanAddr,
+}
+
+/// SudoMsg is only exposed for internal Cosmos SDK modules to call.
+/// This is showing how we can expose "admin" functionality than can not be called by
+/// external users or contracts, but only trusted (native/Go) code in the blockchain
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SudoMsg {
+    StealFunds {
+        recipient: HumanAddr,
+        amount: Vec<Coin>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -40,7 +53,7 @@ pub struct State {
 // https://github.com/cosmwasm/wasmd/issues/8#issuecomment-576146751
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     /// Releasing all funds in the contract to the beneficiary. This is the only "proper" action of this demo contract.
     Release {},
     /// Infinite loop to burn cpu cycles (only run when metering is enabled)
@@ -50,7 +63,7 @@ pub enum HandleMsg {
     /// Infinite loop reading and writing memory
     MemoryLoop {},
     /// Allocate large amounts of memory without consuming much gas
-    AllocateLargeMemory {},
+    AllocateLargeMemory { pages: u32 },
     /// Trigger a panic to ensure framework handles gracefully
     Panic {},
     /// Starting with CosmWasm 0.10, some API calls return user errors back to the contract.
@@ -86,12 +99,12 @@ pub struct RecurseResponse {
 
 pub const CONFIG_KEY: &[u8] = b"config";
 
-pub fn init(
+pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    msg: InitMsg,
-) -> Result<InitResponse, HackError> {
+    msg: InstantiateMsg,
+) -> Result<Response, HackError> {
     deps.api.debug("here we go 🚀");
 
     deps.storage.set(
@@ -104,17 +117,12 @@ pub fn init(
     );
 
     // This adds some unrelated event attribute for testing purposes
-    let mut ctx = Context::new();
-    ctx.add_attribute("Let the", "hacking begin");
-    Ok(ctx.try_into()?)
+    let mut resp = Response::new();
+    resp.add_attribute("Let the", "hacking begin");
+    Ok(resp)
 }
 
-pub fn migrate(
-    deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    msg: MigrateMsg,
-) -> Result<MigrateResponse, HackError> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, HackError> {
     let data = deps
         .storage
         .get(CONFIG_KEY)
@@ -123,27 +131,42 @@ pub fn migrate(
     config.verifier = deps.api.canonical_address(&msg.verifier)?;
     deps.storage.set(CONFIG_KEY, &to_vec(&config)?);
 
-    Ok(MigrateResponse::default())
+    Ok(Response::default())
 }
 
-pub fn handle(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: HandleMsg,
-) -> Result<HandleResponse, HackError> {
+#[entry_point]
+pub fn sudo(_deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, HackError> {
     match msg {
-        HandleMsg::Release {} => do_release(deps, env, info),
-        HandleMsg::CpuLoop {} => do_cpu_loop(),
-        HandleMsg::StorageLoop {} => do_storage_loop(deps),
-        HandleMsg::MemoryLoop {} => do_memory_loop(),
-        HandleMsg::AllocateLargeMemory {} => do_allocate_large_memory(),
-        HandleMsg::Panic {} => do_panic(),
-        HandleMsg::UserErrorsInApiCalls {} => do_user_errors_in_api_calls(deps.api),
+        SudoMsg::StealFunds { recipient, amount } => {
+            let msg = BankMsg::Send {
+                to_address: recipient,
+                amount,
+            };
+            let mut response = Response::default();
+            response.add_message(msg);
+            Ok(response)
+        }
     }
 }
 
-fn do_release(deps: DepsMut, env: Env, info: MessageInfo) -> Result<HandleResponse, HackError> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, HackError> {
+    match msg {
+        ExecuteMsg::Release {} => do_release(deps, env, info),
+        ExecuteMsg::CpuLoop {} => do_cpu_loop(),
+        ExecuteMsg::StorageLoop {} => do_storage_loop(deps),
+        ExecuteMsg::MemoryLoop {} => do_memory_loop(),
+        ExecuteMsg::AllocateLargeMemory { pages } => do_allocate_large_memory(pages),
+        ExecuteMsg::Panic {} => do_panic(),
+        ExecuteMsg::UserErrorsInApiCalls {} => do_user_errors_in_api_calls(deps.api),
+    }
+}
+
+fn do_release(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, HackError> {
     let data = deps
         .storage
         .get(CONFIG_KEY)
@@ -154,22 +177,21 @@ fn do_release(deps: DepsMut, env: Env, info: MessageInfo) -> Result<HandleRespon
         let to_addr = deps.api.human_address(&state.beneficiary)?;
         let balance = deps.querier.query_all_balances(&env.contract.address)?;
 
-        let mut ctx = Context::new();
-        ctx.add_attribute("action", "release");
-        ctx.add_attribute("destination", &to_addr);
-        ctx.add_message(BankMsg::Send {
-            from_address: env.contract.address,
+        let mut resp = Response::new();
+        resp.add_attribute("action", "release");
+        resp.add_attribute("destination", to_addr.clone());
+        resp.add_message(BankMsg::Send {
             to_address: to_addr,
             amount: balance,
         });
-        ctx.set_data(&[0xF0, 0x0B, 0xAA]);
-        Ok(ctx.into())
+        resp.set_data(&[0xF0, 0x0B, 0xAA]);
+        Ok(resp)
     } else {
         Err(HackError::Unauthorized {})
     }
 }
 
-fn do_cpu_loop() -> Result<HandleResponse, HackError> {
+fn do_cpu_loop() -> Result<Response, HackError> {
     let mut counter = 0u64;
     loop {
         counter += 1;
@@ -179,7 +201,7 @@ fn do_cpu_loop() -> Result<HandleResponse, HackError> {
     }
 }
 
-fn do_storage_loop(deps: DepsMut) -> Result<HandleResponse, HackError> {
+fn do_storage_loop(deps: DepsMut) -> Result<Response, HackError> {
     let mut test_case = 0u64;
     loop {
         deps.storage
@@ -188,7 +210,7 @@ fn do_storage_loop(deps: DepsMut) -> Result<HandleResponse, HackError> {
     }
 }
 
-fn do_memory_loop() -> Result<HandleResponse, HackError> {
+fn do_memory_loop() -> Result<Response, HackError> {
     let mut data = vec![1usize];
     loop {
         // add one element
@@ -196,7 +218,8 @@ fn do_memory_loop() -> Result<HandleResponse, HackError> {
     }
 }
 
-fn do_allocate_large_memory() -> Result<HandleResponse, HackError> {
+#[allow(unused_variables)]
+fn do_allocate_large_memory(pages: u32) -> Result<Response, HackError> {
     // We create memory pages explicitely since Rust's default allocator seems to be clever enough
     // to not grow memory for unused capacity like `Vec::<u8>::with_capacity(100 * 1024 * 1024)`.
     // Even with std::alloc::alloc the memory did now grow beyond 1.5 MiB.
@@ -204,23 +227,25 @@ fn do_allocate_large_memory() -> Result<HandleResponse, HackError> {
     #[cfg(target_arch = "wasm32")]
     {
         use core::arch::wasm32;
-        let pages = 1_600; // 100 MiB
-        let ptr = wasm32::memory_grow(0, pages);
-        if ptr == usize::max_value() {
-            return Err(StdError::generic_err("Error in memory.grow instruction").into());
+        let old_size = wasm32::memory_grow(0, pages as usize);
+        if old_size == usize::max_value() {
+            return Err(StdError::generic_err("memory.grow failed").into());
         }
-        Ok(HandleResponse::default())
+        Ok(Response {
+            data: Some((old_size as u32).to_be_bytes().into()),
+            ..Response::default()
+        })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     Err(StdError::generic_err("Unsupported architecture").into())
 }
 
-fn do_panic() -> Result<HandleResponse, HackError> {
+fn do_panic() -> Result<Response, HackError> {
     panic!("This page intentionally faulted");
 }
 
-fn do_user_errors_in_api_calls(api: &dyn Api) -> Result<HandleResponse, HackError> {
+fn do_user_errors_in_api_calls(api: &dyn Api) -> Result<Response, HackError> {
     // Canonicalize
 
     let empty = HumanAddr::from("");
@@ -285,7 +310,7 @@ fn do_user_errors_in_api_calls(api: &dyn Api) -> Result<HandleResponse, HackErro
         }
     }
 
-    Ok(HandleResponse::default())
+    Ok(Response::default())
 }
 
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
@@ -350,7 +375,7 @@ mod tests {
     use cosmwasm_std::testing::{
         mock_dependencies, mock_dependencies_with_balances, mock_env, mock_info, MOCK_CONTRACT_ADDR,
     };
-    // import trait ReadonlyStorage to get access to read
+    // import trait Storage to get access to read
     use cosmwasm_std::{attr, coins, Storage};
 
     #[test]
@@ -366,12 +391,12 @@ mod tests {
             funder: deps.api.canonical_address(&creator).unwrap(),
         };
 
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             verifier,
             beneficiary,
         };
         let info = mock_info(creator.as_str(), &[]);
-        let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
         assert_eq!(res.attributes.len(), 1);
         assert_eq!(res.attributes[0].key, "Let the");
@@ -384,18 +409,18 @@ mod tests {
     }
 
     #[test]
-    fn init_and_query() {
+    fn instantiate_and_query() {
         let mut deps = mock_dependencies(&[]);
 
         let verifier = HumanAddr(String::from("verifies"));
         let beneficiary = HumanAddr(String::from("benefits"));
         let creator = HumanAddr(String::from("creator"));
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             verifier: verifier.clone(),
             beneficiary,
         };
         let info = mock_info(creator.as_str(), &[]);
-        let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // now let's query
@@ -410,12 +435,12 @@ mod tests {
         let verifier = HumanAddr::from("verifies");
         let beneficiary = HumanAddr::from("benefits");
         let creator = HumanAddr::from("creator");
-        let msg = InitMsg {
-            verifier: verifier.clone(),
+        let msg = InstantiateMsg {
+            verifier,
             beneficiary,
         };
         let info = mock_info(creator.as_str(), &[]);
-        let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // check it is 'verifies'
@@ -427,13 +452,40 @@ mod tests {
         let msg = MigrateMsg {
             verifier: new_verifier.clone(),
         };
-        let info = mock_info(creator.as_str(), &[]);
-        let res = migrate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // check it is 'someone else'
         let query_response = query_verifier(deps.as_ref()).unwrap();
         assert_eq!(query_response.verifier, new_verifier);
+    }
+
+    #[test]
+    fn sudo_can_steal_tokens() {
+        let mut deps = mock_dependencies(&[]);
+
+        let verifier = HumanAddr::from("verifies");
+        let beneficiary = HumanAddr::from("benefits");
+        let creator = HumanAddr::from("creator");
+        let msg = InstantiateMsg {
+            verifier,
+            beneficiary,
+        };
+        let info = mock_info(creator.as_str(), &[]);
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(0, res.messages.len());
+
+        // sudo takes any tax it wants
+        let to_address = HumanAddr::from("community-pool");
+        let amount = coins(700, "gold");
+        let sys_msg = SudoMsg::StealFunds {
+            recipient: to_address.clone(),
+            amount: amount.clone(),
+        };
+        let res = sudo(deps.as_mut(), mock_env(), sys_msg).unwrap();
+        assert_eq!(1, res.messages.len());
+        let msg = res.messages.get(0).expect("no message");
+        assert_eq!(msg, &BankMsg::Send { to_address, amount }.into(),);
     }
 
     #[test]
@@ -452,7 +504,7 @@ mod tests {
     }
 
     #[test]
-    fn handle_release_works() {
+    fn execute_release_works() {
         let mut deps = mock_dependencies(&[]);
 
         // initialize the store
@@ -460,47 +512,46 @@ mod tests {
         let verifier = HumanAddr::from("verifies");
         let beneficiary = HumanAddr::from("benefits");
 
-        let init_msg = InitMsg {
+        let instantiate_msg = InstantiateMsg {
             verifier: verifier.clone(),
             beneficiary: beneficiary.clone(),
         };
         let init_amount = coins(1000, "earth");
         let init_info = mock_info(creator.as_str(), &init_amount);
-        let init_res = init(deps.as_mut(), mock_env(), init_info, init_msg).unwrap();
+        let init_res = instantiate(deps.as_mut(), mock_env(), init_info, instantiate_msg).unwrap();
         assert_eq!(init_res.messages.len(), 0);
 
         // balance changed in init
         deps.querier.update_balance(MOCK_CONTRACT_ADDR, init_amount);
 
         // beneficiary can release it
-        let handle_info = mock_info(verifier.as_str(), &[]);
-        let handle_res = handle(
+        let execute_info = mock_info(verifier.as_str(), &[]);
+        let execute_res = execute(
             deps.as_mut(),
             mock_env(),
-            handle_info,
-            HandleMsg::Release {},
+            execute_info,
+            ExecuteMsg::Release {},
         )
         .unwrap();
-        assert_eq!(handle_res.messages.len(), 1);
-        let msg = handle_res.messages.get(0).expect("no message");
+        assert_eq!(execute_res.messages.len(), 1);
+        let msg = execute_res.messages.get(0).expect("no message");
         assert_eq!(
             msg,
             &BankMsg::Send {
-                from_address: HumanAddr::from(MOCK_CONTRACT_ADDR),
                 to_address: beneficiary,
                 amount: coins(1000, "earth"),
             }
             .into(),
         );
         assert_eq!(
-            handle_res.attributes,
+            execute_res.attributes,
             vec![attr("action", "release"), attr("destination", "benefits")],
         );
-        assert_eq!(handle_res.data, Some(vec![0xF0, 0x0B, 0xAA].into()));
+        assert_eq!(execute_res.data, Some(vec![0xF0, 0x0B, 0xAA].into()));
     }
 
     #[test]
-    fn handle_release_fails_for_wrong_sender() {
+    fn execute_release_fails_for_wrong_sender() {
         let mut deps = mock_dependencies(&[]);
 
         // initialize the store
@@ -508,30 +559,27 @@ mod tests {
         let verifier = HumanAddr::from("verifies");
         let beneficiary = HumanAddr::from("benefits");
 
-        let init_msg = InitMsg {
+        let instantiate_msg = InstantiateMsg {
             verifier: verifier.clone(),
             beneficiary: beneficiary.clone(),
         };
         let init_amount = coins(1000, "earth");
         let init_info = mock_info(creator.as_str(), &init_amount);
-        let init_res = init(deps.as_mut(), mock_env(), init_info, init_msg).unwrap();
+        let init_res = instantiate(deps.as_mut(), mock_env(), init_info, instantiate_msg).unwrap();
         assert_eq!(init_res.messages.len(), 0);
 
         // balance changed in init
         deps.querier.update_balance(MOCK_CONTRACT_ADDR, init_amount);
 
         // beneficiary cannot release it
-        let handle_info = mock_info(beneficiary.as_str(), &[]);
-        let handle_res = handle(
+        let execute_info = mock_info(beneficiary.as_str(), &[]);
+        let execute_res = execute(
             deps.as_mut(),
             mock_env(),
-            handle_info,
-            HandleMsg::Release {},
+            execute_info,
+            ExecuteMsg::Release {},
         );
-        match handle_res.unwrap_err() {
-            HackError::Unauthorized { .. } => {}
-            _ => panic!("Expect unauthorized error"),
-        }
+        assert_eq!(execute_res.unwrap_err(), HackError::Unauthorized {});
 
         // state should not change
         let data = deps.storage.get(CONFIG_KEY).expect("no data stored");
@@ -548,7 +596,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "This page intentionally faulted")]
-    fn handle_panic() {
+    fn execute_panic() {
         let mut deps = mock_dependencies(&[]);
 
         // initialize the store
@@ -556,37 +604,42 @@ mod tests {
         let beneficiary = HumanAddr(String::from("benefits"));
         let creator = HumanAddr(String::from("creator"));
 
-        let init_msg = InitMsg {
-            verifier: verifier.clone(),
+        let instantiate_msg = InstantiateMsg {
+            verifier,
             beneficiary: beneficiary.clone(),
         };
         let init_info = mock_info(creator.as_str(), &coins(1000, "earth"));
-        let init_res = init(deps.as_mut(), mock_env(), init_info, init_msg).unwrap();
+        let init_res = instantiate(deps.as_mut(), mock_env(), init_info, instantiate_msg).unwrap();
         assert_eq!(0, init_res.messages.len());
 
-        let handle_info = mock_info(beneficiary.as_str(), &[]);
+        let execute_info = mock_info(beneficiary.as_str(), &[]);
         // this should panic
-        let _ = handle(deps.as_mut(), mock_env(), handle_info, HandleMsg::Panic {});
+        let _ = execute(
+            deps.as_mut(),
+            mock_env(),
+            execute_info,
+            ExecuteMsg::Panic {},
+        );
     }
 
     #[test]
-    fn handle_user_errors_in_api_calls() {
+    fn execute_user_errors_in_api_calls() {
         let mut deps = mock_dependencies(&[]);
 
-        let init_msg = InitMsg {
+        let instantiate_msg = InstantiateMsg {
             verifier: HumanAddr::from("verifies"),
             beneficiary: HumanAddr::from("benefits"),
         };
         let init_info = mock_info("creator", &coins(1000, "earth"));
-        let init_res = init(deps.as_mut(), mock_env(), init_info, init_msg).unwrap();
+        let init_res = instantiate(deps.as_mut(), mock_env(), init_info, instantiate_msg).unwrap();
         assert_eq!(0, init_res.messages.len());
 
-        let handle_info = mock_info("anyone", &[]);
-        handle(
+        let execute_info = mock_info("anyone", &[]);
+        execute(
             deps.as_mut(),
             mock_env(),
-            handle_info,
-            HandleMsg::UserErrorsInApiCalls {},
+            execute_info,
+            ExecuteMsg::UserErrorsInApiCalls {},
         )
         .unwrap();
     }

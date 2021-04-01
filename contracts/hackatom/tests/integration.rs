@@ -18,30 +18,32 @@
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
 use cosmwasm_std::{
-    attr, coins, from_binary, to_vec, AllBalanceResponse, BankMsg, ContractResult, Empty,
-    HandleResponse, HumanAddr, InitResponse, MigrateResponse,
+    attr, coins, from_binary, to_vec, AllBalanceResponse, BankMsg, Binary, ContractResult, Empty,
+    HumanAddr, Response,
 };
 use cosmwasm_vm::{
-    call_handle, from_slice,
+    call_execute, from_slice,
     testing::{
-        handle, init, migrate, mock_env, mock_info, mock_instance, mock_instance_with_balances,
-        query, test_io, MOCK_CONTRACT_ADDR,
+        execute, instantiate, migrate, mock_env, mock_info, mock_instance,
+        mock_instance_with_balances, query, sudo, test_io, MOCK_CONTRACT_ADDR,
     },
-    Api, Storage, VmError,
+    BackendApi, Storage, VmError,
 };
 
-use hackatom::contract::{HandleMsg, InitMsg, MigrateMsg, QueryMsg, State, CONFIG_KEY};
+use hackatom::contract::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, State, SudoMsg, CONFIG_KEY,
+};
 
 static WASM: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/release/hackatom.wasm");
 
-fn make_init_msg() -> (InitMsg, HumanAddr) {
+fn make_init_msg() -> (InstantiateMsg, HumanAddr) {
     let verifier = HumanAddr::from("verifies");
     let beneficiary = HumanAddr::from("benefits");
     let creator = HumanAddr::from("creator");
     (
-        InitMsg {
-            verifier: verifier.clone(),
-            beneficiary: beneficiary.clone(),
+        InstantiateMsg {
+            verifier,
+            beneficiary,
         },
         creator,
     )
@@ -56,17 +58,17 @@ fn proper_initialization() {
     let beneficiary = HumanAddr(String::from("benefits"));
     let creator = HumanAddr(String::from("creator"));
     let expected_state = State {
-        verifier: deps.api.canonical_address(&verifier).0.unwrap(),
-        beneficiary: deps.api.canonical_address(&beneficiary).0.unwrap(),
-        funder: deps.api.canonical_address(&creator).0.unwrap(),
+        verifier: deps.api().canonical_address(&verifier).0.unwrap(),
+        beneficiary: deps.api().canonical_address(&beneficiary).0.unwrap(),
+        funder: deps.api().canonical_address(&creator).0.unwrap(),
     };
 
-    let msg = InitMsg {
+    let msg = InstantiateMsg {
         verifier,
         beneficiary,
     };
     let info = mock_info("creator", &coins(1000, "earth"));
-    let res: InitResponse = init(&mut deps, mock_env(), info, msg).unwrap();
+    let res: Response = instantiate(&mut deps, mock_env(), info, msg).unwrap();
     assert_eq!(res.messages.len(), 0);
     assert_eq!(res.attributes.len(), 1);
     assert_eq!(res.attributes[0].key, "Let the");
@@ -87,18 +89,18 @@ fn proper_initialization() {
 }
 
 #[test]
-fn init_and_query() {
+fn instantiate_and_query() {
     let mut deps = mock_instance(WASM, &[]);
 
     let verifier = HumanAddr(String::from("verifies"));
     let beneficiary = HumanAddr(String::from("benefits"));
     let creator = HumanAddr(String::from("creator"));
-    let msg = InitMsg {
-        verifier: verifier.clone(),
+    let msg = InstantiateMsg {
+        verifier,
         beneficiary,
     };
     let info = mock_info(creator.as_str(), &coins(1000, "earth"));
-    let res: InitResponse = init(&mut deps, mock_env(), info, msg).unwrap();
+    let res: Response = instantiate(&mut deps, mock_env(), info, msg).unwrap();
     assert_eq!(0, res.messages.len());
 
     // now let's query
@@ -106,7 +108,7 @@ fn init_and_query() {
     assert_eq!(query_response.as_slice(), b"{\"verifier\":\"verifies\"}");
 
     // bad query returns parse error (pass wrong type - this connection is not enforced)
-    let qres = query(&mut deps, mock_env(), HandleMsg::Release {});
+    let qres = query(&mut deps, mock_env(), ExecuteMsg::Release {});
     let msg = qres.unwrap_err();
     assert!(msg.contains("Error parsing"));
 }
@@ -118,12 +120,12 @@ fn migrate_verifier() {
     let verifier = HumanAddr::from("verifies");
     let beneficiary = HumanAddr::from("benefits");
     let creator = HumanAddr::from("creator");
-    let msg = InitMsg {
-        verifier: verifier.clone(),
+    let msg = InstantiateMsg {
+        verifier,
         beneficiary,
     };
     let info = mock_info(creator.as_str(), &[]);
-    let res: InitResponse = init(&mut deps, mock_env(), info, msg).unwrap();
+    let res: Response = instantiate(&mut deps, mock_env(), info, msg).unwrap();
     assert_eq!(0, res.messages.len());
 
     // check it is 'verifies'
@@ -134,8 +136,7 @@ fn migrate_verifier() {
     let msg = MigrateMsg {
         verifier: HumanAddr::from("someone else"),
     };
-    let info = mock_info(creator.as_str(), &[]);
-    let res: MigrateResponse = migrate(&mut deps, mock_env(), info, msg).unwrap();
+    let res: Response = migrate(&mut deps, mock_env(), msg).unwrap();
     assert_eq!(0, res.messages.len());
 
     // check it is 'someone else'
@@ -144,6 +145,34 @@ fn migrate_verifier() {
         query_response.as_slice(),
         b"{\"verifier\":\"someone else\"}"
     );
+}
+
+#[test]
+fn sudo_can_steal_tokens() {
+    let mut deps = mock_instance(WASM, &[]);
+
+    let verifier = HumanAddr::from("verifies");
+    let beneficiary = HumanAddr::from("benefits");
+    let creator = HumanAddr::from("creator");
+    let msg = InstantiateMsg {
+        verifier,
+        beneficiary,
+    };
+    let info = mock_info(creator.as_str(), &[]);
+    let res: Response = instantiate(&mut deps, mock_env(), info, msg).unwrap();
+    assert_eq!(0, res.messages.len());
+
+    // sudo takes any tax it wants
+    let to_address = HumanAddr::from("community-pool");
+    let amount = coins(700, "gold");
+    let sys_msg = SudoMsg::StealFunds {
+        recipient: to_address.clone(),
+        amount: amount.clone(),
+    };
+    let res: Response = sudo(&mut deps, mock_env(), sys_msg).unwrap();
+    assert_eq!(1, res.messages.len());
+    let msg = res.messages.get(0).expect("no message");
+    assert_eq!(msg, &BankMsg::Send { to_address, amount }.into(),);
 }
 
 #[test]
@@ -172,14 +201,14 @@ fn fails_on_bad_init() {
     let mut deps = mock_instance(WASM, &[]);
     let info = mock_info("creator", &coins(1000, "earth"));
     // bad init returns parse error (pass wrong type - this connection is not enforced)
-    let res: ContractResult<InitResponse> =
-        init(&mut deps, mock_env(), info, HandleMsg::Release {});
+    let res: ContractResult<Response> =
+        instantiate(&mut deps, mock_env(), info, ExecuteMsg::Release {});
     let msg = res.unwrap_err();
     assert!(msg.contains("Error parsing"));
 }
 
 #[test]
-fn handle_release_works() {
+fn execute_release_works() {
     let mut deps = mock_instance(WASM, &[]);
 
     // initialize the store
@@ -187,13 +216,14 @@ fn handle_release_works() {
     let verifier = HumanAddr::from("verifies");
     let beneficiary = HumanAddr::from("benefits");
 
-    let init_msg = InitMsg {
+    let instantiate_msg = InstantiateMsg {
         verifier: verifier.clone(),
         beneficiary: beneficiary.clone(),
     };
     let init_amount = coins(1000, "earth");
     let init_info = mock_info(creator.as_str(), &init_amount);
-    let init_res: InitResponse = init(&mut deps, mock_env(), init_info, init_msg).unwrap();
+    let init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
     assert_eq!(init_res.messages.len(), 0);
 
     // balance changed in init
@@ -204,29 +234,28 @@ fn handle_release_works() {
     .unwrap();
 
     // beneficiary can release it
-    let handle_info = mock_info(verifier.as_str(), &[]);
-    let handle_res: HandleResponse =
-        handle(&mut deps, mock_env(), handle_info, HandleMsg::Release {}).unwrap();
-    assert_eq!(handle_res.messages.len(), 1);
-    let msg = handle_res.messages.get(0).expect("no message");
+    let execute_info = mock_info(verifier.as_str(), &[]);
+    let execute_res: Response =
+        execute(&mut deps, mock_env(), execute_info, ExecuteMsg::Release {}).unwrap();
+    assert_eq!(execute_res.messages.len(), 1);
+    let msg = execute_res.messages.get(0).expect("no message");
     assert_eq!(
         msg,
         &BankMsg::Send {
-            from_address: HumanAddr::from(MOCK_CONTRACT_ADDR),
             to_address: beneficiary,
             amount: coins(1000, "earth"),
         }
         .into(),
     );
     assert_eq!(
-        handle_res.attributes,
+        execute_res.attributes,
         vec![attr("action", "release"), attr("destination", "benefits")],
     );
-    assert_eq!(handle_res.data, Some(vec![0xF0, 0x0B, 0xAA].into()));
+    assert_eq!(execute_res.data, Some(vec![0xF0, 0x0B, 0xAA].into()));
 }
 
 #[test]
-fn handle_release_fails_for_wrong_sender() {
+fn execute_release_fails_for_wrong_sender() {
     let mut deps = mock_instance(WASM, &[]);
 
     // initialize the store
@@ -234,13 +263,14 @@ fn handle_release_fails_for_wrong_sender() {
     let verifier = HumanAddr::from("verifies");
     let beneficiary = HumanAddr::from("benefits");
 
-    let init_msg = InitMsg {
+    let instantiate_msg = InstantiateMsg {
         verifier: verifier.clone(),
         beneficiary: beneficiary.clone(),
     };
     let init_amount = coins(1000, "earth");
     let init_info = mock_info(creator.as_str(), &init_amount);
-    let init_res: InitResponse = init(&mut deps, mock_env(), init_info, init_msg).unwrap();
+    let init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
     assert_eq!(init_res.messages.len(), 0);
 
     // balance changed in init
@@ -251,10 +281,10 @@ fn handle_release_fails_for_wrong_sender() {
     .unwrap();
 
     // beneficiary cannot release it
-    let handle_info = mock_info(beneficiary.as_str(), &[]);
-    let handle_res: ContractResult<HandleResponse> =
-        handle(&mut deps, mock_env(), handle_info, HandleMsg::Release {});
-    let msg = handle_res.unwrap_err();
+    let execute_info = mock_info(beneficiary.as_str(), &[]);
+    let execute_res: ContractResult<Response> =
+        execute(&mut deps, mock_env(), execute_info, ExecuteMsg::Release {});
+    let msg = execute_res.unwrap_err();
     assert!(msg.contains("Unauthorized"));
 
     // state should not change
@@ -271,52 +301,180 @@ fn handle_release_fails_for_wrong_sender() {
     assert_eq!(
         state,
         State {
-            verifier: deps.api.canonical_address(&verifier).0.unwrap(),
-            beneficiary: deps.api.canonical_address(&beneficiary).0.unwrap(),
-            funder: deps.api.canonical_address(&creator).0.unwrap(),
+            verifier: deps.api().canonical_address(&verifier).0.unwrap(),
+            beneficiary: deps.api().canonical_address(&beneficiary).0.unwrap(),
+            funder: deps.api().canonical_address(&creator).0.unwrap(),
         }
     );
 }
 
 #[test]
-fn handle_panic() {
+fn execute_cpu_loop() {
     let mut deps = mock_instance(WASM, &[]);
 
-    let (init_msg, creator) = make_init_msg();
+    let (instantiate_msg, creator) = make_init_msg();
     let init_info = mock_info(creator.as_str(), &[]);
-    let init_res: InitResponse = init(&mut deps, mock_env(), init_info, init_msg).unwrap();
+    let init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
     assert_eq!(0, init_res.messages.len());
 
-    let handle_info = mock_info(creator.as_str(), &[]);
-    // panic inside contract should not panic out here
+    let execute_info = mock_info(creator.as_str(), &[]);
     // Note: we need to use the production-call, not the testing call (which unwraps any vm error)
-    let handle_res = call_handle::<_, _, _, Empty>(
+    let execute_res = call_execute::<_, _, _, Empty>(
         &mut deps,
         &mock_env(),
-        &handle_info,
-        &to_vec(&HandleMsg::Panic {}).unwrap(),
+        &execute_info,
+        &to_vec(&ExecuteMsg::CpuLoop {}).unwrap(),
     );
-    match handle_res.unwrap_err() {
-        // TODO: Don't accept GasDepletion here (https://github.com/CosmWasm/cosmwasm/issues/501)
-        VmError::RuntimeErr { .. } | VmError::GasDepletion => {}
+    assert!(execute_res.is_err());
+    assert_eq!(deps.get_gas_left(), 0);
+}
+
+#[test]
+fn execute_storage_loop() {
+    let mut deps = mock_instance(WASM, &[]);
+
+    let (instantiate_msg, creator) = make_init_msg();
+    let init_info = mock_info(creator.as_str(), &[]);
+    let init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
+    assert_eq!(0, init_res.messages.len());
+
+    let execute_info = mock_info(creator.as_str(), &[]);
+    // Note: we need to use the production-call, not the testing call (which unwraps any vm error)
+    let execute_res = call_execute::<_, _, _, Empty>(
+        &mut deps,
+        &mock_env(),
+        &execute_info,
+        &to_vec(&ExecuteMsg::StorageLoop {}).unwrap(),
+    );
+    assert!(execute_res.is_err());
+    assert_eq!(deps.get_gas_left(), 0);
+}
+
+#[test]
+fn execute_memory_loop() {
+    let mut deps = mock_instance(WASM, &[]);
+
+    let (instantiate_msg, creator) = make_init_msg();
+    let init_info = mock_info(creator.as_str(), &[]);
+    let init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
+    assert_eq!(0, init_res.messages.len());
+
+    let execute_info = mock_info(creator.as_str(), &[]);
+    // Note: we need to use the production-call, not the testing call (which unwraps any vm error)
+    let execute_res = call_execute::<_, _, _, Empty>(
+        &mut deps,
+        &mock_env(),
+        &execute_info,
+        &to_vec(&ExecuteMsg::MemoryLoop {}).unwrap(),
+    );
+    assert!(execute_res.is_err());
+    assert_eq!(deps.get_gas_left(), 0);
+
+    // Ran out of gas before consuming a significant amount of memory
+    assert!(deps.memory_pages() < 200);
+}
+
+#[test]
+fn execute_allocate_large_memory() {
+    let mut deps = mock_instance(WASM, &[]);
+
+    let (instantiate_msg, creator) = make_init_msg();
+    let init_info = mock_info(creator.as_str(), &[]);
+    let init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
+    assert_eq!(0, init_res.messages.len());
+    let mut pages_before = deps.memory_pages();
+    assert_eq!(pages_before, 18);
+
+    // Grow by 48 pages (3 MiB)
+    let execute_info = mock_info(creator.as_str(), &[]);
+    let gas_before = deps.get_gas_left();
+    let execute_res: Response = execute(
+        &mut deps,
+        mock_env(),
+        execute_info,
+        ExecuteMsg::AllocateLargeMemory { pages: 48 },
+    )
+    .unwrap();
+    assert_eq!(
+        execute_res.data.unwrap(),
+        Binary::from((pages_before as u32).to_be_bytes())
+    );
+    let gas_used = gas_before - deps.get_gas_left();
+    // Gas consumption is relatively small
+    // Note: the exact gas usage depends on the Rust version used to compile WASM,
+    // which we only fix when using cosmwasm-opt, not integration tests.
+    let expected = 27880; // +/- 20%
+    assert!(gas_used > expected * 80 / 100, "Gas used: {}", gas_used);
+    assert!(gas_used < expected * 120 / 100, "Gas used: {}", gas_used);
+    let used = deps.memory_pages();
+    assert_eq!(used, pages_before + 48, "Memory used: {} pages", used);
+    pages_before += 48;
+
+    // Grow by 1600 pages (100 MiB)
+    let execute_info = mock_info(creator.as_str(), &[]);
+    let gas_before = deps.get_gas_left();
+    let result: ContractResult<Response> = execute(
+        &mut deps,
+        mock_env(),
+        execute_info,
+        ExecuteMsg::AllocateLargeMemory { pages: 1600 },
+    );
+    assert_eq!(result.unwrap_err(), "Generic error: memory.grow failed");
+    let gas_used = gas_before - deps.get_gas_left();
+    // Gas consumption is relatively small
+    // Note: the exact gas usage depends on the Rust version used to compile WASM,
+    // which we only fix when using cosmwasm-opt, not integration tests.
+    let expected = 31076; // +/- 20%
+    assert!(gas_used > expected * 80 / 100, "Gas used: {}", gas_used);
+    assert!(gas_used < expected * 120 / 100, "Gas used: {}", gas_used);
+    let used = deps.memory_pages();
+    assert_eq!(used, pages_before, "Memory used: {} pages", used);
+}
+
+#[test]
+fn execute_panic() {
+    let mut deps = mock_instance(WASM, &[]);
+
+    let (instantiate_msg, creator) = make_init_msg();
+    let init_info = mock_info(creator.as_str(), &[]);
+    let init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
+    assert_eq!(0, init_res.messages.len());
+
+    let execute_info = mock_info(creator.as_str(), &[]);
+    // panic inside contract should not panic out here
+    // Note: we need to use the production-call, not the testing call (which unwraps any vm error)
+    let execute_res = call_execute::<_, _, _, Empty>(
+        &mut deps,
+        &mock_env(),
+        &execute_info,
+        &to_vec(&ExecuteMsg::Panic {}).unwrap(),
+    );
+    match execute_res.unwrap_err() {
+        VmError::RuntimeErr { .. } => {}
         err => panic!("Unexpected error: {:?}", err),
     }
 }
 
 #[test]
-fn handle_user_errors_in_api_calls() {
+fn execute_user_errors_in_api_calls() {
     let mut deps = mock_instance(WASM, &[]);
 
-    let (init_msg, creator) = make_init_msg();
+    let (instantiate_msg, creator) = make_init_msg();
     let init_info = mock_info(creator.as_str(), &[]);
-    let _init_res: InitResponse = init(&mut deps, mock_env(), init_info, init_msg).unwrap();
+    let _init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
 
-    let handle_info = mock_info(creator.as_str(), &[]);
-    let _handle_res: HandleResponse = handle(
+    let execute_info = mock_info(creator.as_str(), &[]);
+    let _execute_res: Response = execute(
         &mut deps,
         mock_env(),
-        handle_info,
-        HandleMsg::UserErrorsInApiCalls {},
+        execute_info,
+        ExecuteMsg::UserErrorsInApiCalls {},
     )
     .unwrap();
 }
@@ -325,110 +483,4 @@ fn handle_user_errors_in_api_calls() {
 fn passes_io_tests() {
     let mut deps = mock_instance(WASM, &[]);
     test_io(&mut deps);
-}
-
-#[cfg(feature = "singlepass")]
-mod singlepass_tests {
-    use super::*;
-
-    #[test]
-    fn handle_cpu_loop() {
-        let mut deps = mock_instance(WASM, &[]);
-
-        let (init_msg, creator) = make_init_msg();
-        let init_info = mock_info(creator.as_str(), &[]);
-        let init_res: InitResponse = init(&mut deps, mock_env(), init_info, init_msg).unwrap();
-        assert_eq!(0, init_res.messages.len());
-
-        let handle_info = mock_info(creator.as_str(), &[]);
-        // Note: we need to use the production-call, not the testing call (which unwraps any vm error)
-        let handle_res = call_handle::<_, _, _, Empty>(
-            &mut deps,
-            &mock_env(),
-            &handle_info,
-            &to_vec(&HandleMsg::CpuLoop {}).unwrap(),
-        );
-        assert!(handle_res.is_err());
-        assert_eq!(deps.get_gas_left(), 0);
-    }
-
-    #[test]
-    fn handle_storage_loop() {
-        let mut deps = mock_instance(WASM, &[]);
-
-        let (init_msg, creator) = make_init_msg();
-        let init_info = mock_info(creator.as_str(), &[]);
-        let init_res: InitResponse = init(&mut deps, mock_env(), init_info, init_msg).unwrap();
-        assert_eq!(0, init_res.messages.len());
-
-        let handle_info = mock_info(creator.as_str(), &[]);
-        // Note: we need to use the production-call, not the testing call (which unwraps any vm error)
-        let handle_res = call_handle::<_, _, _, Empty>(
-            &mut deps,
-            &mock_env(),
-            &handle_info,
-            &to_vec(&HandleMsg::StorageLoop {}).unwrap(),
-        );
-        assert!(handle_res.is_err());
-        assert_eq!(deps.get_gas_left(), 0);
-    }
-
-    #[test]
-    fn handle_memory_loop() {
-        let mut deps = mock_instance(WASM, &[]);
-
-        let (init_msg, creator) = make_init_msg();
-        let init_info = mock_info(creator.as_str(), &[]);
-        let init_res: InitResponse = init(&mut deps, mock_env(), init_info, init_msg).unwrap();
-        assert_eq!(0, init_res.messages.len());
-
-        let handle_info = mock_info(creator.as_str(), &[]);
-        // Note: we need to use the production-call, not the testing call (which unwraps any vm error)
-        let handle_res = call_handle::<_, _, _, Empty>(
-            &mut deps,
-            &mock_env(),
-            &handle_info,
-            &to_vec(&HandleMsg::MemoryLoop {}).unwrap(),
-        );
-        assert!(handle_res.is_err());
-        assert_eq!(deps.get_gas_left(), 0);
-
-        // Ran out of gas before consuming a significant amount of memory
-        assert!(deps.get_memory_size() < 2 * 1024 * 1024);
-    }
-
-    #[test]
-    fn handle_allocate_large_memory() {
-        let mut deps = mock_instance(WASM, &[]);
-
-        let (init_msg, creator) = make_init_msg();
-        let init_info = mock_info(creator.as_str(), &[]);
-        let init_res: InitResponse = init(&mut deps, mock_env(), init_info, init_msg).unwrap();
-        assert_eq!(0, init_res.messages.len());
-
-        let handle_info = mock_info(creator.as_str(), &[]);
-        let gas_before = deps.get_gas_left();
-        // Note: we need to use the production-call, not the testing call (which unwraps any vm error)
-        let handle_res = call_handle::<_, _, _, Empty>(
-            &mut deps,
-            &mock_env(),
-            &handle_info,
-            &to_vec(&HandleMsg::AllocateLargeMemory {}).unwrap(),
-        );
-        let gas_used = gas_before - deps.get_gas_left();
-
-        // TODO: this must fail, see https://github.com/CosmWasm/cosmwasm/issues/81
-        assert_eq!(handle_res.is_err(), false);
-
-        // Gas consumtion is relatively small
-        // Note: the exact gas usage depends on the Rust version used to compile WASM,
-        // which we only fix when using cosmwasm-opt, not integration tests.
-        let expected = 35000; // +/- 20%
-        assert!(gas_used > expected * 80 / 100, "Gas used: {}", gas_used);
-        assert!(gas_used < expected * 120 / 100, "Gas used: {}", gas_used);
-
-        // Used between 100 and 102 MiB of memory
-        assert!(deps.get_memory_size() > 100 * 1024 * 1024);
-        assert!(deps.get_memory_size() < 102 * 1024 * 1024);
-    }
 }

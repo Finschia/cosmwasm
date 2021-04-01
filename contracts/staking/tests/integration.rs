@@ -18,13 +18,16 @@
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
 use cosmwasm_std::{
-    coin, from_binary, ContractResult, Decimal, HumanAddr, InitResponse, Uint128, Validator,
+    coin, from_binary, ContractResult, Decimal, HumanAddr, Response, Uint128, Validator,
 };
-use cosmwasm_vm::testing::{init, mock_backend, mock_env, mock_info, mock_instance_options, query};
+use cosmwasm_vm::testing::{
+    instantiate, mock_backend, mock_env, mock_info, mock_instance_options, query,
+};
 use cosmwasm_vm::Instance;
 
 use staking::msg::{
-    BalanceResponse, ClaimsResponse, InitMsg, InvestmentResponse, QueryMsg, TokenInfoResponse,
+    BalanceResponse, ClaimsResponse, InstantiateMsg, InvestmentResponse, QueryMsg,
+    TokenInfoResponse,
 };
 
 // This line will test the output of cargo wasm
@@ -47,10 +50,11 @@ fn initialization_with_missing_validator() {
     backend
         .querier
         .update_staking("ustake", &[sample_validator("john")], &[]);
-    let mut deps = Instance::from_code(WASM, backend, mock_instance_options()).unwrap();
+    let (instance_options, memory_limit) = mock_instance_options();
+    let mut deps = Instance::from_code(WASM, backend, instance_options, memory_limit).unwrap();
 
     let creator = HumanAddr::from("creator");
-    let msg = InitMsg {
+    let msg = InstantiateMsg {
         name: "Cool Derivative".to_string(),
         symbol: "DRV".to_string(),
         decimals: 9,
@@ -60,8 +64,8 @@ fn initialization_with_missing_validator() {
     };
     let info = mock_info(&creator, &[]);
 
-    // make sure we can init with this
-    let res: ContractResult<InitResponse> = init(&mut deps, mock_env(), info, msg.clone());
+    // make sure we can instantiate with this
+    let res: ContractResult<Response> = instantiate(&mut deps, mock_env(), info, msg);
     let msg = res.unwrap_err();
     assert_eq!(
         msg,
@@ -82,12 +86,13 @@ fn proper_initialization() {
         ],
         &[],
     );
-    let mut deps = Instance::from_code(WASM, backend, mock_instance_options()).unwrap();
+    let (instance_options, memory_limit) = mock_instance_options();
+    let mut deps = Instance::from_code(WASM, backend, instance_options, memory_limit).unwrap();
     assert_eq!(deps.required_features.len(), 1);
     assert!(deps.required_features.contains("staking"));
 
     let creator = HumanAddr::from("creator");
-    let msg = InitMsg {
+    let msg = InstantiateMsg {
         name: "Cool Derivative".to_string(),
         symbol: "DRV".to_string(),
         decimals: 9,
@@ -98,7 +103,7 @@ fn proper_initialization() {
     let info = mock_info(&creator, &[]);
 
     // make sure we can init with this
-    let res: InitResponse = init(&mut deps, mock_env(), info, msg.clone()).unwrap();
+    let res: Response = instantiate(&mut deps, mock_env(), info, msg.clone()).unwrap();
     assert_eq!(0, res.messages.len());
 
     // token info is proper

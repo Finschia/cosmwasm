@@ -1,6 +1,6 @@
 [package]
 name = "token-tester"
-version = "0.12.0-0.2.0"
+version = "0.14.0-beta1"
 authors = ["shiki.tak"]
 edition = "2018"
 description = "simple tester for cosmwasm/ext"
@@ -9,11 +9,10 @@ description = "simple tester for cosmwasm/ext"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["singlepass"]
+default = ["cranelift"]
 # For quicker tests, cargo test --lib. for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
-cranelift = ["cosmwasm-vm/default-cranelift"]
-singlepass = ["cosmwasm-vm/default-singlepass"]
+cranelift = ["cosmwasm-vm/cranelift"]
 
 [dependencies]
 cosmwasm-ext = { path = "../../packages/ext" }
