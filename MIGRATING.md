@@ -4,6 +4,234 @@ This guide explains what is needed to upgrade contracts when migrating over
 major releases of `cosmwasm`. Note that you can also view the
 [complete CHANGELOG](./CHANGELOG.md) to understand the differences.
 
+## 0.13 -> 0.14 (unreleased)
+
+- The minimum Rust supported version for 0.14 is 1.50.0. Verify your Rust
+  version is >= 1.50.0 with: `rustc --version`
+
+- Update CosmWasm dependencies in Cargo.toml (skip the ones you don't use):
+
+  ```
+  [dependencies]
+  cosmwasm-std = "0.14.0"
+  cosmwasm-storage = "0.14.0"
+  # ...
+
+  [dev-dependencies]
+  cosmwasm-schema = "0.14.0"
+  cosmwasm-vm = "0.14.0"
+  # ...
+  ```
+
+- Rename the `init` entry point to `instantiate`. Also, rename `InitMsg` to
+  `InstantiateMsg`.
+
+- Rename the `handle` entry point to `execute`. Also, rename `HandleMsg` to
+  `ExecuteMsg`.
+
+- Rename `InitResponse`, `HandleResponse` and `MigrateResponse` to `Response`.
+  The old names are still supported (with a deprecation warning), and will be
+  removed in the next version. Also, you'll need to add the `submessages` field
+  to `Response`.
+
+- Remove `from_address` from `BankMsg::Send`, which is now automatically filled
+  with the contract address:
+
+  ```rust
+  // before
+  ctx.add_message(BankMsg::Send {
+      from_address: env.contract.address,
+      to_address: to_addr,
+      amount: balance,
+  });
+
+  // after
+  ctx.add_message(BankMsg::Send {
+      to_address: to_addr,
+      amount: balance,
+  });
+  ```
+
+- Use the new entry point system. From `lib.rs` remove
+
+  ```rust
+  #[cfg(target_arch = "wasm32")]
+  cosmwasm_std::create_entry_points!(contract);
+
+  // or
+
+  #[cfg(target_arch = "wasm32")]
+  cosmwasm_std::create_entry_points_with_migration!(contract);
+  ```
+
+  Then add the macro attribute `#[entry_point]` to your `contract.rs` as
+  follows:
+
+  ```rust
+  use cosmwasm_std::{entry_point, … };
+
+  // …
+
+  #[entry_point]
+  pub fn init(
+      _deps: DepsMut,
+      _env: Env,
+      _info: MessageInfo,
+      _msg: InitMsg,
+  ) -> StdResult<Response> {
+      // …
+  }
+
+  #[entry_point]
+  pub fn execute(
+      _deps: DepsMut,
+      _env: Env,
+      _info: MessageInfo,
+      _msg: ExecuteMsg,
+  ) -> StdResult<Response> {
+      // …
+  }
+
+  // only if you have migrate
+  #[entry_point]
+  pub fn migrate(
+      deps: DepsMut,
+      env: Env,
+      _info: MessageInfo,
+      msg: MigrateMsg,
+  ) -> StdResult<Response> {
+      // …
+  }
+
+  #[entry_point]
+  pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<QueryResponse> {
+      // …
+  }
+  ```
+
+- Since `Response` contains a `data` field, converting `Context` into `Response`
+  always succeeds.
+
+  ```rust
+  // before
+  pub fn init(deps: DepsMut, env: Env, info: MessageInfo, msg: InitMsg) -> Result<InitResponse, HackError> {
+      // …
+      let mut ctx = Context::new();
+      ctx.add_attribute("Let the", "hacking begin");
+      Ok(ctx.try_into()?)
+  }
+
+  // after
+  pub fn init(deps: DepsMut, env: Env, info: MessageInfo, msg: InitMsg) -> Result<Response, HackError> {
+      // …
+      let mut ctx = Context::new();
+      ctx.add_attribute("Let the", "hacking begin");
+      Ok(ctx.into())
+  }
+  ```
+
+- Remove the `info: MessageInfo` field from the `migrate` entry point:
+
+  ```rust
+  // Before
+  pub fn migrate(
+      deps: DepsMut,
+      env: Env,
+      _info: MessageInfo,
+      msg: MigrateMsg,
+  ) -> StdResult<MigrateResponse> {
+    // ...
+  }
+
+  // After
+  pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    // ...
+  }
+  ```
+
+  `MessageInfo::funds` was always empty since [MsgMigrateContract] does not have
+  a funds field. `MessageInfo::sender` should not be needed for authentication
+  because the chain checks permissions before calling `migrate`. If the sender's
+  address is needed for anything else, this should be expressed as part of the
+  migrate message.
+
+  [msgmigratecontract]:
+    https://github.com/CosmWasm/wasmd/blob/v0.15.0/x/wasm/internal/types/tx.proto#L86-L96
+
+- Add mutating helper methods to `Response` that can be used instead of creating
+  a `Context` that is later converted to a response:
+
+  ```rust
+  // before
+  pub fn handle_impl(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+      // ...
+
+      // release counter_offer to creator
+      let mut ctx = Context::new();
+      ctx.add_message(BankMsg::Send {
+          to_address: state.creator,
+          amount: state.counter_offer,
+      });
+
+      // release collateral to sender
+      ctx.add_message(BankMsg::Send {
+          to_address: state.owner,
+          amount: state.collateral,
+      });
+
+      // ..
+
+      ctx.add_attribute("action", "execute");
+      Ok(ctx.into())
+  }
+
+
+  // after
+  pub fn execute_impl(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+      // ...
+
+      // release counter_offer to creator
+      let mut resp = Response::new();
+      resp.add_message(BankMsg::Send {
+          to_address: state.creator,
+          amount: state.counter_offer,
+      });
+
+      // release collateral to sender
+      resp.add_message(BankMsg::Send {
+          to_address: state.owner,
+          amount: state.collateral,
+      });
+
+      // ..
+
+      resp.add_attribute("action", "execute");
+      Ok(resp)
+  }
+  ```
+
+- If necessary, add a wildcard arm to the `match` of now non-exhaustive message
+  types `BankMsg`, `BankQuery`, `WasmMsg` and `WasmQuery`.
+
+## 0.12 -> 0.13
+
+- The minimum Rust supported version for 0.13 is 1.47.0. Verify your Rust
+  version is >= 1.47.0 with: `rustc --version`
+
+- Update CosmWasm dependencies in Cargo.toml (skip the ones you don't use):
+
+  ```
+  [dependencies]
+  cosmwasm-std = "0.13.0"
+  cosmwasm-storage = "0.13.0"
+  # ...
+
+  [dev-dependencies]
+  cosmwasm-schema = "0.13.0"
+  cosmwasm-vm = "0.13.0"
+  # ...
+  ```
+
 ## 0.11 -> 0.12
 
 - Update CosmWasm dependencies in Cargo.toml (skip the ones you don't use):
@@ -176,7 +404,7 @@ major releases of `cosmwasm`. Note that you can also view the
 
   You can also try a different error library than
   [thiserror](https://crates.io/crates/thiserror). The
-  [staking development contract](https://github.com/CosmWasm/cosmwasm/tree/master/contracts/staking)
+  [staking development contract](https://github.com/CosmWasm/cosmwasm/tree/main/contracts/staking)
   shows how this would look like using [snafu](https://crates.io/crates/snafu).
 
 - Change order of arguments such that `storage` is always first followed by
@@ -478,7 +706,7 @@ This has been re-written, but is generic boilerplate and should be (almost) the
 same in all contracts:
 
 - copy the new version from
-  [`contracts/queue`](https://github.com/CosmWasm/cosmwasm/blob/master/contracts/queue/src/lib.rs)
+  [`contracts/queue`](https://github.com/CosmWasm/cosmwasm/blob/main/contracts/queue/src/lib.rs)
 - Add `pub mod XYZ` directives for any modules you use besides `contract`
 
 Contract Code:
@@ -591,7 +819,7 @@ All helper functions have been moved into a new `cosmwasm-schema` package.
 - Remove `serde_json` `[dev-dependency]` if there, as cosmwasm-schema will
   handle JSON output internally.
 - Update `examples/schema.rs` to look
-  [more like queue](https://github.com/CosmWasm/cosmwasm/blob/master/contracts/queue/examples/schema.rs),
+  [more like queue](https://github.com/CosmWasm/cosmwasm/blob/main/contracts/queue/examples/schema.rs),
   but replacing all the imports and type names with those you currently have.
 - Regenerate schemas with `cargo schema`
 

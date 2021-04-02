@@ -17,6 +17,13 @@ pub struct GasInfo {
 }
 
 impl GasInfo {
+    pub fn new(cost: u64, externally_used: u64) -> Self {
+        GasInfo {
+            cost,
+            externally_used,
+        }
+    }
+
     pub fn with_cost(amount: u64) -> Self {
         GasInfo {
             cost: amount,
@@ -55,9 +62,9 @@ impl AddAssign for GasInfo {
 /// Designed to allow easy dependency injection at runtime.
 /// This cannot be copied or cloned since it would behave differently
 /// for mock storages and a bridge storage in the VM.
-pub struct Backend<S: Storage, A: Api, Q: Querier> {
-    pub storage: S,
+pub struct Backend<A: BackendApi, S: Storage, Q: Querier> {
     pub api: A,
+    pub storage: S,
     pub querier: Q,
 }
 
@@ -108,7 +115,7 @@ pub trait Storage {
     fn remove(&mut self, key: &[u8]) -> BackendResult<()>;
 }
 
-/// Api are callbacks to system functions defined outside of the wasm modules.
+/// Callbacks to system functions defined outside of the wasm modules.
 /// This is a trait to allow Mocks in the test code.
 ///
 /// Currently it just supports address conversion, we could add eg. crypto functions here.
@@ -117,7 +124,7 @@ pub trait Storage {
 ///
 /// We can use feature flags to opt-in to non-essential methods
 /// for backwards compatibility in systems that don't have them all.
-pub trait Api: Copy + Clone + Send {
+pub trait BackendApi: Copy + Clone + Send {
     fn canonical_address(&self, human: &HumanAddr) -> BackendResult<CanonicalAddr>;
     fn human_address(&self, canonical: &CanonicalAddr) -> BackendResult<HumanAddr>;
 }
@@ -205,7 +212,7 @@ impl From<FromUtf8Error> for BackendError {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]

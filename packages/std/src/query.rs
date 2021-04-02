@@ -4,18 +4,35 @@ use serde::{Deserialize, Serialize};
 use crate::addresses::HumanAddr;
 use crate::binary::Binary;
 use crate::coins::Coin;
+#[cfg(feature = "stargate")]
+use crate::ibc::IbcQuery;
 use crate::math::Decimal;
-use crate::types::Empty;
+use crate::results::Empty;
 
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryRequest<C: CustomQuery> {
     Bank(BankQuery),
     Custom(C),
     Staking(StakingQuery),
+    /// A Stargate query encoded the same way as abci_query, with path and protobuf encoded Data.
+    /// The format is defined in [ADR-21](https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-021-protobuf-query-encoding.md)
+    /// The response is also protobuf encoded. The caller is responsible for compiling the proper protobuf definitions
+    #[cfg(feature = "stargate")]
+    Stargate {
+        /// this is the fully qualified service path used for routing,
+        /// eg. custom/cosmos_sdk.x.bank.v1.Query/QueryBalance
+        path: String,
+        /// this is the expected protobuf message type (not any), binary encoded
+        data: Binary,
+    },
+    #[cfg(feature = "stargate")]
+    Ibc(IbcQuery),
     Wasm(WasmQuery),
 }
 
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankQuery {
@@ -51,6 +68,7 @@ pub trait CustomQuery: Serialize {}
 
 impl CustomQuery for Empty {}
 
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WasmQuery {
@@ -95,6 +113,13 @@ impl<C: CustomQuery> From<WasmQuery> for QueryRequest<C> {
     }
 }
 
+#[cfg(feature = "stargate")]
+impl<C: CustomQuery> From<IbcQuery> for QueryRequest<C> {
+    fn from(msg: IbcQuery) -> Self {
+        QueryRequest::Ibc(msg)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct BalanceResponse {
@@ -110,6 +135,15 @@ pub struct AllBalanceResponse {
     pub amount: Vec<Coin>,
 }
 
+#[cfg(feature = "stargate")]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct StargateResponse {
+    /// This is the protobuf response, binary encoded.
+    /// The caller is responsible for knowing how to parse.
+    pub response: Binary,
+}
+
+#[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StakingQuery {

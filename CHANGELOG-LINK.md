@@ -1,6 +1,11 @@
 # CHANGELOG LINK
 This is CHANGELOG after this repository was forked from CosmWasm/cosmwasm.
 
+## 0.14.0-0.3.0
+### Change
+- Update upstream Cosmwasm/cosmwasm version to 0.14.0-beta1 (#86)
+- Adjust semantic PR validation rule (#99)
+
 ## 0.12.0-0.2.0
 ### Add
 - Add vm::testing::Contract for integration test using more actual flow (#87)
