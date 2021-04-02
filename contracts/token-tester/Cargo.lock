@@ -121,7 +121,7 @@ checksum = "28b9d6de7f49e22cf97ad17fc4036ece69300032f45f78f30b4a4482cdc3f4a6"
 
 [[package]]
 name = "cosmwasm-crypto"
-version = "0.14.0-beta1"
+version = "0.14.0-0.3.0"
 dependencies = [
  "digest",
  "ed25519-zebra",
@@ -132,14 +132,14 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "0.14.0-beta1"
+version = "0.14.0-0.3.0"
 dependencies = [
  "syn",
 ]
 
 [[package]]
 name = "cosmwasm-ext"
-version = "0.14.0-beta1"
+version = "0.14.0-0.3.0"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -149,7 +149,7 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-schema"
-version = "0.14.0-beta1"
+version = "0.14.0-0.3.0"
 dependencies = [
  "schemars",
  "serde_json",
@@ -157,7 +157,7 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-std"
-version = "0.14.0-beta1"
+version = "0.14.0-0.3.0"
 dependencies = [
  "base64",
  "cosmwasm-crypto",
@@ -170,7 +170,7 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-storage"
-version = "0.14.0-beta1"
+version = "0.14.0-0.3.0"
 dependencies = [
  "cosmwasm-std",
  "serde",
@@ -178,7 +178,7 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-vm"
-version = "0.14.0-beta1"
+version = "0.14.0-0.3.0"
 dependencies = [
  "clru",
  "cosmwasm-crypto",
@@ -1182,7 +1182,7 @@ dependencies = [
 
 [[package]]
 name = "token-tester"
-version = "0.14.0-beta1"
+version = "0.14.0-0.3.0"
 dependencies = [
  "cosmwasm-ext",
  "cosmwasm-schema",
