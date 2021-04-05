@@ -8,6 +8,7 @@ workflows:
       - package_schema
       - package_std
       - package_storage
+      - package_ext
       - package_vm
       - contract_burner
       - contract_crypto_verify
@@ -17,6 +18,8 @@ workflows:
       - contract_queue
       - contract_reflect
       - contract_staking
+      - contract_token_tester
+      - contract_collection_tester
       - fmt
       - clippy
       - benchmarking:
@@ -189,6 +192,65 @@ jobs:
             - target/debug/build
             - target/debug/deps
           key: cargocache-v2-package_storage-rust:1.50.0-{{ checksum "Cargo.lock" }}
+
+  package_ext:
+    docker:
+      - image: rust:1.45.2
+    steps:
+      - checkout
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - restore_cache:
+          keys:
+            - cargocache-v2-package_ext-rust:1.45.2-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Add wasm32 target
+          command: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - run:
+          name: Build library for native target (no features)
+          working_directory: ~/project/packages/ext
+          command: cargo build --locked --no-default-features
+      - run:
+          name: Build library for wasm target (no features)
+          working_directory: ~/project/packages/ext
+          command: cargo wasm --locked --no-default-features
+      - run:
+          name: Run unit tests (no features)
+          working_directory: ~/project/packages/ext
+          command: cargo test --locked --no-default-features
+      - run:
+          name: Build library for native target (all features)
+          working_directory: ~/project/packages/ext
+          command: cargo build --locked
+      - run:
+          name: Build library for wasm target (all features)
+          working_directory: ~/project/packages/ext
+          command: cargo wasm --locked
+      - run:
+          name: Run unit tests (all features)
+          working_directory: ~/project/packages/ext
+          command: cargo test --locked
+      - run:
+          name: Build and run schema generator
+          working_directory: ~/project/packages/ext
+          command: cargo schema --locked
+      - run:
+          name: Ensure schemas are up-to-date
+          command: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+          key: cargocache-v2-package_ext-rust:1.50.0-{{ checksum "Cargo.lock" }}
 
   package_vm:
     docker:
@@ -625,6 +687,98 @@ jobs:
             - target/wasm32-unknown-unknown/release/build
             - target/wasm32-unknown-unknown/release/deps
           key: cargocache-v2-contract_staking-rust:1.50.0-{{ checksum "Cargo.lock" }}
+
+  contract_token_tester:
+    docker:
+      - image: rustlang/rust:nightly
+    working_directory: ~/cosmwasm/contracts/token-tester
+    steps:
+      - checkout:
+          path: ~/cosmwasm
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - restore_cache:
+          keys:
+            - cargocache-v2-contract_token_tester-rust:1.50.0-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Add wasm32 target
+          command: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - run:
+          name: Build wasm binary
+          command: cargo wasm --locked
+      - run:
+          name: Unit tests
+          env: RUST_BACKTRACE=1
+          command: cargo unit-test --locked
+      - run:
+          name: Build and run schema generator
+          command: cargo schema --locked
+      - run:
+          name: Ensure schemas are up-to-date
+          command: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+            - target/wasm32-unknown-unknown/release/.fingerprint
+            - target/wasm32-unknown-unknown/release/build
+            - target/wasm32-unknown-unknown/release/deps
+          key: cargocache-v2-contract_token_tester-rust:1.50.0-{{ checksum "Cargo.lock" }}
+
+  contract_collection_tester:
+    docker:
+      - image: rustlang/rust:nightly
+    working_directory: ~/cosmwasm/contracts/collection-tester
+    steps:
+      - checkout:
+          path: ~/cosmwasm
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - restore_cache:
+          keys:
+            - cargocache-v2-contract_collection_tester-rust:1.50.0-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Add wasm32 target
+          command: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - run:
+          name: Build wasm binary
+          command: cargo wasm --locked
+      - run:
+          name: Unit tests
+          env: RUST_BACKTRACE=1
+          command: cargo unit-test --locked
+      - run:
+          name: Build and run schema generator
+          command: cargo schema --locked
+      - run:
+          name: Ensure schemas are up-to-date
+          command: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+            - target/wasm32-unknown-unknown/release/.fingerprint
+            - target/wasm32-unknown-unknown/release/build
+            - target/wasm32-unknown-unknown/release/deps
+          key: cargocache-v2-contract_collection_tester-rust:1.50.0-{{ checksum "Cargo.lock" }}
 
   fmt:
     docker:
