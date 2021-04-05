@@ -195,7 +195,7 @@ jobs:
 
   package_ext:
     docker:
-      - image: rust:1.45.2
+      - image: rust:1.50.0
     steps:
       - checkout
       - run:
@@ -203,7 +203,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - restore_cache:
           keys:
-            - cargocache-v2-package_ext-rust:1.45.2-{{ checksum "Cargo.lock" }}
+            - cargocache-v2-package_ext-rust:1.50.0-{{ checksum "Cargo.lock" }}
       - run:
           name: Add wasm32 target
           command: rustup target add wasm32-unknown-unknown && rustup target list --installed
