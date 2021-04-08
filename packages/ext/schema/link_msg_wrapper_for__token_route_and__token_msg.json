@@ -34,6 +34,7 @@
       "type": "string"
     },
     "Module": {
+      "type": "string",
       "enum": [
         "tokenencode",
         "collectionencode"
@@ -300,6 +301,7 @@
       ]
     },
     "TokenRoute": {
+      "type": "string",
       "enum": [
         "issue",
         "transfer",
@@ -317,6 +319,7 @@
       "type": "string"
     },
     "permission": {
+      "type": "string",
       "enum": [
         "mint",
         "burn",

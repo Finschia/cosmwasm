@@ -597,6 +597,7 @@
       ]
     },
     "CollectionRoute": {
+      "type": "string",
       "enum": [
         "create",
         "issue_nft",
@@ -645,6 +646,7 @@
       }
     },
     "Module": {
+      "type": "string",
       "enum": [
         "tokenencode",
         "collectionencode"
@@ -669,6 +671,7 @@
       "type": "string"
     },
     "permission": {
+      "type": "string",
       "enum": [
         "mint",
         "burn",
