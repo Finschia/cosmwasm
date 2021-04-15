@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_crypto-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-package_crypto-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build
@@ -56,7 +56,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_schema-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-package_schema-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build
@@ -85,7 +85,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_std-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-package_std-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -138,7 +138,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_storage-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-package_storage-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build library for native target
@@ -170,7 +170,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_ext-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-package_ext-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -225,7 +225,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_vm-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-package_vm-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build
@@ -260,7 +260,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_burner-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_burner-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -306,7 +306,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_crypto_verify-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_crypto_verify-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -352,7 +352,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-hackatom_verify-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-hackatom_verify-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -398,7 +398,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_ibc_reflect-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_ibc_reflect-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -444,7 +444,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_ibc_reflect_send-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_ibc_reflect_send-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -490,7 +490,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_queue-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_queue-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -536,7 +536,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_reflect-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_reflect-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -582,7 +582,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_staking-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_staking-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -628,7 +628,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_token_tester-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_token_tester-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -671,7 +671,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_collection_tester-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-contract_collection_tester-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -714,7 +714,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-fmt-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-fmt-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add rustfmt component
@@ -760,7 +760,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-clippy-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-clippy-rust:1.50.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add clippy component
