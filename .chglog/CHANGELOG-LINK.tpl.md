@@ -1,11 +1,11 @@
 # CHANGELOG LINK
 This is CHANGELOG after this repository was forked from CosmWasm/cosmwasm.
 {{ range .Versions }}
-## {{ if .Tag.Previous }}{{ .Tag.Name }}{{ else }}{{ .Tag.Name }}{{ end }}
+## {{ if .Tag.Previous }}[{{ .Tag.Name }}]({{ $.Info.RepositoryURL }}/compare/{{ .Tag.Previous.Name }}...{{ .Tag.Name }}){{ else }}{{ .Tag.Name }}{{ end }}
 {{ range .CommitGroups -}}
 ### {{ .Title }}
 {{ range .Commits -}}
-- {{ if .Scope }}**{{ .Scope }}:** {{ end }}{{ .Subject }}
+- {{ if .Scope }}**{{ .Scope }}:** {{ end }}{{ .Subject }} ([{{.Hash.Short}}](https://github.com/line/cosmwasm/commit/{{.Hash.Short}}))
 {{ end }}
 {{ end -}}
 {{- if .NoteGroups -}}

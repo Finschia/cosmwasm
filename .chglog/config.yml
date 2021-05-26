@@ -4,6 +4,7 @@ info:
   title: CHANGELOG
   repository_url: https://github.com/line/cosmwasm
 options:
+  tag_filter_pattern: '^v\d+\.\d+\.\d+-\d+\.\d+\.\d+'
   commits:
     filters:
       Type:
@@ -18,9 +19,10 @@ options:
       perf: Performance Improvements
       refactor: Code Refactoring
   header:
-    pattern: "^(\\w*)\\:\\s(.*)$"
+    pattern: "^(\\w*)(?:\\(([\\w\\$\\.\\-\\*\\s]*)\\))?\\:\\s(.*)$"
     pattern_maps:
       - Type
+      - Scope
       - Subject
   notes:
     keywords:

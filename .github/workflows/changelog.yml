@@ -2,6 +2,7 @@ name: changelog
 
 on:
   pull_request:
+    types: [opened]
 
 jobs:
   changelog:
@@ -30,6 +31,6 @@ jobs:
       - name: Merge CHANGELOG-LINK.md
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "chore: Update CHANGELOG-LINK.md"
+          commit_message: "docs(changelog): update changelog for v${{ steps.get_version.outputs.VERSION }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
