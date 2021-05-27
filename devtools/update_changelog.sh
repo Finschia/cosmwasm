@@ -9,5 +9,5 @@ VERSION=$2
 CHANGELOG=$1
 
 tail +3 "$CHANGELOG" >tmpfile &&
-  $(dirname "${BASH_SOURCE[0]}")/generate_changelog.sh "$VERSION" | cat - tmpfile >"$CHANGELOG"
+  "$(dirname "$0")/generate_changelog.sh" "$VERSION" | cat - tmpfile >"$CHANGELOG"
 rm tmpfile
