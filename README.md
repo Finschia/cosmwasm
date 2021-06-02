@@ -12,6 +12,3 @@ For more detail, see the original documents.
 - [EntryPoints.md](https://github.com/CosmWasm/cosmwasm/blob/main/EntryPoints.md)
 - [MIGRATING.md](https://github.com/CosmWasm/cosmwasm/blob/main/MIGRATING.md)
 - [IBC.md](https://github.com/CosmWasm/cosmwasm/blob/main/IBC.md)
-
-## Our Original Packages
-- [cosmwasm-ext](https://github.com/line/cosmwasm/tree/develop/packages/ext) - A library for use LBM's original functions.
