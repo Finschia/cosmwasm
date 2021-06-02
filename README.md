@@ -1,6 +1,6 @@
 # CosmWasm
 
-[![CircleCI](https://circleci.com/gh/CosmWasm/cosmwasm/tree/main.svg?style=shield)](https://circleci.com/gh/CosmWasm/cosmwasm/tree/main)
+[![Tests](https://github.com/line/cosmwasm/actions/workflows/tests.yml/badge.svg)](https://github.com/line/cosmwasm/actions/workflows/tests.yml)
 
 **WebAssembly Smart Contracts for the LBM**
 This repository is forked from [CosmWasm/cosmwasm](https://github.com/CosmWasm/cosmwasm).
