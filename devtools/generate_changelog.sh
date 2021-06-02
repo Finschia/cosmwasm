@@ -8,8 +8,8 @@ fi
 VERSION=$1
 CMD='git-chglog'
 
-if ! command -v git-chglog &>/dev/null; then
-  if command -v docker &>/dev/null; then
+if ! command -v git-chglog >/dev/null 2>&1; then
+  if command -v docker >/dev/null 2>&1; then
     CMD="docker run -v $(pwd):/workdir quay.io/git-chglog/git-chglog"
   else
     echo "git-chglog or docker required"
