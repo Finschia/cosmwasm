@@ -1,6 +1,6 @@
 # CosmWasm VM
 
-[![cosmwasm-vm on crates.io](https://img.shields.io/crates/v/cosmwasm-vm.svg)](https://crates.io/crates/cosmwasm-vm)
+_Forked from [CosmWasm/cosmwasm-vm](https://github.com/CosmWasm/cosmwasm/tree/main/packages/vm)_
 
 This is an abstraction layer around the wasmer VM to expose just what we need to
 run cosmwasm contracts in a high-level manner. This is intended both for
@@ -28,9 +28,9 @@ compatibility list:
 
 There are demo files in `testdata/*.wasm`. Those are compiled and optimized
 versions of
-[contracts/hackatom](https://github.com/CosmWasm/cosmwasm/tree/main/contracts/hackatom)
+[contracts/hackatom](https://github.com/line/cosmwasm/tree/main/contracts/hackatom)
 and
-[contracts/staking](https://github.com/CosmWasm/cosmwasm/tree/main/contracts/staking)
+[contracts/staking](https://github.com/line/cosmwasm/tree/main/contracts/staking)
 run through [rust-optimizer](https://github.com/CosmWasm/rust-optimizer).
 
 To rebuild the test contracts, go to the repo root and do
@@ -93,6 +93,6 @@ RUSTFLAGS="-g" cargo build --release --example module_size
 
 ## License
 
-This package is part of the cosmwasm repository, licensed under the Apache
-License 2.0 (see [NOTICE](https://github.com/CosmWasm/cosmwasm/blob/main/NOTICE)
-and [LICENSE](https://github.com/CosmWasm/cosmwasm/blob/main/LICENSE)).
+This package is part of the line/cosmwasm repository, licensed under the Apache
+License 2.0 (see [NOTICE](https://github.com/line/cosmwasm/blob/main/NOTICE)
+and [LICENSE](https://github.com/line/cosmwasm/blob/main/LICENSE)).

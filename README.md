@@ -3,6 +3,7 @@
 [![Tests](https://github.com/line/cosmwasm/actions/workflows/tests.yml/badge.svg)](https://github.com/line/cosmwasm/actions/workflows/tests.yml)
 
 **WebAssembly Smart Contracts for the LBM**
+
 This repository is forked from [CosmWasm/cosmwasm](https://github.com/CosmWasm/cosmwasm).
 
 For more detail, see the original documents.
