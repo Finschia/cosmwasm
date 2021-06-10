@@ -86,7 +86,7 @@ impl Default for MockApi {
 
 impl BackendApi for MockApi {
     fn canonical_address(&self, human: &str) -> BackendResult<Vec<u8>> {
-        let gas_info = GasInfo::with_cost(GAS_COST_CANONICALIZE);
+        let gas_info = GasInfo::with_cost(self.canonicalize_cost);
 
         if let Some(backend_error) = self.backend_error {
             return (Err(BackendError::unknown(backend_error)), gas_info);
@@ -124,7 +124,7 @@ impl BackendApi for MockApi {
     }
 
     fn human_address(&self, canonical: &[u8]) -> BackendResult<String> {
-        let gas_info = GasInfo::with_cost(GAS_COST_HUMANIZE);
+        let gas_info = GasInfo::with_cost(self.humanize_cost);
 
         if let Some(backend_error) = self.backend_error {
             return (Err(BackendError::unknown(backend_error)), gas_info);
@@ -251,7 +251,7 @@ mod test {
     fn test_default_gas_cost() {
         let api = MockApi::default();
 
-        let original = HumanAddr::from("alice");
+        let original = "alice";
         let (canonical_res, gas_cost) = api.canonical_address(&original);
         assert_eq!(gas_cost.cost, DEFAULT_GAS_COST_CANONICALIZE);
         assert_eq!(gas_cost.externally_used, 0);
@@ -269,7 +269,7 @@ mod test {
         assert_ne!(humanize_cost, DEFAULT_GAS_COST_HUMANIZE);
         let api = MockApi::new_with_gas_cost(canonicalize_cost, humanize_cost);
 
-        let original = HumanAddr::from("bob");
+        let original = "bob";
         let (canonical_res, gas_cost) = api.canonical_address(&original);
         assert_eq!(gas_cost.cost, canonicalize_cost);
         assert_eq!(gas_cost.externally_used, 0);
