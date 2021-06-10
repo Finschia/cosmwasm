@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::fmt;
 
-use crate::addresses::HumanAddr;
 use crate::binary::Binary;
 use crate::coins::Coin;
 use crate::results::{Attribute, CosmosMsg, Empty, SubMsg};
+use crate::timestamp::Timestamp;
 
 /// These are messages in the IBC lifecycle. Only usable by IBC-enabled contracts
 /// (contracts that directly speak the IBC protocol via 6 entry points)
@@ -27,17 +27,12 @@ pub enum IbcMsg {
         /// exisiting channel to send the tokens over
         channel_id: String,
         /// address on the remote chain to receive these tokens
-        to_address: HumanAddr,
+        to_address: String,
         /// packet data only supports one coin
         /// https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/ibc/applications/transfer/v1/transfer.proto#L11-L20
         amount: Coin,
-        /// block after which the packet times out.
-        /// at least one of timeout_block, timeout_timestamp is required
-        timeout_block: Option<IbcTimeoutBlock>,
-        /// block timestamp (nanoseconds since UNIX epoch) after which the packet times out.
-        /// See https://golang.org/pkg/time/#Time.UnixNano
-        /// at least one of timeout_block, timeout_timestamp is required
-        timeout_timestamp: Option<u64>,
+        /// when packet times out, measured on remote chain
+        timeout: IbcTimeout,
     },
     /// Sends an IBC packet with given data over the existing channel.
     /// Data should be encoded in a format defined by the channel version,
@@ -45,62 +40,72 @@ pub enum IbcMsg {
     SendPacket {
         channel_id: String,
         data: Binary,
-        /// block height after which the packet times out.
-        /// at least one of timeout_block, timeout_timestamp is required
-        timeout_block: Option<IbcTimeoutBlock>,
-        /// block timestamp (nanoseconds since UNIX epoch) after which the packet times out.
-        /// See https://golang.org/pkg/time/#Time.UnixNano
-        /// at least one of timeout_block, timeout_timestamp is required
-        timeout_timestamp: Option<u64>,
+        /// when packet times out, measured on remote chain
+        timeout: IbcTimeout,
     },
     /// This will close an existing channel that is owned by this contract.
-    /// Port is auto-assigned to the contracts' ibc port
+    /// Port is auto-assigned to the contract's IBC port
     CloseChannel { channel_id: String },
-}
-
-/// These are queries to the various IBC modules to see the state of the contract's
-/// IBC connection. These will return errors if the contract is not "ibc enabled"
-#[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum IbcQuery {
-    /// Gets the Port ID the current contract is bound to.
-    /// Returns PortIdResponse
-    PortId {},
-    /// Lists all channels that are bound to a given port.
-    /// If `port_id` is omitted, this list all channels bound to the contract's port.
-    /// Returns a `ListChannelsResponse`.
-    ListChannels { port_id: Option<String> },
-    /// Lists all information for a (portID, channelID) pair.
-    /// If port_id is omitted, it will default to the contract's own channel.
-    /// (To save a PortId{} call)
-    /// Returns ChannelResponse.
-    Channel {
-        channel_id: String,
-        port_id: Option<String>,
-    },
-    // TODO: Add more
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct PortIdResponse {
-    pub port_id: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ListChannelsResponse {
-    pub channels: Vec<IbcChannel>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ChannelResponse {
-    pub channel: Option<IbcChannel>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct IbcEndpoint {
     pub port_id: String,
     pub channel_id: String,
+}
+
+/// In IBC each package must set at least one type of timeout:
+/// the timestamp or the block height. Using this rather complex enum instead of
+/// two timeout fields we ensure that at least one timeout is set.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct IbcTimeout {
+    // use private fields to enforce the use of constructors, which ensure that at least one is set
+    block: Option<IbcTimeoutBlock>,
+    timestamp: Option<Timestamp>,
+}
+
+impl IbcTimeout {
+    pub fn with_block(block: IbcTimeoutBlock) -> Self {
+        IbcTimeout {
+            block: Some(block),
+            timestamp: None,
+        }
+    }
+
+    pub fn with_timestamp(timestamp: Timestamp) -> Self {
+        IbcTimeout {
+            block: None,
+            timestamp: Some(timestamp),
+        }
+    }
+
+    pub fn with_both(block: IbcTimeoutBlock, timestamp: Timestamp) -> Self {
+        IbcTimeout {
+            block: Some(block),
+            timestamp: Some(timestamp),
+        }
+    }
+
+    pub fn block(&self) -> Option<IbcTimeoutBlock> {
+        self.block
+    }
+
+    pub fn timestamp(&self) -> Option<Timestamp> {
+        self.timestamp
+    }
+}
+
+impl From<Timestamp> for IbcTimeout {
+    fn from(timestamp: Timestamp) -> IbcTimeout {
+        IbcTimeout::with_timestamp(timestamp)
+    }
+}
+
+impl From<IbcTimeoutBlock> for IbcTimeout {
+    fn from(original: IbcTimeoutBlock) -> IbcTimeout {
+        IbcTimeout::with_block(original)
+    }
 }
 
 // These are various messages used in the callbacks
@@ -135,7 +140,7 @@ pub enum IbcOrder {
 /// that can be compared against another Height for the purposes of updating and
 /// freezing clients.
 /// Ordering is (revision_number, timeout_height)
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct IbcTimeoutBlock {
     /// the version that the client is currently on
     /// (eg. after reseting the chain this could increment 1 as height drops to 0)
@@ -176,13 +181,7 @@ pub struct IbcPacket {
     pub dest: IbcEndpoint,
     /// The sequence number of the packet on the given channel
     pub sequence: u64,
-    /// block height after which the packet times out.
-    /// at least one of timeout_block, timeout_timestamp is required
-    pub timeout_block: Option<IbcTimeoutBlock>,
-    /// block timestamp (nanoseconds since UNIX epoch) after which the packet times out.
-    /// See https://golang.org/pkg/time/#Time.UnixNano
-    /// at least one of timeout_block, timeout_timestamp is required
-    pub timeout_timestamp: Option<u64>,
+    pub timeout: IbcTimeout,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -279,12 +278,35 @@ mod tests {
             channel_id: "channel-123".to_string(),
             to_address: "my-special-addr".into(),
             amount: Coin::new(12345678, "uatom"),
-            timeout_block: None,
-            timeout_timestamp: Some(1234567890),
+            timeout: IbcTimeout::with_timestamp(Timestamp::from_nanos(1234567890)),
         };
         let encoded = to_string(&msg).unwrap();
-        let expected = r#"{"transfer":{"channel_id":"channel-123","to_address":"my-special-addr","amount":{"denom":"uatom","amount":"12345678"},"timeout_block":null,"timeout_timestamp":1234567890}}"#;
+        let expected = r#"{"transfer":{"channel_id":"channel-123","to_address":"my-special-addr","amount":{"denom":"uatom","amount":"12345678"},"timeout":{"block":null,"timestamp":"1234567890"}}}"#;
         assert_eq!(encoded.as_str(), expected);
+    }
+
+    #[test]
+    fn ibc_timeout_serialize() {
+        let timestamp = IbcTimeout::with_timestamp(Timestamp::from_nanos(684816844));
+        let expected = r#"{"block":null,"timestamp":"684816844"}"#;
+        assert_eq!(to_string(&timestamp).unwrap(), expected);
+
+        let block = IbcTimeout::with_block(IbcTimeoutBlock {
+            revision: 12,
+            height: 129,
+        });
+        let expected = r#"{"block":{"revision":12,"height":129},"timestamp":null}"#;
+        assert_eq!(to_string(&block).unwrap(), expected);
+
+        let both = IbcTimeout::with_both(
+            IbcTimeoutBlock {
+                revision: 12,
+                height: 129,
+            },
+            Timestamp::from_nanos(684816844),
+        );
+        let expected = r#"{"block":{"revision":12,"height":129},"timestamp":"684816844"}"#;
+        assert_eq!(to_string(&both).unwrap(), expected);
     }
 
     #[test]
@@ -323,5 +345,49 @@ mod tests {
         assert!(epoch1b < epoch2a);
         assert!(epoch2a < epoch2b);
         assert!(epoch1b < epoch2b);
+    }
+
+    #[test]
+    fn ibc_packet_serialize() {
+        let packet = IbcPacket {
+            data: b"foo".into(),
+            src: IbcEndpoint {
+                port_id: "their-port".to_string(),
+                channel_id: "channel-1234".to_string(),
+            },
+            dest: IbcEndpoint {
+                port_id: "our-port".to_string(),
+                channel_id: "chan33".into(),
+            },
+            sequence: 27,
+            timeout: IbcTimeout::with_both(
+                IbcTimeoutBlock {
+                    revision: 1,
+                    height: 12345678,
+                },
+                Timestamp::from_nanos(4611686018427387904),
+            ),
+        };
+        let expected = r#"{"data":"Zm9v","src":{"port_id":"their-port","channel_id":"channel-1234"},"dest":{"port_id":"our-port","channel_id":"chan33"},"sequence":27,"timeout":{"block":{"revision":1,"height":12345678},"timestamp":"4611686018427387904"}}"#;
+        assert_eq!(to_string(&packet).unwrap(), expected);
+
+        let no_timestamp = IbcPacket {
+            data: b"foo".into(),
+            src: IbcEndpoint {
+                port_id: "their-port".to_string(),
+                channel_id: "channel-1234".to_string(),
+            },
+            dest: IbcEndpoint {
+                port_id: "our-port".to_string(),
+                channel_id: "chan33".into(),
+            },
+            sequence: 27,
+            timeout: IbcTimeout::with_block(IbcTimeoutBlock {
+                revision: 1,
+                height: 12345678,
+            }),
+        };
+        let expected = r#"{"data":"Zm9v","src":{"port_id":"their-port","channel_id":"channel-1234"},"dest":{"port_id":"our-port","channel_id":"chan33"},"sequence":27,"timeout":{"block":{"revision":1,"height":12345678},"timestamp":null}}"#;
+        assert_eq!(to_string(&no_timestamp).unwrap(), expected);
     }
 }

@@ -10,7 +10,8 @@ for contract_dir in contracts/*/; do
     touch target/wasm32-unknown-unknown/release/"$(basename "$contract_dir" | tr - _)".wasm
     cargo check --tests
     cargo unit-test
-    cargo clippy --tests -- -D warnings
+    touch src/*.rs # Needed because check and clippy share the same build cache such that clippy warnings are hidden when check wrote to the build cache
+    cargo clippy --all-targets -- -D warnings
     cargo schema
     cargo wasm
     cargo integration-test

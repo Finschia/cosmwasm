@@ -1,6 +1,6 @@
 [package]
 name = "cosmwasm-crypto"
-version = "0.14.0-0.3.0"
+version = "0.14.0"
 authors = ["LINE TECH PLUS Pte., Ltd."]
 edition = "2018"
 description = "Crypto bindings for cosmwasm contracts"

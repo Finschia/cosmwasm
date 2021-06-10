@@ -19,8 +19,8 @@
 
 use cosmwasm_std::testing::{mock_ibc_channel, mock_ibc_packet_ack};
 use cosmwasm_std::{
-    attr, coin, coins, to_binary, BankMsg, CosmosMsg, Empty, HumanAddr, IbcAcknowledgement,
-    IbcBasicResponse, IbcMsg, IbcOrder, Response,
+    attr, coin, coins, to_binary, BankMsg, CosmosMsg, Empty, IbcAcknowledgement, IbcBasicResponse,
+    IbcMsg, IbcOrder, Response,
 };
 use cosmwasm_vm::testing::{
     execute, ibc_channel_connect, ibc_channel_open, ibc_packet_ack, instantiate, mock_env,
@@ -71,7 +71,7 @@ fn connect(deps: &mut Instance<MockApi, MockStorage, MockQuerier>, channel_id: &
     };
 }
 
-fn who_am_i_response<T: Into<HumanAddr>>(
+fn who_am_i_response<T: Into<String>>(
     deps: &mut Instance<MockApi, MockStorage, MockQuerier>,
     channel_id: &str,
     account: T,
@@ -132,7 +132,7 @@ fn proper_handshake_flow() {
     let acct = get_account(&mut deps, channel_id);
     assert!(acct.remote_addr.is_none());
     assert!(acct.remote_balance.is_empty());
-    assert_eq!(0, acct.last_update_time);
+    assert_eq!(0, acct.last_update_time.nanos());
 
     // now get feedback from WhoAmI packet
     let remote_addr = "account-789";
@@ -140,9 +140,9 @@ fn proper_handshake_flow() {
 
     // account should be set up
     let acct = get_account(&mut deps, channel_id);
-    assert_eq!(acct.remote_addr.unwrap(), HumanAddr::from(remote_addr));
+    assert_eq!(acct.remote_addr.unwrap(), remote_addr);
     assert!(acct.remote_balance.is_empty());
-    assert_eq!(0, acct.last_update_time);
+    assert_eq!(0, acct.last_update_time.nanos());
 }
 
 #[test]
@@ -234,14 +234,13 @@ fn send_remote_funds() {
             channel_id,
             to_address,
             amount,
-            timeout_block,
-            timeout_timestamp,
+            timeout,
         }) => {
             assert_eq!(transfer_channel_id, channel_id.as_str());
             assert_eq!(remote_addr, to_address.as_str());
             assert_eq!(&coin(12344, "utrgd"), amount);
-            assert!(timeout_block.is_none());
-            assert!(timeout_timestamp.is_some());
+            assert!(timeout.block().is_none());
+            assert!(timeout.timestamp().is_some());
         }
         o => panic!("unexpected message: {:?}", o),
     }

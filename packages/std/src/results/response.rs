@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use crate::Binary;
+use crate::{Binary, ReplyOn};
 
 use super::{Attribute, CosmosMsg, Empty};
 use crate::results::SubMsg;
@@ -43,7 +43,7 @@ use crate::results::SubMsg;
 /// Mutating:
 ///
 /// ```
-/// # use cosmwasm_std::{coins, BankMsg, Binary, DepsMut, Env, HumanAddr, MessageInfo};
+/// # use cosmwasm_std::{coins, BankMsg, Binary, DepsMut, Env, MessageInfo};
 /// # type InstantiateMsg = ();
 /// # type MyError = ();
 /// #
@@ -60,7 +60,7 @@ use crate::results::SubMsg;
 ///     response.add_attribute("Let the", "hacking begin");
 ///     // ...
 ///     response.add_message(BankMsg::Send {
-///         to_address: HumanAddr::from("recipient"),
+///         to_address: String::from("recipient"),
 ///         amount: coins(128, "uint"),
 ///     });
 ///     response.add_attribute("foo", "bar");
@@ -125,11 +125,13 @@ where
         id: u64,
         msg: U,
         gas_limit: Option<u64>,
+        reply_on: ReplyOn,
     ) {
         let sub = SubMsg {
             id,
             msg: msg.into(),
             gas_limit,
+            reply_on,
         };
         self.submessages.push(sub);
     }
@@ -143,7 +145,6 @@ where
 mod tests {
     use super::super::BankMsg;
     use super::*;
-    use crate::addresses::HumanAddr;
     use crate::{coins, from_slice, to_vec};
 
     #[test]
@@ -152,14 +153,15 @@ mod tests {
             submessages: vec![SubMsg {
                 id: 12,
                 msg: BankMsg::Send {
-                    to_address: HumanAddr::from("checker"),
+                    to_address: String::from("checker"),
                     amount: coins(888, "moon"),
                 }
                 .into(),
                 gas_limit: Some(12345u64),
+                reply_on: ReplyOn::Always,
             }],
             messages: vec![BankMsg::Send {
-                to_address: HumanAddr::from("you"),
+                to_address: String::from("you"),
                 amount: coins(1015, "earth"),
             }
             .into()],

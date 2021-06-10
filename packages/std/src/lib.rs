@@ -1,5 +1,4 @@
 #![cfg_attr(feature = "backtraces", feature(backtrace))]
-#![allow(clippy::field_reassign_with_default)] // see https://github.com/CosmWasm/cosmwasm/issues/685
 
 // Exposed on all platforms
 
@@ -20,37 +19,49 @@ mod results;
 mod sections;
 mod serde;
 mod storage;
+mod timestamp;
 mod traits;
 mod types;
 
-pub use crate::addresses::{CanonicalAddr, HumanAddr};
-pub use crate::binary::{Binary, ByteArray};
+#[allow(deprecated)]
+pub use crate::addresses::{Addr, CanonicalAddr, HumanAddr};
+pub use crate::binary::Binary;
 pub use crate::coins::{coin, coins, has_coins, Coin};
 pub use crate::deps::{Deps, DepsMut, OwnedDeps};
-pub use crate::errors::{RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError};
+pub use crate::errors::{
+    OverflowError, OverflowOperation, RecoverPubkeyError, StdError, StdResult, SystemError,
+    VerificationError,
+};
 #[cfg(feature = "stargate")]
 pub use crate::ibc::{
-    ChannelResponse, IbcAcknowledgement, IbcBasicResponse, IbcChannel, IbcEndpoint, IbcMsg,
-    IbcOrder, IbcPacket, IbcQuery, IbcReceiveResponse, IbcTimeoutBlock, ListChannelsResponse,
-    PortIdResponse,
+    IbcAcknowledgement, IbcBasicResponse, IbcChannel, IbcEndpoint, IbcMsg, IbcOrder, IbcPacket,
+    IbcReceiveResponse, IbcTimeout, IbcTimeoutBlock,
 };
 #[cfg(feature = "iterator")]
-pub use crate::iterator::{Order, KV};
-pub use crate::math::{Decimal, Uint128};
+#[allow(deprecated)]
+pub use crate::iterator::{Order, Pair, KV};
+pub use crate::math::{Decimal, Fraction, Uint128, Uint64};
 pub use crate::query::{
-    AllBalanceResponse, AllDelegationsResponse, BalanceResponse, BankQuery, BondedDenomResponse,
-    CustomQuery, Delegation, FullDelegation, QueryRequest, StakingQuery, Validator,
-    ValidatorsResponse, WasmQuery,
+    AllBalanceResponse, BalanceResponse, BankQuery, CustomQuery, QueryRequest, WasmQuery,
 };
+#[cfg(feature = "staking")]
+pub use crate::query::{
+    AllDelegationsResponse, AllValidatorsResponse, BondedDenomResponse, Delegation, FullDelegation,
+    StakingQuery, Validator, ValidatorResponse,
+};
+#[cfg(feature = "stargate")]
+pub use crate::query::{ChannelResponse, IbcQuery, ListChannelsResponse, PortIdResponse};
 pub use crate::results::{
     attr, wasm_execute, wasm_instantiate, Attribute, BankMsg, ContractResult, CosmosMsg, Empty,
-    Event, QueryResponse, Reply, Response, StakingMsg, SubMsg, SubcallResponse, SystemResult,
-    WasmMsg,
+    Event, QueryResponse, Reply, ReplyOn, Response, SubMsg, SubcallResponse, SystemResult, WasmMsg,
 };
 #[allow(deprecated)]
 pub use crate::results::{Context, HandleResponse, InitResponse, MigrateResponse};
+#[cfg(feature = "staking")]
+pub use crate::results::{DistributionMsg, StakingMsg};
 pub use crate::serde::{from_binary, from_slice, to_binary, to_vec};
 pub use crate::storage::MemoryStorage;
+pub use crate::timestamp::Timestamp;
 pub use crate::traits::{Api, Querier, QuerierResult, QuerierWrapper, Storage};
 pub use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo};
 
@@ -83,10 +94,12 @@ pub use crate::ibc_exports::{
 mod mock;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod testing {
+    #[cfg(feature = "staking")]
+    pub use crate::mock::StakingQuerier;
     pub use crate::mock::{
         digit_sum, mock_dependencies, mock_dependencies_with_balances, mock_env, mock_info,
         riffle_shuffle, BankQuerier, MockApi, MockQuerier, MockQuerierCustomHandlerResult,
-        MockStorage, StakingQuerier, MOCK_CONTRACT_ADDR,
+        MockStorage, MOCK_CONTRACT_ADDR,
     };
     #[cfg(feature = "stargate")]
     pub use crate::mock::{mock_ibc_channel, mock_ibc_packet_ack, mock_ibc_packet_recv};

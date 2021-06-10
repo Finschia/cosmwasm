@@ -1,6 +1,6 @@
 [package]
 name = "cosmwasm-schema"
-version = "0.14.0-0.3.0"
+version = "0.14.0"
 authors = ["LINE TECH PLUS Pte., Ltd."]
 edition = "2018"
 description = "A dev-dependency for CosmWasm contracts to generate JSON Schema files."
@@ -8,5 +8,5 @@ repository = "https://github.com/line/cosmwasm/tree/main/packages/schema"
 license = "Apache-2.0"
 
 [dependencies]
-schemars = "0.7"
+schemars = "0.8.1"
 serde_json = "1.0"
