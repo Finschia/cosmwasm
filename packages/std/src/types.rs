@@ -64,13 +64,11 @@ pub struct BlockInfo {
     pub chain_id: String,
 }
 
-/// Additional information from [MsgInstantiateContract] and [MsgExecuteContract], which is passed
+/// Additional information from `MsgInstantiateContract` and `MsgExecuteContract`, which is passed
 /// along with the contract execution message into the `instantiate` and `execute` entry points.
 ///
 /// It contains the essential info for authorization - identity of the call, and payment.
-///
-/// [MsgInstantiateContract]: https://github.com/CosmWasm/wasmd/blob/v0.15.0/x/wasm/internal/types/tx.proto#L47-L61
-/// [MsgExecuteContract]: https://github.com/CosmWasm/wasmd/blob/v0.15.0/x/wasm/internal/types/tx.proto#L68-L78
+/// `MsgInstantiateContract` and `MsgExecuteContract` are defined in https://github.com/line/lfb-sdk/blob/develop/x/wasm/internal/types/tx.proto .
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MessageInfo {
     /// The `sender` field from `MsgInstantiateContract` and `MsgExecuteContract`.
