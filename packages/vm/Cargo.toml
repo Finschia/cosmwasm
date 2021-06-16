@@ -1,10 +1,10 @@
 [package]
 name = "cosmwasm-vm"
 version = "0.14.0-0.3.0"
-authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
+authors = ["LINE TECH PLUS Pte., Ltd."]
 edition = "2018"
 description = "VM bindings to run cosmwams contracts"
-repository = "https://github.com/CosmWasm/cosmwasm/tree/main/packages/vm"
+repository = "https://github.com/line/cosmwasm/tree/main/packages/vm"
 license = "Apache-2.0"
 
 [features]

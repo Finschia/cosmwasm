@@ -1,10 +1,10 @@
 [package]
 name = "cosmwasm-crypto"
 version = "0.14.0-0.3.0"
-authors = ["Mauro Lacy <maurolacy@users.noreply.github.com>"]
+authors = ["LINE TECH PLUS Pte., Ltd."]
 edition = "2018"
 description = "Crypto bindings for cosmwasm contracts"
-repository = "https://github.com/CosmWasm/cosmwasm/tree/main/packages/crypto"
+repository = "https://github.com/line/cosmwasm/tree/main/packages/crypto"
 license = "Apache-2.0"
 
 [features]

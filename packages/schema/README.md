@@ -1,11 +1,11 @@
 # CosmWasm Schema
 
-[![cosmwasm-schema on crates.io](https://img.shields.io/crates/v/cosmwasm-schema.svg)](https://crates.io/crates/cosmwasm-schema)
+_Forked from [CosmWasm/cosmwasm-schema](https://github.com/CosmWasm/cosmwasm/tree/main/packages/schema)_
 
 A dev-dependency for CosmWasm contracts to generate JSON Schema files.
 
 ## License
 
 This package is part of the cosmwasm repository, licensed under the Apache
-License 2.0 (see [NOTICE](https://github.com/CosmWasm/cosmwasm/blob/main/NOTICE)
-and [LICENSE](https://github.com/CosmWasm/cosmwasm/blob/main/LICENSE)).
+License 2.0 (see [NOTICE](https://github.com/line/cosmwasm/blob/main/NOTICE)
+and [LICENSE](https://github.com/line/cosmwasm/blob/main/LICENSE)).
