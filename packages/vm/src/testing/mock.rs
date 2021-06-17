@@ -48,14 +48,6 @@ pub struct MockApi {
 }
 
 impl MockApi {
-    #[deprecated(
-        since = "0.11.0",
-        note = "The canonical length argument is unused. Use MockApi::default() instead."
-    )]
-    pub fn new(_canonical_length: usize) -> Self {
-        MockApi::default()
-    }
-
     /// create a `MockApi` instance with specified gas costs to call api
     pub fn new_with_gas_cost(canonicalize_cost: u64, humanize_cost: u64) -> Self {
         MockApi {
