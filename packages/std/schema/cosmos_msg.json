@@ -49,10 +49,10 @@
   ],
   "definitions": {
     "BankMsg": {
-      "description": "The message types of the bank module.\n\nSee https://github.com/line/lfb-sdk/blob/develop/proto/lfb/bank/v1beta1/tx.proto.",
+      "description": "The message types of the bank module.\n\nSee https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto.",
       "anyOf": [
         {
-          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a MsgSend in https://github.com/line/lfb-sdk/blob/develop/proto/lfb/bank/v1beta1/tx.proto. `from_address` is automatically filled with the current contract's address.",
+          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a MsgSend in https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto. `from_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "send"
@@ -107,10 +107,10 @@
       "type": "string"
     },
     "StakingMsg": {
-      "description": "The message types of the staking module.\n\nSee https://github.com/line/lfb-sdk/blob/develop/proto/lfb/staking/v1beta1/tx.proto.",
+      "description": "The message types of the staking module.\n\nSee https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.",
       "anyOf": [
         {
-          "description": "This is translated to a MsgDelegate in https://github.com/line/lfb-sdk/blob/develop/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a MsgDelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "delegate"
@@ -134,7 +134,7 @@
           }
         },
         {
-          "description": "This is translated to a MsgUndelegate in https://github.com/line/lfb-sdk/blob/develop/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a MsgUndelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "undelegate"
@@ -158,7 +158,7 @@
           }
         },
         {
-          "description": "This is translated to a MsgSetWithdrawAddress in https://github.com/line/lfb-sdk/blob/develop/proto/lfb/distribution/v1beta1/tx.proto. followed by a MsgWithdrawDelegatorReward in https://github.com/line/lfb-sdk/blob/develop/proto/lfb/distribution/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a MsgSetWithdrawAddress in https://github.com/line/lfb-sdk/blob/main/proto/lfb/distribution/v1beta1/tx.proto. followed by a MsgWithdrawDelegatorReward in https://github.com/line/lfb-sdk/blob/main/proto/lfb/distribution/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "withdraw"
@@ -189,7 +189,7 @@
           }
         },
         {
-          "description": "This is translated to a MsgBeginRedelegate in https://github.com/line/lfb-sdk/blob/develop/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a MsgBeginRedelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "redelegate"
@@ -222,10 +222,10 @@
       "type": "string"
     },
     "WasmMsg": {
-      "description": "The message types of the wasm module.\n\nSee https://github.com/line/lfb-sdk/blob/develop/x/wasm/internal/types/tx.proto.",
+      "description": "The message types of the wasm module.\n\nSee https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.",
       "anyOf": [
         {
-          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a MsgExecuteContract in https://github.com/line/lfb-sdk/blob/develop/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a MsgExecuteContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "execute"
@@ -261,7 +261,7 @@
           }
         },
         {
-          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThis is translated to a MsgInstantiateContract in https://github.com/line/lfb-sdk/blob/develop/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThis is translated to a MsgInstantiateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "instantiate"
@@ -304,7 +304,7 @@
           }
         },
         {
-          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a MsgMigrateContract in https://github.com/line/lfb-sdk/blob/develop/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a MsgMigrateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "migrate"

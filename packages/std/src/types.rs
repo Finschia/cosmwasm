@@ -68,7 +68,7 @@ pub struct BlockInfo {
 /// along with the contract execution message into the `instantiate` and `execute` entry points.
 ///
 /// It contains the essential info for authorization - identity of the call, and payment.
-/// `MsgInstantiateContract` and `MsgExecuteContract` are defined in https://github.com/line/lfb-sdk/blob/develop/x/wasm/internal/types/tx.proto .
+/// `MsgInstantiateContract` and `MsgExecuteContract` are defined in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto .
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MessageInfo {
     /// The `sender` field from `MsgInstantiateContract` and `MsgExecuteContract`.

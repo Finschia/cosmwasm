@@ -16,7 +16,7 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CallbackMsg {
-    /// This type must match ExecuteMsg::InitCallback from [ibc-reflect](https://github.com/line/cosmwasm/blob/develop/contracts/ibc-reflect/src/msg.rs)
+    /// This type must match ExecuteMsg::InitCallback from [ibc-reflect](https://github.com/line/cosmwasm/blob/main/contracts/ibc-reflect/src/msg.rs)
     InitCallback {
         /// Callback ID provided in the InstantiateMsg
         id: String,
