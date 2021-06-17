@@ -15,7 +15,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// InitCallback is returned from reflect contract after a new contract is set up.
     ///
-    /// This type must match CallbackMsg::InitCallback from [reflect](https://github.com/line/cosmwasm/blob/develop/contracts/ibc-reflect/src/msg.rs).
+    /// This type must match CallbackMsg::InitCallback from [reflect](https://github.com/line/cosmwasm/blob/main/contracts/ibc-reflect/src/msg.rs).
     InitCallback {
         /// id was provided in the InitMsg
         id: String,
