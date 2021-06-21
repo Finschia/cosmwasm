@@ -32,7 +32,7 @@ pub struct GasConfig {
 }
 
 impl GasConfig {
-    // Base crypto-verify gas cost: 1000 Cosmos SDK * 100 CosmWasm factor
+    // Base crypto-verify gas cost: 1000 lbf-sdk * 100 CosmWasm factor
     const BASE_CRYPTO_COST: u64 = 100_000;
 
     // secp256k1 cost factor (reference)
@@ -83,7 +83,7 @@ pub struct GasState {
     /// Gas limit for the computation, including internally and externally used gas.
     /// This is set when the Environment is created and never mutated.
     pub gas_limit: u64,
-    /// Tracking the gas used in the Cosmos SDK, in CosmWasm gas units.
+    /// Tracking the gas used in the lbf-sdk, in CosmWasm gas units.
     pub externally_used_gas: u64,
 }
 

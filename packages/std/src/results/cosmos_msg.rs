@@ -39,14 +39,14 @@ where
 
 /// The message types of the bank module.
 ///
-/// See https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/bank/v1beta1/tx.proto
+/// See https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankMsg {
     /// Sends native tokens from the contract to the given address.
     ///
-    /// This is translated to a [MsgSend](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/bank/v1beta1/tx.proto#L19-L28).
+    /// This is translated to a MsgSend in https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto.
     /// `from_address` is automatically filled with the current contract's address.
     Send {
         to_address: HumanAddr,
@@ -56,19 +56,19 @@ pub enum BankMsg {
 
 /// The message types of the staking module.
 ///
-/// See https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto
+/// See https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StakingMsg {
-    /// This is translated to a [MsgDelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L81-L90).
+    /// This is translated to a MsgDelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Delegate { validator: HumanAddr, amount: Coin },
-    /// This is translated to a [MsgUndelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L112-L121).
+    /// This is translated to a MsgUndelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Undelegate { validator: HumanAddr, amount: Coin },
-    /// This is translated to a [MsgSetWithdrawAddress](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/distribution/v1beta1/tx.proto#L29-L37)
-    /// followed by a [MsgWithdrawDelegatorReward](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/distribution/v1beta1/tx.proto#L42-L50).
+    /// This is translated to a MsgSetWithdrawAddress in https://github.com/line/lfb-sdk/blob/main/proto/lfb/distribution/v1beta1/tx.proto.
+    /// followed by a MsgWithdrawDelegatorReward in https://github.com/line/lfb-sdk/blob/main/proto/lfb/distribution/v1beta1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Withdraw {
         validator: HumanAddr,
@@ -76,7 +76,7 @@ pub enum StakingMsg {
         /// if None, then use delegator address
         recipient: Option<HumanAddr>,
     },
-    /// This is translated to a [MsgBeginRedelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L95-L105).
+    /// This is translated to a MsgBeginRedelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Redelegate {
         src_validator: HumanAddr,
@@ -87,14 +87,14 @@ pub enum StakingMsg {
 
 /// The message types of the wasm module.
 ///
-/// See https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto
+/// See https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WasmMsg {
     /// Dispatches a call to another contract at a known address (with known ABI).
     ///
-    /// This is translated to a [MsgExecuteContract](https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto#L68-L78).
+    /// This is translated to a MsgExecuteContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Execute {
         contract_addr: HumanAddr,
@@ -104,7 +104,7 @@ pub enum WasmMsg {
     },
     /// Instantiates a new contracts from previously uploaded Wasm code.
     ///
-    /// This is translated to a [MsgInstantiateContract](https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto#L47-L61).
+    /// This is translated to a MsgInstantiateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Instantiate {
         code_id: u64,
@@ -119,7 +119,7 @@ pub enum WasmMsg {
     ///
     /// Only the contract admin (as defined in wasmd), if any, is able to make this call.
     ///
-    /// This is translated to a [MsgMigrateContract](https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto#L86-L96).
+    /// This is translated to a MsgMigrateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Migrate {
         contract_addr: HumanAddr,
