@@ -48,7 +48,7 @@ pub fn reply(deps: DepsMut, _env: Env, reply: Reply) -> StdResult<Response> {
     }
 }
 
-// see https://github.com/CosmWasm/wasmd/blob/408bba14a5c6d583abe32ffb235a364130136298/x/wasm/keeper/msg_server.go#L63-L69
+// see https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/keeper/msg_server.go
 fn parse_contract_from_event(events: Vec<Event>) -> Option<String> {
     events
         .into_iter()

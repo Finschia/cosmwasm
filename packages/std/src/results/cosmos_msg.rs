@@ -74,7 +74,7 @@ pub enum StakingMsg {
     /// This is translated to a MsgUndelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Undelegate { validator: String, amount: Coin },
-    /// This is translated to a MsgSetWithdrawAddress in https://github.com/line/lfb-sdk/blob/main/proto/lfb/distribution/v1beta1/tx.proto.    /// This is translated to a MsgSetWithdrawAddress in https://github.com/line/lfb-sdk/blob/main/proto/lfb/distribution/v1beta1/tx.proto.
+    /// This is translated to a MsgBeginRedelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Redelegate {
         src_validator: String,

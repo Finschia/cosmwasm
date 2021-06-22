@@ -21,7 +21,7 @@ pub struct MigrateMsg {
     pub verifier: String,
 }
 
-/// SudoMsg is only exposed for internal Cosmos SDK modules to call.
+/// SudoMsg is only exposed for internal lfb-sdk modules to call.
 /// This is showing how we can expose "admin" functionality than can not be called by
 /// external users or contracts, but only trusted (native/Go) code in the blockchain
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -34,7 +34,6 @@ pub enum SudoMsg {
 }
 
 // failure modes to help test wasmd, based on this comment
-// https://github.com/cosmwasm/wasmd/issues/8#issuecomment-576146751
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
