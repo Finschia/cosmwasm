@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use crate::math::Uint128;
 
@@ -18,6 +19,16 @@ impl Coin {
     }
 }
 
+impl fmt::Display for Coin {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // We use the formatting without a space between amount and denom,
+        // which is common in the Cosmos SDK ecosystem:
+        // https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/types/coin.go#L643-L645
+        // For communication to end users, Coin needs to transformed anways (e.g. convert integer uatom to decimal ATOM).
+        write!(f, "{}{}", self.amount, self.denom)
+    }
+}
+
 /// A shortcut constructor for a set of one denomination of coins
 ///
 /// # Examples
@@ -31,7 +42,7 @@ impl Coin {
 ///
 /// let mut response: Response = Default::default();
 /// response.messages = vec![CosmosMsg::Bank(BankMsg::Send {
-///   to_address: info.sender,
+///   to_address: info.sender.into(),
 ///   amount: tip,
 /// })];
 /// ```
@@ -55,7 +66,7 @@ pub fn coins<S: Into<String>>(amount: u128, denom: S) -> Vec<Coin> {
 ///
 /// let mut response: Response = Default::default();
 /// response.messages = vec![CosmosMsg::Bank(BankMsg::Send {
-///     to_address: info.sender,
+///     to_address: info.sender.into(),
 ///     amount: tip,
 /// })];
 /// ```
@@ -75,6 +86,18 @@ pub fn has_coins(coins: &[Coin], required: &Coin) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn coin_implements_display() {
+        let a = Coin {
+            amount: Uint128(123),
+            denom: "ucosm".to_string(),
+        };
+
+        let embedded = format!("Amount: {}", a);
+        assert_eq!(embedded, "Amount: 123ucosm");
+        assert_eq!(a.to_string(), "123ucosm");
+    }
 
     #[test]
     fn coin_works() {

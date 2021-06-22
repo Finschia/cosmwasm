@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use cosmwasm_std::{to_vec, StdError, StdResult, Storage};
 #[cfg(feature = "iterator")]
-use cosmwasm_std::{Order, KV};
+use cosmwasm_std::{Order, Pair};
 
 use crate::length_prefixed::{to_length_prefixed, to_length_prefixed_nested};
 #[cfg(feature = "iterator")]
@@ -88,7 +88,7 @@ where
         start: Option<&[u8]>,
         end: Option<&[u8]>,
         order: Order,
-    ) -> Box<dyn Iterator<Item = StdResult<KV<T>>> + 'b> {
+    ) -> Box<dyn Iterator<Item = StdResult<Pair<T>>> + 'b> {
         let mapped = range_with_prefix(self.storage, &self.prefix, start, end, order)
             .map(deserialize_kv::<T>);
         Box::new(mapped)
@@ -159,7 +159,7 @@ where
         start: Option<&[u8]>,
         end: Option<&[u8]>,
         order: Order,
-    ) -> Box<dyn Iterator<Item = StdResult<KV<T>>> + 'b> {
+    ) -> Box<dyn Iterator<Item = StdResult<Pair<T>>> + 'b> {
         let mapped = range_with_prefix(self.storage, &self.prefix, start, end, order)
             .map(deserialize_kv::<T>);
         Box::new(mapped)
@@ -230,7 +230,7 @@ mod tests {
         };
         bucket.save(b"maria", &data).unwrap();
 
-        let reader = bucket_read::<Data>(&mut store, b"data");
+        let reader = bucket_read::<Data>(&store, b"data");
 
         // check empty data handling
         assert!(reader.load(b"john").is_err());
@@ -291,7 +291,7 @@ mod tests {
 
         // it's my birthday
         let birthday = |mayd: Option<Data>| -> StdResult<Data> {
-            let mut d = mayd.ok_or(StdError::not_found("Data"))?;
+            let mut d = mayd.ok_or_else(|| StdError::not_found("Data"))?;
             d.age += 1;
             Ok(d)
         };
@@ -321,7 +321,7 @@ mod tests {
         let mut old_age = 0i32;
         bucket
             .update(b"maria", |mayd: Option<Data>| -> StdResult<_> {
-                let mut d = mayd.ok_or(StdError::not_found("Data"))?;
+                let mut d = mayd.ok_or_else(|| StdError::not_found("Data"))?;
                 old_age = d.age;
                 d.age += 1;
                 Ok(d)
@@ -390,7 +390,7 @@ mod tests {
                 data.age += 1;
                 Ok(data)
             } else {
-                return Err(MyError::NotFound);
+                Err(MyError::NotFound)
             }
         });
         match res.unwrap_err() {
@@ -441,7 +441,7 @@ mod tests {
         bucket.save(b"maria", &maria).unwrap();
         bucket.save(b"jose", &jose).unwrap();
 
-        let res_data: StdResult<Vec<KV<Data>>> =
+        let res_data: StdResult<Vec<Pair<Data>>> =
             bucket.range(None, None, Order::Ascending).collect();
         let data = res_data.unwrap();
         assert_eq!(data.len(), 2);
@@ -450,7 +450,7 @@ mod tests {
 
         // also works for readonly
         let read_bucket = bucket_read::<Data>(&store, b"data");
-        let res_data: StdResult<Vec<KV<Data>>> =
+        let res_data: StdResult<Vec<Pair<Data>>> =
             read_bucket.range(None, None, Order::Ascending).collect();
         let data = res_data.unwrap();
         assert_eq!(data.len(), 2);
