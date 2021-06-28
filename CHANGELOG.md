@@ -1,5 +1,29 @@
 # Changelog
 
+## [[v0.14.0-0.4.0](https://github.com/line/cosmwasm/compare/v0.14.0-0.3.0...v0.14.0-0.4.0)] - 2021-06-28
+
+### Features
+* Remove cosmwasm-ext ([#117](https://github.com/line/cosmwasm/pull/117))
+
+### Changes
+
+* Update upstream Cosmwasm/cosmwasm version to 0.14.0 ([#122](https://github.com/line/cosmwasm/pull/122))
+  - Please refer [CHANGELOG_OF_COSMWASM_v0.14.0](https://github.com/CosmWasm/cosmwasm/blob/v0.14.0/CHANGELOG.md)
+
+### Chores
+
+* ci: Migrate CI to Actions ([#104](https://github.com/line/cosmwasm/pull/104))
+* docs: Renew CHANGELOG form ([#111](https://github.com/line/cosmwasm/pull/111))
+* docs: Add copyright to license and notice ([#113](https://github.com/line/cosmwasm/pull/113))
+* docs: Add contributing and CoC ([#114](https://github.com/line/cosmwasm/pull/114))
+* docs: Remove docs and add links to original docs ([#115](https://github.com/line/cosmwasm/pull/115))
+* Modify package description ([#114](https://github.com/line/cosmwasm/pull/114))
+* ci: Fix shellcheck failure ([#119](https://github.com/line/cosmwasm/pull/119))
+* docs: Change ref links to ours ([#120](https://github.com/line/cosmwasm/pull/120))
+* Merge develop into main ([#124](https://github.com/line/cosmwasm/pull/124))
+* Update pull request template ([#125](https://github.com/line/cosmwasm/pull/125))
+* Rename lbm to lfb ([#126](https://github.com/line/cosmwasm/pull/126))
+* Replace links in source ([#127](https://github.com/line/cosmwasm/pull/127))
 
 ## [[v0.14.0-0.3.0](https://github.com/line/cosmwasm/compare/v0.12.0-0.2.0...v0.14.0-0.3.0)] - 2021-04-02
 
