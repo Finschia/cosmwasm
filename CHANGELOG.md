@@ -2,13 +2,13 @@
 
 ## [[v0.14.0-0.4.0](https://github.com/line/cosmwasm/compare/v0.14.0-0.3.0...v0.14.0-0.4.0)] - 2021-06-28
 
-### Features
-* Remove cosmwasm-ext ([#117](https://github.com/line/cosmwasm/pull/117))
-
 ### Changes
 
 * Update upstream Cosmwasm/cosmwasm version to 0.14.0 ([#122](https://github.com/line/cosmwasm/pull/122))
   - Please refer [CHANGELOG_OF_COSMWASM_v0.14.0](https://github.com/CosmWasm/cosmwasm/blob/v0.14.0/CHANGELOG.md)
+
+### Removes
+* Remove cosmwasm-ext ([#117](https://github.com/line/cosmwasm/pull/117))
 
 ### Chores
 
