@@ -8,7 +8,7 @@ use crate::Binary;
 use super::{attr, Attribute, CosmosMsg, Empty, Response};
 
 #[deprecated(
-    since = "0.14.0",
+    since = "0.14.0-0.4.0",
     note = "Use mutating helpers on Response/InitResponse/HandleResponse/MigrateResponse directly."
 )]
 #[derive(Clone, Debug, PartialEq)]

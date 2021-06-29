@@ -23,11 +23,11 @@ pub use response::Response;
 pub use subcall::{Event, Reply, ReplyOn, SubMsg, SubcallResponse};
 pub use system_result::SystemResult;
 
-#[deprecated(since = "0.14.0", note = "Renamed to Response.")]
+#[deprecated(since = "0.14.0-0.4.0", note = "Renamed to Response.")]
 pub type InitResponse<T = Empty> = Response<T>;
 
-#[deprecated(since = "0.14.0", note = "Renamed to Response.")]
+#[deprecated(since = "0.14.0-0.4.0", note = "Renamed to Response.")]
 pub type HandleResponse<T = Empty> = Response<T>;
 
-#[deprecated(since = "0.14.0", note = "Renamed to Response.")]
+#[deprecated(since = "0.14.0-0.4.0", note = "Renamed to Response.")]
 pub type MigrateResponse<T = Empty> = Response<T>;
