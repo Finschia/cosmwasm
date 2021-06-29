@@ -1,7 +1,7 @@
 [package]
 name = "cosmwasm-std"
 version = "0.14.0-0.4.0"
-authors = ["LINE TECH PLUS Pte., Ltd."]
+authors = ["LINE Plus Corporation"]
 edition = "2018"
 description = "Standard library for Wasm based smart contracts on Cosmos blockchains"
 repository = "https://github.com/line/cosmwasm/tree/main/packages/std"

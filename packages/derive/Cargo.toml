@@ -1,7 +1,7 @@
 [package]
 name = "cosmwasm-derive"
 version = "0.14.0-0.4.0"
-authors = ["LINE TECH PLUS Pte., Ltd."]
+authors = ["LINE Plus Corporation"]
 edition = "2018"
 description = "A package for auto-generated code used for CosmWasm contract development. This is shipped as part of cosmwasm-std. Do not use directly."
 repository = "https://github.com/line/cosmwasm/tree/main/packages/derive"

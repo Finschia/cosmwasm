@@ -1,7 +1,7 @@
 [package]
 name = "cosmwasm-storage"
 version = "0.14.0-0.4.0"
-authors = ["LINE TECH PLUS Pte., Ltd."]
+authors = ["LINE Plus Corporation"]
 edition = "2018"
 description = "CosmWasm library with useful helpers for Storage patterns"
 repository = "https://github.com/line/cosmwasm/tree/main/packages/storage"
