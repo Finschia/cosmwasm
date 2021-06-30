@@ -9,4 +9,4 @@ is compiled into the smart contract.
 
 This package is part of the cosmwasm repository, licensed under the Apache
 License 2.0 (see [NOTICE](https://github.com/line/cosmwasm/blob/main/NOTICE)
-and [LICENSE](https://github.com/CosmWasm/line/blob/main/LICENSE)).
+and [LICENSE](https://github.com/line/cosmwasm/blob/main/LICENSE)).
