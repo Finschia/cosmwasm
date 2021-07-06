@@ -13,8 +13,9 @@ const SUPPORTED_IMPORTS: &[&str] = &[
     "env.db_read",
     "env.db_write",
     "env.db_remove",
-    "env.canonicalize_address",
-    "env.humanize_address",
+    "env.addr_validate",
+    "env.addr_canonicalize",
+    "env.addr_humanize",
     "env.secp256k1_verify",
     "env.secp256k1_recover_pubkey",
     "env.ed25519_verify",
@@ -149,14 +150,13 @@ fn check_wasm_features(module: &Module, supported_features: &HashSet<String>) ->
 mod tests {
     use super::*;
     use crate::errors::VmError;
-    use std::iter::FromIterator;
 
     static CONTRACT_0_6: &[u8] = include_bytes!("../testdata/hackatom_0.6.wasm");
     static CONTRACT_0_7: &[u8] = include_bytes!("../testdata/hackatom_0.7.wasm");
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 
     fn default_features() -> HashSet<String> {
-        HashSet::from_iter(["staking".to_string()].iter().cloned())
+        ["staking".to_string()].iter().cloned().collect()
     }
 
     #[test]
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn check_wasm_exports_works() {
         // this is invalid, as it doesn't contain all required exports
-        const WAT_MISSING_EXPORTS: &'static str = r#"
+        const WAT_MISSING_EXPORTS: &str = r#"
             (module
               (type $t0 (func (param i32) (result i32)))
               (func $add_one (export "add_one") (type $t0) (param $p0 i32) (result i32)
@@ -320,8 +320,9 @@ mod tests {
             (import "env" "db_read" (func (param i32 i32) (result i32)))
             (import "env" "db_write" (func (param i32 i32) (result i32)))
             (import "env" "db_remove" (func (param i32) (result i32)))
-            (import "env" "canonicalize_address" (func (param i32 i32) (result i32)))
-            (import "env" "humanize_address" (func (param i32 i32) (result i32)))
+            (import "env" "addr_validate" (func (param i32) (result i32)))
+            (import "env" "addr_canonicalize" (func (param i32 i32) (result i32)))
+            (import "env" "addr_humanize" (func (param i32 i32) (result i32)))
             (import "env" "secp256k1_verify" (func (param i32 i32 i32) (result i32)))
             (import "env" "secp256k1_recover_pubkey" (func (param i32 i32 i32) (result i64)))
             (import "env" "ed25519_verify" (func (param i32 i32 i32) (result i32)))
@@ -355,8 +356,8 @@ mod tests {
             "env.db_read",
             "env.db_write",
             "env.db_remove",
-            "env.canonicalize_address",
-            "env.humanize_address",
+            "env.addr_canonicalize",
+            "env.addr_humanize",
             "env.debug",
             "env.query_chain",
         ];
@@ -366,7 +367,7 @@ mod tests {
                 println!("{}", msg);
                 assert_eq!(
                     msg,
-                    r#"Wasm contract requires unsupported import: "env.foo". Required imports: {"env.bar", "env.foo", "env.spammyspam01", "env.spammyspam02", "env.spammyspam03", "env.spammyspam04", "env.spammyspam05", "env.spammyspam06", "env.spammyspam07", "env.spammyspam08", ... 2 more}. Available imports: ["env.db_read", "env.db_write", "env.db_remove", "env.canonicalize_address", "env.humanize_address", "env.debug", "env.query_chain"]."#
+                    r#"Wasm contract requires unsupported import: "env.foo". Required imports: {"env.bar", "env.foo", "env.spammyspam01", "env.spammyspam02", "env.spammyspam03", "env.spammyspam04", "env.spammyspam05", "env.spammyspam06", "env.spammyspam07", "env.spammyspam08", ... 2 more}. Available imports: ["env.db_read", "env.db_write", "env.db_remove", "env.addr_canonicalize", "env.addr_humanize", "env.debug", "env.query_chain"]."#
                 );
             }
             err => panic!("Unexpected error: {:?}", err),
@@ -417,16 +418,15 @@ mod tests {
         )
         .unwrap();
         let module = deserialize_wasm(&wasm).unwrap();
-        let supported = HashSet::from_iter(
-            [
-                "water".to_string(),
-                "nutrients".to_string(),
-                "sun".to_string(),
-                "freedom".to_string(),
-            ]
-            .iter()
-            .cloned(),
-        );
+        let supported = [
+            "water".to_string(),
+            "nutrients".to_string(),
+            "sun".to_string(),
+            "freedom".to_string(),
+        ]
+        .iter()
+        .cloned()
+        .collect();
         check_wasm_features(&module, &supported).unwrap();
     }
 
@@ -448,15 +448,14 @@ mod tests {
         let module = deserialize_wasm(&wasm).unwrap();
 
         // Support set 1
-        let supported = HashSet::from_iter(
-            [
-                "water".to_string(),
-                "nutrients".to_string(),
-                "freedom".to_string(),
-            ]
-            .iter()
-            .cloned(),
-        );
+        let supported = [
+            "water".to_string(),
+            "nutrients".to_string(),
+            "freedom".to_string(),
+        ]
+        .iter()
+        .cloned()
+        .collect();
         match check_wasm_features(&module, &supported).unwrap_err() {
             VmError::StaticValidationErr { msg, .. } => assert_eq!(
                 msg,
@@ -466,15 +465,14 @@ mod tests {
         }
 
         // Support set 2
-        let supported = HashSet::from_iter(
-            [
-                "nutrients".to_string(),
-                "freedom".to_string(),
-                "Water".to_string(), // features are case sensitive (and lowercase by convention)
-            ]
-            .iter()
-            .cloned(),
-        );
+        let supported = [
+            "nutrients".to_string(),
+            "freedom".to_string(),
+            "Water".to_string(), // features are case sensitive (and lowercase by convention)
+        ]
+        .iter()
+        .cloned()
+        .collect();
         match check_wasm_features(&module, &supported).unwrap_err() {
             VmError::StaticValidationErr { msg, .. } => assert_eq!(
                 msg,
@@ -484,7 +482,7 @@ mod tests {
         }
 
         // Support set 3
-        let supported = HashSet::from_iter(["freedom".to_string()].iter().cloned());
+        let supported = ["freedom".to_string()].iter().cloned().collect();
         match check_wasm_features(&module, &supported).unwrap_err() {
             VmError::StaticValidationErr { msg, .. } => assert_eq!(
                 msg,
@@ -494,7 +492,7 @@ mod tests {
         }
 
         // Support set 4
-        let supported = HashSet::from_iter([].iter().cloned());
+        let supported = [].iter().cloned().collect();
         match check_wasm_features(&module, &supported).unwrap_err() {
             VmError::StaticValidationErr { msg, .. } => assert_eq!(
                 msg,

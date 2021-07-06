@@ -1,6 +1,6 @@
 use std::vec::Vec;
 
-use crate::addresses::{CanonicalAddr, HumanAddr};
+use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
 use crate::errors::{RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError};
 use crate::import_helpers::{from_high_half, from_low_half};
@@ -13,7 +13,7 @@ use crate::serde::from_slice;
 use crate::traits::{Api, Querier, QuerierResult, Storage};
 #[cfg(feature = "iterator")]
 use crate::{
-    iterator::{Order, KV},
+    iterator::{Order, Pair},
     memory::get_optional_region_address,
 };
 
@@ -24,7 +24,7 @@ const HUMAN_ADDRESS_BUFFER_LENGTH: usize = 90;
 
 // This interface will compile into required Wasm imports.
 // A complete documentation those functions is available in the VM that provides them:
-// https://github.com/confio/cosmwasm/blob/0.7/lib/vm/src/instance.rs#L43
+// https://github.com/line/cosmwasm/blob/main/packages/vm/src/instance.rs
 extern "C" {
     fn db_read(key: u32) -> u32;
     fn db_write(key: u32, value: u32);
@@ -36,8 +36,9 @@ extern "C" {
     #[cfg(feature = "iterator")]
     fn db_next(iterator_id: u32) -> u32;
 
-    fn canonicalize_address(source_ptr: u32, destination_ptr: u32) -> u32;
-    fn humanize_address(source_ptr: u32, destination_ptr: u32) -> u32;
+    fn addr_validate(source_ptr: u32) -> u32;
+    fn addr_canonicalize(source_ptr: u32, destination_ptr: u32) -> u32;
+    fn addr_humanize(source_ptr: u32, destination_ptr: u32) -> u32;
 
     fn secp256k1_verify(message_hash_ptr: u32, signature_ptr: u32, public_key_ptr: u32) -> u32;
     fn secp256k1_recover_pubkey(
@@ -83,7 +84,7 @@ impl Storage for ExternalStorage {
 
     fn set(&mut self, key: &[u8], value: &[u8]) {
         if value.is_empty() {
-            panic!("TL;DR: Value must not be empty in Storage::set but in most cases you can use Storage::remove instead. Long story: Getting empty values from storage is not well supported at the moment. Some of our internal interfaces cannot differentiate between a non-existent key and an empty value. Right now, you cannot rely on the behaviour of empty values. To protect you from trouble later on, we stop here. Sorry for the inconvenience! We highly welcome you to contribute to CosmWasm, making this more solid one way or the other.");
+            panic!("TL;DR: Value must not be empty in Storage::set but in most cases you can use Storage::remove instead. Long story: Getting empty values from storage is not well supported at the moment. Some of our internal interfaces cannot differentiate between a non-existent key and an empty value. Right now, you cannot rely on the behaviour of empty values. To protect you from trouble later on, we stop here. Sorry for the inconvenience! We highly welcome you to contribute to us, making this more solid one way or the other.");
         }
 
         // keep the boxes in scope, so we free it at the end (don't cast to pointers same line as build_region)
@@ -107,7 +108,7 @@ impl Storage for ExternalStorage {
         start: Option<&[u8]>,
         end: Option<&[u8]>,
         order: Order,
-    ) -> Box<dyn Iterator<Item = KV>> {
+    ) -> Box<dyn Iterator<Item = Pair>> {
         // There is lots of gotchas on turning options into regions for FFI, thus this design
         // See: https://github.com/CosmWasm/cosmwasm/pull/509
         let start_region = start.map(build_region);
@@ -129,7 +130,7 @@ struct ExternalIterator {
 
 #[cfg(feature = "iterator")]
 impl Iterator for ExternalIterator {
-    type Item = KV;
+    type Item = Pair;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next_result = unsafe { db_next(self.iterator_id) };
@@ -155,16 +156,32 @@ impl ExternalApi {
 }
 
 impl Api for ExternalApi {
-    fn canonical_address(&self, human: &HumanAddr) -> StdResult<CanonicalAddr> {
-        let send = build_region(human.as_str().as_bytes());
-        let send_ptr = &*send as *const Region as u32;
-        let canon = alloc(CANONICAL_ADDRESS_BUFFER_LENGTH);
+    fn addr_validate(&self, human: &str) -> StdResult<Addr> {
+        let source = build_region(human.as_bytes());
+        let source_ptr = &*source as *const Region as u32;
 
-        let result = unsafe { canonicalize_address(send_ptr, canon as u32) };
+        let result = unsafe { addr_validate(source_ptr) };
         if result != 0 {
             let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
             return Err(StdError::generic_err(format!(
-                "canonicalize_address errored: {}",
+                "addr_validate errored: {}",
+                error
+            )));
+        }
+
+        Ok(Addr::unchecked(human))
+    }
+
+    fn addr_canonicalize(&self, human: &str) -> StdResult<CanonicalAddr> {
+        let send = build_region(human.as_bytes());
+        let send_ptr = &*send as *const Region as u32;
+        let canon = alloc(CANONICAL_ADDRESS_BUFFER_LENGTH);
+
+        let result = unsafe { addr_canonicalize(send_ptr, canon as u32) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "addr_canonicalize errored: {}",
                 error
             )));
         }
@@ -173,22 +190,22 @@ impl Api for ExternalApi {
         Ok(CanonicalAddr(Binary(out)))
     }
 
-    fn human_address(&self, canonical: &CanonicalAddr) -> StdResult<HumanAddr> {
+    fn addr_humanize(&self, canonical: &CanonicalAddr) -> StdResult<Addr> {
         let send = build_region(&canonical);
         let send_ptr = &*send as *const Region as u32;
         let human = alloc(HUMAN_ADDRESS_BUFFER_LENGTH);
 
-        let result = unsafe { humanize_address(send_ptr, human as u32) };
+        let result = unsafe { addr_humanize(send_ptr, human as u32) };
         if result != 0 {
             let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
             return Err(StdError::generic_err(format!(
-                "humanize_address errored: {}",
+                "addr_humanize errored: {}",
                 error
             )));
         }
 
         let address = unsafe { consume_string_region_written_by_vm(human) };
-        Ok(address.into())
+        Ok(Addr::unchecked(address))
     }
 
     fn secp256k1_verify(

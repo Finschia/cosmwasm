@@ -1,5 +1,5 @@
 style: github
-template: CHANGELOG-LINK.tpl.md
+template: CHANGELOG.tpl.md
 info:
   title: CHANGELOG
   repository_url: https://github.com/line/cosmwasm
@@ -12,12 +12,14 @@ options:
         - fix
         - perf
         - refactor
+        - build
   commit_groups:
     title_maps:
       feat: Features
       fix: Fixes
-      perf: Performance Improvements
+      perf: Improvements
       refactor: Code Refactoring
+      build: Changes
   header:
     pattern: "^(\\w*)(?:\\(([\\w\\$\\.\\-\\*\\s]*)\\))?\\:\\s(.*)$"
     pattern_maps:

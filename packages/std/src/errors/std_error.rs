@@ -1,5 +1,6 @@
 #[cfg(feature = "backtraces")]
 use std::backtrace::Backtrace;
+use std::fmt;
 use thiserror::Error;
 
 use crate::errors::{RecoverPubkeyError, VerificationError};
@@ -82,10 +83,15 @@ pub enum StdError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
-    #[error("Cannot subtract {subtrahend} from {minuend}")]
-    Underflow {
-        minuend: String,
-        subtrahend: String,
+    #[error("Overflow: {source}")]
+    Overflow {
+        source: OverflowError,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("Divide by zero: {source}")]
+    DivideByZero {
+        source: DivideByZeroError,
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
@@ -168,10 +174,17 @@ impl StdError {
         }
     }
 
-    pub fn underflow<U: ToString>(minuend: U, subtrahend: U) -> Self {
-        StdError::Underflow {
-            minuend: minuend.to_string(),
-            subtrahend: subtrahend.to_string(),
+    pub fn overflow(source: OverflowError) -> Self {
+        StdError::Overflow {
+            source,
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub fn divide_by_zero(source: DivideByZeroError) -> Self {
+        StdError::DivideByZero {
+            source,
             #[cfg(feature = "backtraces")]
             backtrace: Backtrace::capture(),
         }
@@ -331,20 +344,34 @@ impl PartialEq<StdError> for StdError {
                     false
                 }
             }
-            StdError::Underflow {
-                minuend,
-                subtrahend,
+            StdError::Overflow {
+                source,
                 #[cfg(feature = "backtraces")]
                     backtrace: _,
             } => {
-                if let StdError::Underflow {
-                    minuend: rhs_minuend,
-                    subtrahend: rhs_subtrahend,
+                if let StdError::Overflow {
+                    source: rhs_source,
                     #[cfg(feature = "backtraces")]
                         backtrace: _,
                 } = rhs
                 {
-                    minuend == rhs_minuend && subtrahend == rhs_subtrahend
+                    source == rhs_source
+                } else {
+                    false
+                }
+            }
+            StdError::DivideByZero {
+                source,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::DivideByZero {
+                    source: rhs_source,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    source == rhs_source
                 } else {
                     false
                 }
@@ -377,12 +404,70 @@ impl From<RecoverPubkeyError> for StdError {
     }
 }
 
+impl From<OverflowError> for StdError {
+    fn from(source: OverflowError) -> Self {
+        Self::overflow(source)
+    }
+}
+
+impl From<DivideByZeroError> for StdError {
+    fn from(source: DivideByZeroError) -> Self {
+        Self::divide_by_zero(source)
+    }
+}
+
 /// The return type for init, execute and query. Since the error type cannot be serialized to JSON,
 /// this is only available within the contract and its unit tests.
 ///
 /// The prefix "Std" means "the standard result within the standard library". This is not the only
 /// result/error type in cosmwasm-std.
 pub type StdResult<T> = core::result::Result<T, StdError>;
+
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum OverflowOperation {
+    Add,
+    Sub,
+    Mul,
+    Pow,
+}
+
+impl fmt::Display for OverflowOperation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+#[derive(Error, Debug, PartialEq, Eq)]
+#[error("Cannot {operation} with {operand1} and {operand2}")]
+pub struct OverflowError {
+    pub operation: OverflowOperation,
+    pub operand1: String,
+    pub operand2: String,
+}
+
+impl OverflowError {
+    pub fn new<U: ToString>(operation: OverflowOperation, operand1: U, operand2: U) -> Self {
+        Self {
+            operation,
+            operand1: operand1.to_string(),
+            operand2: operand2.to_string(),
+        }
+    }
+}
+
+#[derive(Error, Debug, PartialEq, Eq)]
+#[error("Cannot devide {operand} by zero")]
+pub struct DivideByZeroError {
+    pub operand: String,
+}
+
+impl DivideByZeroError {
+    pub fn new<U: ToString>(operand: U) -> Self {
+        Self {
+            operand: operand.to_string(),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -513,58 +598,81 @@ mod tests {
 
     #[test]
     fn underflow_works_for_u128() {
-        let error = StdError::underflow(123u128, 456u128);
+        let error =
+            StdError::overflow(OverflowError::new(OverflowOperation::Sub, 123u128, 456u128));
         match error {
-            StdError::Underflow {
-                minuend,
-                subtrahend,
+            StdError::Overflow {
+                source:
+                    OverflowError {
+                        operation,
+                        operand1,
+                        operand2,
+                    },
                 ..
             } => {
-                assert_eq!(minuend, "123");
-                assert_eq!(subtrahend, "456");
+                assert_eq!(operation, OverflowOperation::Sub);
+                assert_eq!(operand1, "123");
+                assert_eq!(operand2, "456");
             }
             _ => panic!("expect different error"),
         }
     }
 
     #[test]
-    fn underflow_works_for_i64() {
-        let error = StdError::underflow(777i64, 1234i64);
+    fn overflow_works_for_i64() {
+        let error = StdError::overflow(OverflowError::new(OverflowOperation::Sub, 777i64, 1234i64));
         match error {
-            StdError::Underflow {
-                minuend,
-                subtrahend,
+            StdError::Overflow {
+                source:
+                    OverflowError {
+                        operation,
+                        operand1,
+                        operand2,
+                    },
                 ..
             } => {
-                assert_eq!(minuend, "777");
-                assert_eq!(subtrahend, "1234");
+                assert_eq!(operation, OverflowOperation::Sub);
+                assert_eq!(operand1, "777");
+                assert_eq!(operand2, "1234");
             }
+            _ => panic!("expect different error"),
+        }
+    }
+
+    #[test]
+    fn divide_by_zero_works() {
+        let error = StdError::divide_by_zero(DivideByZeroError::new(123u128));
+        match error {
+            StdError::DivideByZero {
+                source: DivideByZeroError { operand },
+                ..
+            } => assert_eq!(operand, "123"),
             _ => panic!("expect different error"),
         }
     }
 
     #[test]
     fn implements_debug() {
-        let error: StdError = StdError::underflow(3, 5);
-        let embedded = format!("Debug message: {:?}", error);
+        let error: StdError = StdError::from(OverflowError::new(OverflowOperation::Sub, 3, 5));
+        let embedded = format!("Debug: {:?}", error);
         assert_eq!(
             embedded,
-            r#"Debug message: Underflow { minuend: "3", subtrahend: "5" }"#
+            r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" } }"#
         );
     }
 
     #[test]
     fn implements_display() {
-        let error: StdError = StdError::underflow(3, 5);
-        let embedded = format!("Display message: {}", error);
-        assert_eq!(embedded, "Display message: Cannot subtract 5 from 3");
+        let error: StdError = StdError::from(OverflowError::new(OverflowOperation::Sub, 3, 5));
+        let embedded = format!("Display: {}", error);
+        assert_eq!(embedded, "Display: Overflow: Cannot Sub with 3 and 5");
     }
 
     #[test]
     fn implements_partial_eq() {
-        let u1 = StdError::underflow(3, 5);
-        let u2 = StdError::underflow(3, 5);
-        let u3 = StdError::underflow(3, 7);
+        let u1 = StdError::from(OverflowError::new(OverflowOperation::Sub, 3, 5));
+        let u2 = StdError::from(OverflowError::new(OverflowOperation::Sub, 3, 5));
+        let u3 = StdError::from(OverflowError::new(OverflowOperation::Sub, 3, 7));
         let s1 = StdError::serialize_err("Book", "Content too long");
         let s2 = StdError::serialize_err("Book", "Content too long");
         let s3 = StdError::serialize_err("Book", "Title too long");

@@ -12,7 +12,8 @@
         "verifier": {
           "type": "object"
         }
-      }
+      },
+      "additionalProperties": false
     },
     {
       "description": "This returns cosmwasm_std::AllBalanceResponse to demo use of the querier",
@@ -28,11 +29,12 @@
           ],
           "properties": {
             "address": {
-              "$ref": "#/definitions/HumanAddr"
+              "type": "string"
             }
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     {
       "description": "Recurse will execute a query into itself up to depth-times and return Each step of the recursion may perform some extra work to test gas metering (`work` rounds of sha256 on contract). Now that we have Env, we can auto-calculate the address to recurse into",
@@ -60,12 +62,8 @@
             }
           }
         }
-      }
+      },
+      "additionalProperties": false
     }
-  ],
-  "definitions": {
-    "HumanAddr": {
-      "type": "string"
-    }
-  }
+  ]
 }

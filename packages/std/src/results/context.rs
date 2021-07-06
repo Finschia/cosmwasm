@@ -8,7 +8,7 @@ use crate::Binary;
 use super::{attr, Attribute, CosmosMsg, Empty, Response};
 
 #[deprecated(
-    since = "0.14.0",
+    since = "0.14.0-0.4.0",
     note = "Use mutating helpers on Response/InitResponse/HandleResponse/MigrateResponse directly."
 )]
 #[derive(Clone, Debug, PartialEq)]
@@ -74,13 +74,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{coins, BankMsg, HumanAddr, Response};
+    use crate::{coins, BankMsg, Response};
 
     #[test]
     fn empty_context() {
         let ctx = Context::new();
 
-        let init: Response = ctx.clone().into();
+        let init: Response = ctx.into();
         assert_eq!(init, Response::default());
     }
 
@@ -89,23 +89,23 @@ mod tests {
         let mut ctx = Context::new();
 
         // build it up with the builder commands
-        ctx.add_attribute("sender", &HumanAddr::from("john"));
+        ctx.add_attribute("sender", &String::from("john"));
         ctx.add_attribute("action", "test");
         ctx.add_message(BankMsg::Send {
-            to_address: HumanAddr::from("foo"),
+            to_address: String::from("foo"),
             amount: coins(128, "uint"),
         });
         ctx.set_data(b"banana");
 
         // and this is what is should return
         let expected_msgs = vec![CosmosMsg::Bank(BankMsg::Send {
-            to_address: HumanAddr::from("foo"),
+            to_address: String::from("foo"),
             amount: coins(128, "uint"),
         })];
         let expected_attributes = vec![attr("sender", "john"), attr("action", "test")];
         let expected_data = Some(Binary::from(b"banana"));
 
-        let response: Response = ctx.clone().into();
+        let response: Response = ctx.into();
         assert_eq!(&response.messages, &expected_msgs);
         assert_eq!(&response.attributes, &expected_attributes);
         assert_eq!(&response.data, &expected_data);

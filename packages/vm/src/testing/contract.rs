@@ -105,7 +105,7 @@ mod test {
     use super::*;
     use crate::calls::{call_execute, call_instantiate, call_migrate, call_query};
     use crate::testing::{mock_backend, mock_env, mock_info, mock_instance, MockInstanceOptions};
-    use cosmwasm_std::{HandleResponse, HumanAddr, InitResponse, MigrateResponse, QueryResponse};
+    use cosmwasm_std::{QueryResponse, Response};
 
     static CONTRACT_WITHOUT_MIGRATE: &[u8] =
         include_bytes!("../../testdata/queue_0.14_without_migrate.wasm");
@@ -120,12 +120,12 @@ mod test {
 
         // common env/info
         let env = mock_env();
-        let info = mock_info(HumanAddr::from("sender"), &[]);
+        let info = mock_info("sender", &[]);
 
         // init
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
-        let _: InitResponse = call_instantiate(&mut instance, &env, &info, &msg)
+        let _: Response = call_instantiate(&mut instance, &env, &info, &msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -144,7 +144,7 @@ mod test {
         // handle and enqueue 42
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"enqueue\": {\"value\": 42}}".as_bytes();
-        let _: HandleResponse = call_execute(&mut instance, &env, &info, &msg)
+        let _: Response = call_execute(&mut instance, &env, &info, &msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -174,7 +174,7 @@ mod test {
         contract.change_wasm(CONTRACT_WITH_MIGRATE).unwrap();
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
-        let _: MigrateResponse = call_migrate(&mut instance, &env, &msg)
+        let _: Response = call_migrate(&mut instance, &env, &msg)
             .unwrap()
             .into_result()
             .unwrap();

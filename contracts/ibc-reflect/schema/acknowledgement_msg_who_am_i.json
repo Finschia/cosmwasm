@@ -12,7 +12,8 @@
         "ok": {
           "$ref": "#/definitions/WhoAmIResponse"
         }
-      }
+      },
+      "additionalProperties": false
     },
     {
       "description": "An error type that every custom error created by contract developers can be converted to. This could potientially have more structure, but String is the easiest.",
@@ -24,13 +25,11 @@
         "error": {
           "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
-    "HumanAddr": {
-      "type": "string"
-    },
     "WhoAmIResponse": {
       "description": "This is the success response we send on ack for PacketMsg::WhoAmI. Return the caller's account address on the remote chain",
       "type": "object",
@@ -39,7 +38,7 @@
       ],
       "properties": {
         "account": {
-          "$ref": "#/definitions/HumanAddr"
+          "type": "string"
         }
       }
     }

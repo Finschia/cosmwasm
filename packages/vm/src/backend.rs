@@ -3,9 +3,9 @@ use std::ops::AddAssign;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
-use cosmwasm_std::{Binary, CanonicalAddr, ContractResult, HumanAddr, SystemResult};
+use cosmwasm_std::{Binary, ContractResult, SystemResult};
 #[cfg(feature = "iterator")]
-use cosmwasm_std::{Order, KV};
+use cosmwasm_std::{Order, Pair};
 
 #[derive(Copy, Clone, Debug)]
 pub struct GasInfo {
@@ -104,7 +104,7 @@ pub trait Storage {
     /// This call must not change data in the storage, but incrementing an iterator can be a mutating operation on
     /// the Storage implementation.
     #[cfg(feature = "iterator")]
-    fn next(&mut self, iterator_id: u32) -> BackendResult<Option<KV>>;
+    fn next(&mut self, iterator_id: u32) -> BackendResult<Option<Pair>>;
 
     fn set(&mut self, key: &[u8], value: &[u8]) -> BackendResult<()>;
 
@@ -125,8 +125,8 @@ pub trait Storage {
 /// We can use feature flags to opt-in to non-essential methods
 /// for backwards compatibility in systems that don't have them all.
 pub trait BackendApi: Copy + Clone + Send {
-    fn canonical_address(&self, human: &HumanAddr) -> BackendResult<CanonicalAddr>;
-    fn human_address(&self, canonical: &CanonicalAddr) -> BackendResult<HumanAddr>;
+    fn canonical_address(&self, human: &str) -> BackendResult<Vec<u8>>;
+    fn human_address(&self, canonical: &[u8]) -> BackendResult<String>;
 }
 
 pub trait Querier {

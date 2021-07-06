@@ -1,6 +1,6 @@
 # cosmwasm-derive
 
-[![cosmwasm-derive on crates.io](https://img.shields.io/crates/v/cosmwasm-derive.svg)](https://crates.io/crates/cosmwasm-derive)
+_Forked from [CosmWasm/cosmwasm-derive](https://github.com/CosmWasm/cosmwasm/tree/main/packages/derive)_
 
 A package for auto-generated code used for CosmWasm contract development. This
 is shipped as part of cosmwasm-std. Do not use directly.
@@ -8,5 +8,5 @@ is shipped as part of cosmwasm-std. Do not use directly.
 ## License
 
 This package is part of the cosmwasm repository, licensed under the Apache
-License 2.0 (see [NOTICE](https://github.com/CosmWasm/cosmwasm/blob/main/NOTICE)
-and [LICENSE](https://github.com/CosmWasm/cosmwasm/blob/main/LICENSE)).
+License 2.0 (see [NOTICE](https://github.com/line/cosmwasm/blob/main/NOTICE)
+and [LICENSE](https://github.com/line/cosmwasm/blob/main/LICENSE)).

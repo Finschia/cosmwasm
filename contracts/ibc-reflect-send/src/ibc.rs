@@ -1,7 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, from_slice, to_binary, BlockInfo, DepsMut, Env, IbcAcknowledgement,
-    IbcBasicResponse, IbcChannel, IbcMsg, IbcOrder, IbcPacket, IbcReceiveResponse, StdError,
-    StdResult,
+    attr, entry_point, from_slice, to_binary, DepsMut, Env, IbcAcknowledgement, IbcBasicResponse,
+    IbcChannel, IbcMsg, IbcOrder, IbcPacket, IbcReceiveResponse, StdError, StdResult,
 };
 
 use crate::ibc_msg::{
@@ -13,12 +12,7 @@ pub const IBC_VERSION: &str = "ibc-reflect-v1";
 
 // TODO: make configurable?
 /// packets live one hour
-const PACKET_LIFETIME: u64 = 60 * 60;
-
-pub(crate) fn build_timeout_timestamp(block: &BlockInfo) -> u64 {
-    let timeout = block.time + PACKET_LIFETIME;
-    timeout * 1_000_000_000
-}
+pub const PACKET_LIFETIME: u64 = 60 * 60;
 
 #[entry_point]
 /// enforces ordering and versioing constraints
@@ -64,8 +58,7 @@ pub fn ibc_channel_connect(
     let msg = IbcMsg::SendPacket {
         channel_id: channel_id.clone(),
         data: to_binary(&packet)?,
-        timeout_block: None,
-        timeout_timestamp: Some(build_timeout_timestamp(&env.block)),
+        timeout: env.block.time.plus_seconds(PACKET_LIFETIME).into(),
     };
 
     Ok(IbcBasicResponse {
@@ -160,7 +153,7 @@ fn acknowledge_who_am_i(
     ack: AcknowledgementMsg<WhoAmIResponse>,
 ) -> StdResult<IbcBasicResponse> {
     // ignore errors (but mention in log)
-    let res: WhoAmIResponse = match ack {
+    let WhoAmIResponse { account } = match ack {
         AcknowledgementMsg::Ok(res) => res,
         AcknowledgementMsg::Err(e) => {
             return Ok(IbcBasicResponse {
@@ -176,7 +169,7 @@ fn acknowledge_who_am_i(
             Some(mut acct) => {
                 // set the account the first time
                 if acct.remote_addr.is_none() {
-                    acct.remote_addr = Some(res.account);
+                    acct.remote_addr = Some(account);
                 }
                 Ok(acct)
             }
@@ -199,7 +192,7 @@ fn acknowledge_balances(
     ack: AcknowledgementMsg<BalancesResponse>,
 ) -> StdResult<IbcBasicResponse> {
     // ignore errors (but mention in log)
-    let res: BalancesResponse = match ack {
+    let BalancesResponse { account, balances } = match ack {
         AcknowledgementMsg::Ok(res) => res,
         AcknowledgementMsg::Err(e) => {
             return Ok(IbcBasicResponse {
@@ -213,18 +206,18 @@ fn acknowledge_balances(
     accounts(deps.storage).update(caller.as_bytes(), |acct| -> StdResult<_> {
         match acct {
             Some(acct) => {
-                if let Some(old_addr) = &acct.remote_addr {
-                    if old_addr != &res.account {
+                if let Some(old_addr) = acct.remote_addr {
+                    if old_addr != account {
                         return Err(StdError::generic_err(format!(
                             "remote account changed from {} to {}",
-                            old_addr, &res.account
+                            old_addr, account
                         )));
                     }
                 }
                 Ok(AccountData {
                     last_update_time: env.block.time,
-                    remote_addr: Some(res.account),
-                    remote_balance: res.balances,
+                    remote_addr: Some(account),
+                    remote_balance: balances,
                 })
             }
             None => Err(StdError::generic_err("no account to update")),
@@ -262,7 +255,7 @@ mod tests {
         mock_dependencies, mock_env, mock_ibc_channel, mock_ibc_packet_ack, mock_info, MockApi,
         MockQuerier, MockStorage,
     };
-    use cosmwasm_std::{coin, coins, BankMsg, CosmosMsg, HumanAddr, OwnedDeps};
+    use cosmwasm_std::{coin, coins, BankMsg, CosmosMsg, OwnedDeps};
 
     const CREATOR: &str = "creator";
 
@@ -299,7 +292,7 @@ mod tests {
         };
     }
 
-    fn who_am_i_response<T: Into<HumanAddr>>(deps: DepsMut, channel_id: &str, account: T) {
+    fn who_am_i_response<T: Into<String>>(deps: DepsMut, channel_id: &str, account: T) {
         let packet = PacketMsg::WhoAmI {};
         let response = AcknowledgementMsg::Ok(WhoAmIResponse {
             account: account.into(),
@@ -341,7 +334,7 @@ mod tests {
         let acct: AccountResponse = from_slice(&r).unwrap();
         assert!(acct.remote_addr.is_none());
         assert!(acct.remote_balance.is_empty());
-        assert_eq!(0, acct.last_update_time);
+        assert_eq!(0, acct.last_update_time.nanos());
 
         // now get feedback from WhoAmI packet
         let remote_addr = "account-789";
@@ -353,9 +346,9 @@ mod tests {
         };
         let r = query(deps.as_ref(), mock_env(), q).unwrap();
         let acct: AccountResponse = from_slice(&r).unwrap();
-        assert_eq!(acct.remote_addr.unwrap(), HumanAddr::from(remote_addr));
+        assert_eq!(acct.remote_addr.unwrap(), remote_addr);
         assert!(acct.remote_balance.is_empty());
-        assert_eq!(0, acct.last_update_time);
+        assert_eq!(0, acct.last_update_time.nanos());
     }
 
     #[test]
@@ -447,14 +440,13 @@ mod tests {
                 channel_id,
                 to_address,
                 amount,
-                timeout_block,
-                timeout_timestamp,
+                timeout,
             }) => {
                 assert_eq!(transfer_channel_id, channel_id.as_str());
                 assert_eq!(remote_addr, to_address.as_str());
                 assert_eq!(&coin(12344, "utrgd"), amount);
-                assert!(timeout_block.is_none());
-                assert!(timeout_timestamp.is_some());
+                assert!(timeout.block().is_none());
+                assert!(timeout.timestamp().is_some());
             }
             o => panic!("unexpected message: {:?}", o),
         }

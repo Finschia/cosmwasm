@@ -13,7 +13,6 @@ use cosmwasm_crypto::{
 
 #[cfg(feature = "iterator")]
 use cosmwasm_std::Order;
-use cosmwasm_std::{CanonicalAddr, HumanAddr};
 
 use crate::backend::{BackendApi, BackendError, Querier, Storage};
 use crate::conversion::{ref_to_u32, to_u32};
@@ -36,7 +35,7 @@ const MI: usize = 1024 * 1024;
 const MAX_LENGTH_DB_KEY: usize = 64 * KI;
 /// Max key length for db_write (i.e. when VM reads from Wasm memory)
 const MAX_LENGTH_DB_VALUE: usize = 128 * KI;
-/// Typically 20 (Cosmos SDK, Ethereum) or 32 (Nano, Substrate)
+/// Typically 20 (lbf-sdk, Cosmos SDK, Ethereum) or 32 (Nano, Substrate)
 const MAX_LENGTH_CANONICAL_ADDRESS: usize = 32;
 /// The maximum allowed size for bech32 (https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32)
 const MAX_LENGTH_HUMAN_ADDRESS: usize = 90;
@@ -74,20 +73,27 @@ pub fn native_db_remove<A: BackendApi, S: Storage, Q: Querier>(
     do_remove(env, key_ptr)
 }
 
-pub fn native_canonicalize_address<A: BackendApi, S: Storage, Q: Querier>(
+pub fn native_addr_validate<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     source_ptr: u32,
-    destination_ptr: u32,
 ) -> VmResult<u32> {
-    do_canonicalize_address(&env, source_ptr, destination_ptr)
+    do_addr_validate(&env, source_ptr)
 }
 
-pub fn native_humanize_address<A: BackendApi, S: Storage, Q: Querier>(
+pub fn native_addr_canonicalize<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     source_ptr: u32,
     destination_ptr: u32,
 ) -> VmResult<u32> {
-    do_humanize_address(&env, source_ptr, destination_ptr)
+    do_addr_canonicalize(&env, source_ptr, destination_ptr)
+}
+
+pub fn native_addr_humanize<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    source_ptr: u32,
+    destination_ptr: u32,
+) -> VmResult<u32> {
+    do_addr_humanize(&env, source_ptr, destination_ptr)
 }
 
 pub fn native_secp256k1_verify<A: BackendApi, S: Storage, Q: Querier>(
@@ -226,28 +232,47 @@ fn do_remove<A: BackendApi, S: Storage, Q: Querier>(
     Ok(())
 }
 
-fn do_canonicalize_address<A: BackendApi, S: Storage, Q: Querier>(
+fn do_addr_validate<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    source_ptr: u32,
+) -> VmResult<u32> {
+    let source_data = read_region(&env.memory(), source_ptr, MAX_LENGTH_HUMAN_ADDRESS)?;
+    if source_data.is_empty() {
+        return write_to_contract::<A, S, Q>(env, b"Input is empty");
+    }
+
+    let source_string = match String::from_utf8(source_data) {
+        Ok(s) => s,
+        Err(_) => return write_to_contract::<A, S, Q>(env, b"Input is not valid UTF-8"),
+    };
+
+    let (result, gas_info) = env.api.canonical_address(&source_string);
+    process_gas_info::<A, S, Q>(env, gas_info)?;
+    match result {
+        Ok(_canonical) => Ok(0),
+        Err(BackendError::UserErr { msg, .. }) => {
+            Ok(write_to_contract::<A, S, Q>(env, msg.as_bytes())?)
+        }
+        Err(err) => Err(VmError::from(err)),
+    }
+}
+
+fn do_addr_canonicalize<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     source_ptr: u32,
     destination_ptr: u32,
 ) -> VmResult<u32> {
     let source_data = read_region(&env.memory(), source_ptr, MAX_LENGTH_HUMAN_ADDRESS)?;
     if source_data.is_empty() {
-        return Ok(write_to_contract::<A, S, Q>(env, b"Input is empty")?);
+        return write_to_contract::<A, S, Q>(env, b"Input is empty");
     }
 
     let source_string = match String::from_utf8(source_data) {
         Ok(s) => s,
-        Err(_) => {
-            return Ok(write_to_contract::<A, S, Q>(
-                env,
-                b"Input is not valid UTF-8",
-            )?)
-        }
+        Err(_) => return write_to_contract::<A, S, Q>(env, b"Input is not valid UTF-8"),
     };
-    let human: HumanAddr = source_string.into();
 
-    let (result, gas_info) = env.api.canonical_address(&human);
+    let (result, gas_info) = env.api.canonical_address(&source_string);
     process_gas_info::<A, S, Q>(env, gas_info)?;
     match result {
         Ok(canonical) => {
@@ -261,19 +286,18 @@ fn do_canonicalize_address<A: BackendApi, S: Storage, Q: Querier>(
     }
 }
 
-fn do_humanize_address<A: BackendApi, S: Storage, Q: Querier>(
+fn do_addr_humanize<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     source_ptr: u32,
     destination_ptr: u32,
 ) -> VmResult<u32> {
-    let canonical: CanonicalAddr =
-        read_region(&env.memory(), source_ptr, MAX_LENGTH_CANONICAL_ADDRESS)?.into();
+    let canonical = read_region(&env.memory(), source_ptr, MAX_LENGTH_CANONICAL_ADDRESS)?;
 
     let (result, gas_info) = env.api.human_address(&canonical);
     process_gas_info::<A, S, Q>(env, gas_info)?;
     match result {
         Ok(human) => {
-            write_region(&env.memory(), destination_ptr, human.as_str().as_bytes())?;
+            write_region(&env.memory(), destination_ptr, human.as_bytes())?;
             Ok(0)
         }
         Err(BackendError::UserErr { msg, .. }) => {
@@ -512,7 +536,7 @@ fn to_low_half(data: u32) -> u64 {
 mod tests {
     use super::*;
     use cosmwasm_std::{
-        coins, from_binary, AllBalanceResponse, BankQuery, Binary, Empty, HumanAddr, QueryRequest,
+        coins, from_binary, AllBalanceResponse, BankQuery, Binary, Empty, QueryRequest,
         SystemError, SystemResult, WasmQuery,
     };
     use hex_literal::hex;
@@ -525,11 +549,6 @@ mod tests {
     use crate::wasm_backend::compile;
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
-
-    // shorthands for function generics below
-    type MA = MockApi;
-    type MS = MockStorage;
-    type MQ = MockQuerier;
 
     // prepared data
     const KEY1: &[u8] = b"ant";
@@ -554,7 +573,12 @@ mod tests {
     const EDDSA_PUBKEY_HEX: &str =
         "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
 
-    fn make_instance(api: MA) -> (Environment<MA, MS, MQ>, Box<WasmerInstance>) {
+    fn make_instance(
+        api: MockApi,
+    ) -> (
+        Environment<MockApi, MockStorage, MockQuerier>,
+        Box<WasmerInstance>,
+    ) {
         let gas_limit = TESTING_GAS_LIMIT;
         let env = Environment::new(api, gas_limit, false);
 
@@ -569,8 +593,9 @@ mod tests {
                 "db_scan" => Function::new_native(&store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
                 "db_next" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
                 "query_chain" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "canonicalize_address" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "humanize_address" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
+                "addr_validate" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
+                "addr_canonicalize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
+                "addr_humanize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
                 "secp256k1_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
                 "secp256k1_recover_pubkey" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
                 "ed25519_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
@@ -588,17 +613,17 @@ mod tests {
         (env, instance)
     }
 
-    fn leave_default_data(env: &Environment<MA, MS, MQ>) {
+    fn leave_default_data(env: &Environment<MockApi, MockStorage, MockQuerier>) {
         // create some mock data
         let mut storage = MockStorage::new();
         storage.set(KEY1, VALUE1).0.expect("error setting");
         storage.set(KEY2, VALUE2).0.expect("error setting");
         let querier: MockQuerier<Empty> =
-            MockQuerier::new(&[(&HumanAddr::from(INIT_ADDR), &coins(INIT_AMOUNT, INIT_DENOM))]);
+            MockQuerier::new(&[(INIT_ADDR, &coins(INIT_AMOUNT, INIT_DENOM))]);
         env.move_in(storage, querier);
     }
 
-    fn write_data(env: &Environment<MA, MS, MQ>, data: &[u8]) -> u32 {
+    fn write_data(env: &Environment<MockApi, MockStorage, MockQuerier>, data: &[u8]) -> u32 {
         let result = env
             .call_function1("allocate", &[(data.len() as u32).into()])
             .unwrap();
@@ -615,12 +640,14 @@ mod tests {
         let result = allocate
             .call(&[capacity.into()])
             .expect("error calling allocate");
-        let region_ptr = ref_to_u32(&result[0]).expect("error converting result");
-        region_ptr
+        ref_to_u32(&result[0]).expect("error converting result")
     }
 
     /// A Region reader that is just good enough for the tests in this file
-    fn force_read(env: &Environment<MA, MS, MQ>, region_ptr: u32) -> Vec<u8> {
+    fn force_read(
+        env: &Environment<MockApi, MockStorage, MockQuerier>,
+        region_ptr: u32,
+    ) -> Vec<u8> {
         read_region(&env.memory(), region_ptr, 5000).unwrap()
     }
 
@@ -631,7 +658,7 @@ mod tests {
         leave_default_data(&env);
 
         let key_ptr = write_data(&env, KEY1);
-        let result = do_read::<MA, MS, MQ>(&env, key_ptr);
+        let result = do_read(&env, key_ptr);
         let value_ptr = result.unwrap();
         assert!(value_ptr > 0);
         assert_eq!(force_read(&env, value_ptr as u32), VALUE1);
@@ -644,7 +671,7 @@ mod tests {
         leave_default_data(&env);
 
         let key_ptr = write_data(&env, b"I do not exist in storage");
-        let result = do_read::<MA, MS, MQ>(&env, key_ptr);
+        let result = do_read(&env, key_ptr);
         assert_eq!(result.unwrap(), 0);
     }
 
@@ -655,7 +682,7 @@ mod tests {
         leave_default_data(&env);
 
         let key_ptr = write_data(&env, &vec![7u8; 300 * 1024]);
-        let result = do_read::<MA, MS, MQ>(&env, key_ptr);
+        let result = do_read(&env, key_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionLengthTooBig { length, .. },
@@ -675,7 +702,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        do_write::<MA, MS, MQ>(&env, key_ptr, value_ptr).unwrap();
+        do_write(&env, key_ptr, value_ptr).unwrap();
 
         let val = env
             .with_storage_from_context::<_, _>(|store| {
@@ -698,7 +725,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        do_write::<MA, MS, MQ>(&env, key_ptr, value_ptr).unwrap();
+        do_write(&env, key_ptr, value_ptr).unwrap();
 
         let val = env
             .with_storage_from_context::<_, _>(|store| {
@@ -718,7 +745,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        do_write::<MA, MS, MQ>(&env, key_ptr, value_ptr).unwrap();
+        do_write(&env, key_ptr, value_ptr).unwrap();
 
         let val = env
             .with_storage_from_context::<_, _>(|store| {
@@ -741,7 +768,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_write::<MA, MS, MQ>(&env, key_ptr, value_ptr);
+        let result = do_write(&env, key_ptr, value_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source:
@@ -767,7 +794,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_write::<MA, MS, MQ>(&env, key_ptr, value_ptr);
+        let result = do_write(&env, key_ptr, value_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source:
@@ -794,7 +821,7 @@ mod tests {
         leave_default_data(&env);
         env.set_storage_readonly(true);
 
-        let result = do_write::<MA, MS, MQ>(&env, key_ptr, value_ptr);
+        let result = do_write(&env, key_ptr, value_ptr);
         match result.unwrap_err() {
             VmError::WriteAccessDenied { .. } => {}
             e => panic!("Unexpected error: {:?}", e),
@@ -817,7 +844,7 @@ mod tests {
         })
         .unwrap();
 
-        do_remove::<MA, MS, MQ>(&env, key_ptr).unwrap();
+        do_remove(&env, key_ptr).unwrap();
 
         env.with_storage_from_context::<_, _>(|store| {
             println!("{:?}", store);
@@ -844,7 +871,7 @@ mod tests {
         leave_default_data(&env);
 
         // Note: right now we cannot differnetiate between an existent and a non-existent key
-        do_remove::<MA, MS, MQ>(&env, key_ptr).unwrap();
+        do_remove(&env, key_ptr).unwrap();
 
         let value = env
             .with_storage_from_context::<_, _>(|store| {
@@ -863,7 +890,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_remove::<MA, MS, MQ>(&env, key_ptr);
+        let result = do_remove(&env, key_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source:
@@ -889,7 +916,7 @@ mod tests {
         leave_default_data(&env);
         env.set_storage_readonly(true);
 
-        let result = do_remove::<MA, MS, MQ>(&env, key_ptr);
+        let result = do_remove(&env, key_ptr);
         match result.unwrap_err() {
             VmError::WriteAccessDenied { .. } => {}
             e => panic!("Unexpected error: {:?}", e),
@@ -897,61 +924,55 @@ mod tests {
     }
 
     #[test]
-    fn do_canonicalize_address_works() {
+    fn do_addr_validate_works() {
         let api = MockApi::default();
-        let (env, mut instance) = make_instance(api);
-        let api = MockApi::default();
+        let (env, _instance) = make_instance(api);
 
         let source_ptr = write_data(&env, b"foo");
-        let dest_ptr = create_empty(&mut instance, api.canonical_length as u32);
 
         leave_default_data(&env);
 
-        let api = MockApi::default();
-        do_canonicalize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr).unwrap();
-        let data = force_read(&env, dest_ptr);
-        assert_eq!(data.len(), api.canonical_length);
+        let res = do_addr_validate(&env, source_ptr).unwrap();
+        assert_eq!(res, 0);
     }
 
     #[test]
-    fn do_canonicalize_address_reports_invalid_input_back_to_contract() {
+    fn do_addr_validate_reports_invalid_input_back_to_contract() {
         let api = MockApi::default();
-        let (env, mut instance) = make_instance(api);
+        let (env, _instance) = make_instance(api);
 
         let source_ptr1 = write_data(&env, b"fo\x80o"); // invalid UTF-8 (fo�o)
         let source_ptr2 = write_data(&env, b""); // empty
         let source_ptr3 = write_data(&env, b"addressexceedingaddressspace"); // too long
-        let dest_ptr = create_empty(&mut instance, 8);
 
         leave_default_data(&env);
 
-        let res = do_canonicalize_address::<MA, MS, MQ>(&env, source_ptr1, dest_ptr).unwrap();
+        let res = do_addr_validate(&env, source_ptr1).unwrap();
         assert_ne!(res, 0);
         let err = String::from_utf8(force_read(&env, res)).unwrap();
         assert_eq!(err, "Input is not valid UTF-8");
 
-        let res = do_canonicalize_address::<MA, MS, MQ>(&env, source_ptr2, dest_ptr).unwrap();
+        let res = do_addr_validate(&env, source_ptr2).unwrap();
         assert_ne!(res, 0);
         let err = String::from_utf8(force_read(&env, res)).unwrap();
         assert_eq!(err, "Input is empty");
 
-        let res = do_canonicalize_address::<MA, MS, MQ>(&env, source_ptr3, dest_ptr).unwrap();
+        let res = do_addr_validate(&env, source_ptr3).unwrap();
         assert_ne!(res, 0);
         let err = String::from_utf8(force_read(&env, res)).unwrap();
         assert_eq!(err, "Invalid input: human address too long");
     }
 
     #[test]
-    fn do_canonicalize_address_fails_for_broken_backend() {
+    fn do_addr_validate_fails_for_broken_backend() {
         let api = MockApi::new_failing("Temporarily unavailable");
-        let (env, mut instance) = make_instance(api);
+        let (env, _instance) = make_instance(api);
 
         let source_ptr = write_data(&env, b"foo");
-        let dest_ptr = create_empty(&mut instance, 7);
 
         leave_default_data(&env);
 
-        let result = do_canonicalize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr);
+        let result = do_addr_validate(&env, source_ptr);
         match result.unwrap_err() {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg, .. },
@@ -964,16 +985,15 @@ mod tests {
     }
 
     #[test]
-    fn do_canonicalize_address_fails_for_large_inputs() {
+    fn do_addr_validate_fails_for_large_inputs() {
         let api = MockApi::default();
-        let (env, mut instance) = make_instance(api);
+        let (env, _instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, &vec![61; 100]);
-        let dest_ptr = create_empty(&mut instance, 8);
+        let source_ptr = write_data(&env, &[61; 100]);
 
         leave_default_data(&env);
 
-        let result = do_canonicalize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr);
+        let result = do_addr_validate(&env, source_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source:
@@ -990,7 +1010,101 @@ mod tests {
     }
 
     #[test]
-    fn do_canonicalize_address_fails_for_small_destination_region() {
+    fn do_addr_canonicalize_works() {
+        let api = MockApi::default();
+        let (env, mut instance) = make_instance(api);
+        let api = MockApi::default();
+
+        let source_ptr = write_data(&env, b"foo");
+        let dest_ptr = create_empty(&mut instance, api.canonical_length as u32);
+
+        leave_default_data(&env);
+
+        let api = MockApi::default();
+        let res = do_addr_canonicalize(&env, source_ptr, dest_ptr).unwrap();
+        assert_eq!(res, 0);
+        let data = force_read(&env, dest_ptr);
+        assert_eq!(data.len(), api.canonical_length);
+    }
+
+    #[test]
+    fn do_addr_canonicalize_reports_invalid_input_back_to_contract() {
+        let api = MockApi::default();
+        let (env, mut instance) = make_instance(api);
+
+        let source_ptr1 = write_data(&env, b"fo\x80o"); // invalid UTF-8 (fo�o)
+        let source_ptr2 = write_data(&env, b""); // empty
+        let source_ptr3 = write_data(&env, b"addressexceedingaddressspace"); // too long
+        let dest_ptr = create_empty(&mut instance, 8);
+
+        leave_default_data(&env);
+
+        let res = do_addr_canonicalize(&env, source_ptr1, dest_ptr).unwrap();
+        assert_ne!(res, 0);
+        let err = String::from_utf8(force_read(&env, res)).unwrap();
+        assert_eq!(err, "Input is not valid UTF-8");
+
+        let res = do_addr_canonicalize(&env, source_ptr2, dest_ptr).unwrap();
+        assert_ne!(res, 0);
+        let err = String::from_utf8(force_read(&env, res)).unwrap();
+        assert_eq!(err, "Input is empty");
+
+        let res = do_addr_canonicalize(&env, source_ptr3, dest_ptr).unwrap();
+        assert_ne!(res, 0);
+        let err = String::from_utf8(force_read(&env, res)).unwrap();
+        assert_eq!(err, "Invalid input: human address too long");
+    }
+
+    #[test]
+    fn do_addr_canonicalize_fails_for_broken_backend() {
+        let api = MockApi::new_failing("Temporarily unavailable");
+        let (env, mut instance) = make_instance(api);
+
+        let source_ptr = write_data(&env, b"foo");
+        let dest_ptr = create_empty(&mut instance, 7);
+
+        leave_default_data(&env);
+
+        let result = do_addr_canonicalize(&env, source_ptr, dest_ptr);
+        match result.unwrap_err() {
+            VmError::BackendErr {
+                source: BackendError::Unknown { msg, .. },
+                ..
+            } => {
+                assert_eq!(msg.unwrap(), "Temporarily unavailable");
+            }
+            err => panic!("Incorrect error returned: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn do_addr_canonicalize_fails_for_large_inputs() {
+        let api = MockApi::default();
+        let (env, mut instance) = make_instance(api);
+
+        let source_ptr = write_data(&env, &[61; 100]);
+        let dest_ptr = create_empty(&mut instance, 8);
+
+        leave_default_data(&env);
+
+        let result = do_addr_canonicalize(&env, source_ptr, dest_ptr);
+        match result.unwrap_err() {
+            VmError::CommunicationErr {
+                source:
+                    CommunicationError::RegionLengthTooBig {
+                        length, max_length, ..
+                    },
+                ..
+            } => {
+                assert_eq!(length, 100);
+                assert_eq!(max_length, 90);
+            }
+            err => panic!("Incorrect error returned: {:?}", err),
+        }
+    }
+
+    #[test]
+    fn do_addr_canonicalize_fails_for_small_destination_region() {
         let api = MockApi::default();
         let (env, mut instance) = make_instance(api);
 
@@ -999,7 +1113,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_canonicalize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr);
+        let result = do_addr_canonicalize(&env, source_ptr, dest_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionTooSmall { size, required, .. },
@@ -1013,7 +1127,7 @@ mod tests {
     }
 
     #[test]
-    fn do_humanize_address_works() {
+    fn do_addr_humanize_works() {
         let api = MockApi::default();
         let (env, mut instance) = make_instance(api);
         let api = MockApi::default();
@@ -1024,13 +1138,13 @@ mod tests {
 
         leave_default_data(&env);
 
-        let error_ptr = do_humanize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr).unwrap();
+        let error_ptr = do_addr_humanize(&env, source_ptr, dest_ptr).unwrap();
         assert_eq!(error_ptr, 0);
         assert_eq!(force_read(&env, dest_ptr), source_data);
     }
 
     #[test]
-    fn do_humanize_address_reports_invalid_input_back_to_contract() {
+    fn do_addr_humanize_reports_invalid_input_back_to_contract() {
         let api = MockApi::default();
         let (env, mut instance) = make_instance(api);
 
@@ -1039,14 +1153,14 @@ mod tests {
 
         leave_default_data(&env);
 
-        let res = do_humanize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr).unwrap();
+        let res = do_addr_humanize(&env, source_ptr, dest_ptr).unwrap();
         assert_ne!(res, 0);
         let err = String::from_utf8(force_read(&env, res)).unwrap();
         assert_eq!(err, "Invalid input: canonical address length not correct");
     }
 
     #[test]
-    fn do_humanize_address_fails_for_broken_backend() {
+    fn do_addr_humanize_fails_for_broken_backend() {
         let api = MockApi::new_failing("Temporarily unavailable");
         let (env, mut instance) = make_instance(api);
 
@@ -1055,7 +1169,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_humanize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr);
+        let result = do_addr_humanize(&env, source_ptr, dest_ptr);
         match result.unwrap_err() {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg, .. },
@@ -1066,16 +1180,16 @@ mod tests {
     }
 
     #[test]
-    fn do_humanize_address_fails_for_input_too_long() {
+    fn do_addr_humanize_fails_for_input_too_long() {
         let api = MockApi::default();
         let (env, mut instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, &vec![61; 33]);
+        let source_ptr = write_data(&env, &[61; 33]);
         let dest_ptr = create_empty(&mut instance, 50);
 
         leave_default_data(&env);
 
-        let result = do_humanize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr);
+        let result = do_addr_humanize(&env, source_ptr, dest_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source:
@@ -1092,7 +1206,7 @@ mod tests {
     }
 
     #[test]
-    fn do_humanize_address_fails_for_destination_region_too_small() {
+    fn do_addr_humanize_fails_for_destination_region_too_small() {
         let api = MockApi::default();
         let (env, mut instance) = make_instance(api);
         let api = MockApi::default();
@@ -1103,7 +1217,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_humanize_address::<MA, MS, MQ>(&env, source_ptr, dest_ptr);
+        let result = do_addr_humanize(&env, source_ptr, dest_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionTooSmall { size, required, .. },
@@ -1119,7 +1233,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_works() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1129,7 +1243,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             0
         );
     }
@@ -1137,7 +1251,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_wrong_hash_verify_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let mut hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         // alter hash
@@ -1149,7 +1263,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             1
         );
     }
@@ -1157,7 +1271,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_larger_hash_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let mut hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         // extend / break hash
@@ -1168,7 +1282,7 @@ mod tests {
         let pubkey = hex::decode(ECDSA_PUBKEY_HEX).unwrap();
         let pubkey_ptr = write_data(&env, &pubkey);
 
-        let result = do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr);
+        let result = do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionLengthTooBig { length, .. },
@@ -1181,7 +1295,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_shorter_hash_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let mut hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         // reduce / break hash
@@ -1193,7 +1307,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             3 // mapped InvalidHashFormat
         );
     }
@@ -1201,7 +1315,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_wrong_sig_verify_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1213,7 +1327,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             1
         );
     }
@@ -1221,7 +1335,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_larger_sig_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1232,7 +1346,7 @@ mod tests {
         let pubkey = hex::decode(ECDSA_PUBKEY_HEX).unwrap();
         let pubkey_ptr = write_data(&env, &pubkey);
 
-        let result = do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr);
+        let result = do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionLengthTooBig { length, .. },
@@ -1245,7 +1359,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_shorter_sig_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1257,7 +1371,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             4 // mapped InvalidSignatureFormat
         )
     }
@@ -1265,7 +1379,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_wrong_pubkey_format_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1277,7 +1391,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             5 // mapped InvalidPubkeyFormat
         )
     }
@@ -1285,7 +1399,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_wrong_pubkey_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1297,7 +1411,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             10 // mapped GenericErr
         )
     }
@@ -1305,7 +1419,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_larger_pubkey_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1316,7 +1430,7 @@ mod tests {
         pubkey.push(0x00);
         let pubkey_ptr = write_data(&env, &pubkey);
 
-        let result = do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr);
+        let result = do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionLengthTooBig { length, .. },
@@ -1329,7 +1443,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_shorter_pubkey_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1341,7 +1455,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             5 // mapped InvalidPubkeyFormat
         )
     }
@@ -1349,7 +1463,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_empty_pubkey_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = hex::decode(ECDSA_HASH_HEX).unwrap();
         let hash_ptr = write_data(&env, &hash);
@@ -1359,7 +1473,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             5 // mapped InvalidPubkeyFormat
         )
     }
@@ -1367,7 +1481,7 @@ mod tests {
     #[test]
     fn do_secp256k1_verify_wrong_data_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let hash = vec![0x22; MESSAGE_HASH_MAX_LEN];
         let hash_ptr = write_data(&env, &hash);
@@ -1377,7 +1491,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_secp256k1_verify::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_secp256k1_verify(&env, hash_ptr, sig_ptr, pubkey_ptr).unwrap(),
             10 // mapped GenericErr
         )
     }
@@ -1385,7 +1499,7 @@ mod tests {
     #[test]
     fn do_secp256k1_recover_pubkey_works() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         // https://gist.github.com/webmaster128/130b628d83621a33579751846699ed15
         let hash = hex!("5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0");
@@ -1395,9 +1509,7 @@ mod tests {
 
         let hash_ptr = write_data(&env, &hash);
         let sig_ptr = write_data(&env, &sig);
-        let result =
-            do_secp256k1_recover_pubkey::<MA, MS, MQ>(&env, hash_ptr, sig_ptr, recovery_param)
-                .unwrap();
+        let result = do_secp256k1_recover_pubkey(&env, hash_ptr, sig_ptr, recovery_param).unwrap();
         let error = result >> 32;
         let pubkey_ptr: u32 = (result & 0xFFFFFFFF).try_into().unwrap();
         assert_eq!(error, 0);
@@ -1407,7 +1519,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_works() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         let msg_ptr = write_data(&env, &msg);
@@ -1417,7 +1529,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
             0
         );
     }
@@ -1425,7 +1537,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_wrong_msg_verify_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let mut msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         // alter msg
@@ -1437,7 +1549,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
             1
         );
     }
@@ -1445,7 +1557,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_larger_msg_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let mut msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         // extend / break msg
@@ -1456,7 +1568,7 @@ mod tests {
         let pubkey = hex::decode(EDDSA_PUBKEY_HEX).unwrap();
         let pubkey_ptr = write_data(&env, &pubkey);
 
-        let result = do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr);
+        let result = do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionLengthTooBig { length, .. },
@@ -1469,7 +1581,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_wrong_sig_verify_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         let msg_ptr = write_data(&env, &msg);
@@ -1481,7 +1593,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
             1
         );
     }
@@ -1489,7 +1601,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_larger_sig_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         let msg_ptr = write_data(&env, &msg);
@@ -1500,7 +1612,7 @@ mod tests {
         let pubkey = hex::decode(EDDSA_PUBKEY_HEX).unwrap();
         let pubkey_ptr = write_data(&env, &pubkey);
 
-        let result = do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr);
+        let result = do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionLengthTooBig { length, .. },
@@ -1513,7 +1625,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_shorter_sig_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         let msg_ptr = write_data(&env, &msg);
@@ -1525,7 +1637,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
             4 // mapped InvalidSignatureFormat
         )
     }
@@ -1533,7 +1645,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_wrong_pubkey_verify_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         let msg_ptr = write_data(&env, &msg);
@@ -1545,7 +1657,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
             1
         );
     }
@@ -1553,7 +1665,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_larger_pubkey_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         let msg_ptr = write_data(&env, &msg);
@@ -1564,7 +1676,7 @@ mod tests {
         pubkey.push(0x00);
         let pubkey_ptr = write_data(&env, &pubkey);
 
-        let result = do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr);
+        let result = do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionLengthTooBig { length, .. },
@@ -1577,7 +1689,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_shorter_pubkey_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         let msg_ptr = write_data(&env, &msg);
@@ -1589,7 +1701,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
             5 // mapped InvalidPubkeyFormat
         )
     }
@@ -1597,7 +1709,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_empty_pubkey_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         let msg_ptr = write_data(&env, &msg);
@@ -1607,7 +1719,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
             5 // mapped InvalidPubkeyFormat
         )
     }
@@ -1615,7 +1727,7 @@ mod tests {
     #[test]
     fn do_ed25519_verify_wrong_data_fails() {
         let api = MockApi::default();
-        let (env, mut _instance) = make_instance(api.clone());
+        let (env, mut _instance) = make_instance(api);
 
         let msg = vec![0x22; MESSAGE_HASH_MAX_LEN];
         let msg_ptr = write_data(&env, &msg);
@@ -1625,7 +1737,7 @@ mod tests {
         let pubkey_ptr = write_data(&env, &pubkey);
 
         assert_eq!(
-            do_ed25519_verify::<MA, MS, MQ>(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
+            do_ed25519_verify(&env, msg_ptr, sig_ptr, pubkey_ptr).unwrap(),
             1 // verification failure
         )
     }
@@ -1636,14 +1748,14 @@ mod tests {
         let (env, _instance) = make_instance(api);
 
         let request: QueryRequest<Empty> = QueryRequest::Bank(BankQuery::AllBalances {
-            address: HumanAddr::from(INIT_ADDR),
+            address: INIT_ADDR.to_string(),
         });
         let request_data = cosmwasm_std::to_vec(&request).unwrap();
         let request_ptr = write_data(&env, &request_data);
 
         leave_default_data(&env);
 
-        let response_ptr = do_query_chain::<MA, MS, MQ>(&env, request_ptr).unwrap();
+        let response_ptr = do_query_chain(&env, request_ptr).unwrap();
         let response = force_read(&env, response_ptr);
 
         let query_result: cosmwasm_std::QuerierResult =
@@ -1664,7 +1776,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let response_ptr = do_query_chain::<MA, MS, MQ>(&env, request_ptr).unwrap();
+        let response_ptr = do_query_chain(&env, request_ptr).unwrap();
         let response = force_read(&env, response_ptr);
 
         let query_result: cosmwasm_std::QuerierResult =
@@ -1684,7 +1796,7 @@ mod tests {
         let (env, _instance) = make_instance(api);
 
         let request: QueryRequest<Empty> = QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: HumanAddr::from("non-existent"),
+            contract_addr: String::from("non-existent"),
             msg: Binary::from(b"{}" as &[u8]),
         });
         let request_data = cosmwasm_std::to_vec(&request).unwrap();
@@ -1692,7 +1804,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let response_ptr = do_query_chain::<MA, MS, MQ>(&env, request_ptr).unwrap();
+        let response_ptr = do_query_chain(&env, request_ptr).unwrap();
         let response = force_read(&env, response_ptr);
 
         let query_result: cosmwasm_std::QuerierResult =
@@ -1700,7 +1812,7 @@ mod tests {
         match query_result {
             SystemResult::Ok(_) => panic!("This must not succeed"),
             SystemResult::Err(SystemError::NoSuchContract { addr }) => {
-                assert_eq!(addr, HumanAddr::from("non-existent"))
+                assert_eq!(addr, "non-existent")
             }
             SystemResult::Err(err) => panic!("Unexpected error: {:?}", err),
         }
@@ -1714,7 +1826,7 @@ mod tests {
         leave_default_data(&env);
 
         // set up iterator over all space
-        let id = do_scan::<MA, MS, MQ>(&env, 0, 0, Order::Ascending.into()).unwrap();
+        let id = do_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
         assert_eq!(1, id);
 
         let item = env
@@ -1741,7 +1853,7 @@ mod tests {
         leave_default_data(&env);
 
         // set up iterator over all space
-        let id = do_scan::<MA, MS, MQ>(&env, 0, 0, Order::Descending.into()).unwrap();
+        let id = do_scan(&env, 0, 0, Order::Descending.into()).unwrap();
         assert_eq!(1, id);
 
         let item = env
@@ -1771,7 +1883,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let id = do_scan::<MA, MS, MQ>(&env, start, end, Order::Ascending.into()).unwrap();
+        let id = do_scan(&env, start, end, Order::Ascending.into()).unwrap();
 
         let item = env
             .with_storage_from_context::<_, _>(|store| Ok(store.next(id)))
@@ -1792,8 +1904,8 @@ mod tests {
         leave_default_data(&env);
 
         // unbounded, ascending and descending
-        let id1 = do_scan::<MA, MS, MQ>(&env, 0, 0, Order::Ascending.into()).unwrap();
-        let id2 = do_scan::<MA, MS, MQ>(&env, 0, 0, Order::Descending.into()).unwrap();
+        let id1 = do_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
+        let id2 = do_scan(&env, 0, 0, Order::Descending.into()).unwrap();
         assert_eq!(id1, 1);
         assert_eq!(id2, 2);
 
@@ -1836,7 +1948,7 @@ mod tests {
         leave_default_data(&env);
 
         // set up iterator over all space
-        let result = do_scan::<MA, MS, MQ>(&env, 0, 0, 42);
+        let result = do_scan(&env, 0, 0, 42);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::InvalidOrder { .. },
@@ -1854,24 +1966,24 @@ mod tests {
 
         leave_default_data(&env);
 
-        let id = do_scan::<MA, MS, MQ>(&env, 0, 0, Order::Ascending.into()).unwrap();
+        let id = do_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
 
         // Entry 1
-        let kv_region_ptr = do_next::<MA, MS, MQ>(&env, id).unwrap();
+        let kv_region_ptr = do_next(&env, id).unwrap();
         assert_eq!(
             force_read(&env, kv_region_ptr),
             [KEY1, b"\0\0\0\x03", VALUE1, b"\0\0\0\x06"].concat()
         );
 
         // Entry 2
-        let kv_region_ptr = do_next::<MA, MS, MQ>(&env, id).unwrap();
+        let kv_region_ptr = do_next(&env, id).unwrap();
         assert_eq!(
             force_read(&env, kv_region_ptr),
             [KEY2, b"\0\0\0\x04", VALUE2, b"\0\0\0\x05"].concat()
         );
 
         // End
-        let kv_region_ptr = do_next::<MA, MS, MQ>(&env, id).unwrap();
+        let kv_region_ptr = do_next(&env, id).unwrap();
         assert_eq!(force_read(&env, kv_region_ptr), b"\0\0\0\0\0\0\0\0");
         // API makes no guarantees for value_ptr in this case
     }
@@ -1885,7 +1997,7 @@ mod tests {
         leave_default_data(&env);
 
         let non_existent_id = 42u32;
-        let result = do_next::<MA, MS, MQ>(&env, non_existent_id);
+        let result = do_next(&env, non_existent_id);
         match result.unwrap_err() {
             VmError::BackendErr {
                 source: BackendError::IteratorDoesNotExist { id, .. },
