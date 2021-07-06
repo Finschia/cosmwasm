@@ -19,6 +19,8 @@ jobs:
         run: echo ::set-output name=VERSION::${HEAD_REF#release-v}
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      - name: Create new tag
+        run: ./generate_release_tag.sh ${{ steps.get_version.outputs.VERSION }}
       - name: Install Docker client
         run: |
           apk add docker-cli
