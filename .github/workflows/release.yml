@@ -14,13 +14,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Install libgcc
+        run: apk add libgcc
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.51.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true        
       - name: Get version
         id: get_version
         run: echo ::set-output name=VERSION::${HEAD_REF#release-v}
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
       - name: Create new tag
-        run: ./generate_release_tag.sh ${{ steps.get_version.outputs.VERSION }}
+        run: ./devtools/generate_release_tag.sh ${{ steps.get_version.outputs.VERSION }}
       - name: Install Docker client
         run: |
           apk add docker-cli
