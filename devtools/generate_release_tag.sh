@@ -1,7 +1,4 @@
 #!/bin/bash
-set -o errexit -o nounset -o pipefail
-command -v shellcheck >/dev/null && shellcheck "$0"
-
 packages=("cosmwasm-crypto" "cosmwasm-derive" "cosmwasm-schema" "cosmwasm-std" "cosmwasm-storage" "cosmwasm-vm")
 
 V=""
