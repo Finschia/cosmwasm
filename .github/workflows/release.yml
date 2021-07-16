@@ -8,7 +8,7 @@ on:
 
 jobs:
   release:
-    if: github.ref == 'release'
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'release'
     runs-on: ubuntu-latest
     container: cibuilds/github:0.13
     steps:
@@ -25,12 +25,16 @@ jobs:
           override: true        
       - name: Get version
         id: get_version
-        run: echo ::set-output name=VERSION::${./devtools/get_version.sh}
+        run: |
+            VERSION=$(./devtools/get_version.sh)
+            echo ::set-output name=version::$VERSION
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
       - name: Create new tag
-        if: ${{git tag -l ${{ steps.get_version.outputs.VERSION }} == ''}}
-        run: git tag ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          if [ -z "${{ steps.get_version.outputs.version }}" ]; then
+              git tag ${{ steps.get_version.outputs.version }}
+          fi
       - name: Install Docker client
         run: |
           apk add docker-cli
@@ -61,7 +65,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
+          tag_name: v${{ steps.get_version.outputs.version }}
           body: ${{ github.event.pull_request.body }}
           files: |
             ./artifacts/*
