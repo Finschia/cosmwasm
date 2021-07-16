@@ -8,7 +8,7 @@ on:
 
 jobs:
   release:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release-v')
+    if: github.ref == 'release'
     runs-on: ubuntu-latest
     container: cibuilds/github:0.13
     steps:
@@ -25,11 +25,12 @@ jobs:
           override: true        
       - name: Get version
         id: get_version
-        run: echo ::set-output name=VERSION::${HEAD_REF#release-v}
+        run: echo ::set-output name=VERSION::${./devtools/get_version.sh}
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
       - name: Create new tag
-        run: ./devtools/generate_release_tag.sh ${{ steps.get_version.outputs.VERSION }}
+        if: ${{git tag -l ${{ steps.get_version.outputs.VERSION }} == ''}}
+        run: git tag ${{ steps.get_version.outputs.VERSION }}
       - name: Install Docker client
         run: |
           apk add docker-cli
