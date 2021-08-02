@@ -1,0 +1,15 @@
+[package]
+name = "lfb-proto-build"
+version = "0.1.0"
+authors = ["Justin Kilpatrick <justin@althea.net>", "Tony Arcieri <tony@iqlusion.io>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+prost = "0.7"
+prost-build = "0.7"
+tonic = "0.4"
+tonic-build = "0.4"
+regex = "1"
+tempdir = "0.3"
+walkdir = "2"

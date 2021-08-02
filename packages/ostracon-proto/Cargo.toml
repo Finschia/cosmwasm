@@ -1,0 +1,33 @@
+[package]
+name = "ostracon-proto"
+version = "0.20.0-0.1.0"
+authors = ["PLACEHOLDER"]
+edition = "2018"
+license = "Apache-2.0"
+repository = "PLACEHOLDER"
+readme     = "README.md"
+categories = ["cryptography", "cryptography::cryptocurrencies", "database"]
+keywords   = ["blockchain", "ostracon", "proto"]
+
+description = """
+    ostracon-proto is a the Rust implementation of the Ostracon proto structs.
+    """
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+prost = "0.7"
+prost-types = "0.7"
+bytes = "1.0"
+anomaly = "0.2"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+subtle-encoding = "0.5"
+serde_bytes = "0.11"
+num-traits = "0.2"
+num-derive = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+serde_json = "1.0"

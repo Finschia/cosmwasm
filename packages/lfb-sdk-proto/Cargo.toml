@@ -1,0 +1,33 @@
+[package]
+name = "lfb-sdk-proto"
+version = "0.5.0-0.1.0" # Also update html_root_url in lib.rs when bumping this
+authors = [
+    "Justin Kilpatrick <justin@althea.net>",
+    "Greg Szabo <greg@informal.systems>",
+    "Tony Arcieri <tony@iqlusion.io>"
+]
+edition = "2018"
+license = "Apache-2.0"
+description = "Protobuf stuct defintions for interacting LFB SDK powered blockchains"
+readme     = "README.md"
+categories = ["cryptography", "cryptography::cryptocurrencies", "database"]
+keywords   = ["blockchain", "LFB", "ostracon", "proto"]
+
+[dependencies]
+prost = "0.7"
+prost-types = "0.7"
+
+# Optional dependencies
+tonic = { version = "0.4", optional = true }
+
+[dependencies.ostracon-proto]
+version = "0.20.0-0.1.0"
+path = "../ostracon-proto"
+
+[features]
+default = ["grpc"]
+grpc = ["tonic"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

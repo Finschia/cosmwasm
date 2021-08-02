@@ -1,0 +1,6 @@
+[submodule "lfb-sdk-go"]
+	path = devtools/lfb-sdk-go
+	url = git@github.com:line/lfb-sdk.git
+[submodule "devtools/ostracon-go"]
+	path = devtools/ostracon-go
+	url = git@github.com:line/ostracon.git
