@@ -29,6 +29,26 @@ impl fmt::Display for Coin {
     }
 }
 
+#[cfg(feature = "stargate")]
+impl Into<lfb_sdk_proto::lfb::base::v1beta1::Coin> for Coin {
+    fn into(self) -> lfb_sdk_proto::lfb::base::v1beta1::Coin {
+        lfb_sdk_proto::lfb::base::v1beta1::Coin {
+            denom: self.denom,
+            amount: self.amount.into(),
+        }
+    }
+}
+
+#[cfg(feature = "stargate")]
+impl Into<lfb_sdk_proto::lfb::base::v1beta1::Coin> for &Coin {
+    fn into(self) -> lfb_sdk_proto::lfb::base::v1beta1::Coin {
+        lfb_sdk_proto::lfb::base::v1beta1::Coin {
+            denom: self.denom.clone(),
+            amount: self.amount.into(),
+        }
+    }
+}
+
 /// A shortcut constructor for a set of one denomination of coins
 ///
 /// # Examples
@@ -165,5 +185,20 @@ mod tests {
 
         // less than same type
         assert!(has_coins(&wallet, &coin(777, "ETH")));
+    }
+
+    #[test]
+    #[cfg(feature = "stargate")]
+    fn into_lfb_sdk_proto_coin_works() {
+        let lfb_proto_coin = lfb_sdk_proto::lfb::base::v1beta1::Coin {
+            amount: "42".into(),
+            denom: "link".into(),
+        };
+        let std_coin = Coin {
+            amount: Uint128(42),
+            denom: "link".to_string(),
+        };
+        let converted: lfb_sdk_proto::lfb::base::v1beta1::Coin = std_coin.into();
+        assert_eq!(lfb_proto_coin, converted);
     }
 }
