@@ -6,14 +6,17 @@ on:
       - main
     types: [closed]
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}    
 jobs:
   release:
-    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'release'
     runs-on: ubuntu-latest
     container: cibuilds/github:0.13
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Install libgcc
+        run: apk add libgcc
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
@@ -28,6 +31,13 @@ jobs:
             echo ::set-output name=version::$VERSION
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      - name: Check version
+        id: tag_check
+        uses: dudo/tag_check@v1.1.1
+        with:
+          version: ${{ steps.get_version.outputs.version }}
+          git_tag_prefix: v
+          
       - name: Create new tag
         run: |
           if [ -z "${{ steps.get_version.outputs.version }}" ]; then
@@ -36,8 +46,6 @@ jobs:
       - name: Install Docker client
         run: |
           apk add docker-cli
-      - name: Checkout
-        uses: actions/checkout@v2
       - name: Prepare volume with source code
         run: |
           # create a dummy container which will hold a volume with config
@@ -60,8 +68,6 @@ jobs:
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ steps.get_version.outputs.version }}
           body: ${{ github.event.pull_request.body }}
