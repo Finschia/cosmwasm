@@ -297,6 +297,8 @@ dependencies = [
  "cosmwasm-schema",
  "hex",
  "hex-literal",
+ "lfb-sdk-proto",
+ "prost",
  "schemars",
  "serde",
  "serde-json-wasm",

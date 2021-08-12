@@ -31,8 +31,10 @@ cranelift = ["cosmwasm-vm/cranelift"]
 backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
 
 [dependencies]
-cosmwasm-std = { path = "../../packages/std", features = ["staking"] }
+cosmwasm-std = { path = "../../packages/std", features = ["staking", "stargate"] }
 cosmwasm-storage = { path = "../../packages/storage" }
+lfb-sdk-proto = { path = "../../packages/lfb-sdk-proto", default-features = false }
+prost = "0.7"
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 snafu = "0.6"

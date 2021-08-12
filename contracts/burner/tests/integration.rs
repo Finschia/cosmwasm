@@ -17,8 +17,9 @@
 //!      });
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
-use cosmwasm_std::{coins, BankMsg, ContractResult, Order, Response};
-use cosmwasm_vm::testing::{instantiate, migrate, mock_env, mock_info, mock_instance};
+use cosmwasm_std::{coins, Binary, CosmosMsg, ContractResult, Order, Response};
+use cosmwasm_vm::testing::{instantiate, migrate, mock_env, mock_info, mock_instance, MOCK_CONTRACT_ADDR};
+use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
 use burner::msg::{InstantiateMsg, MigrateMsg};
 use cosmwasm_vm::Storage;
@@ -68,13 +69,17 @@ fn migrate_cleans_up_data() {
     // check payout
     assert_eq!(1, res.messages.len());
     let msg = res.messages.get(0).expect("no message");
+    let expected_stargate_msg = MsgSend {
+        from_address: MOCK_CONTRACT_ADDR.into(),
+        to_address: payout.into(),
+        amount: coins(123456, "gold").iter().map(|s| s.into()).collect(),
+    };
     assert_eq!(
         msg,
-        &BankMsg::Send {
-            to_address: payout,
-            amount: coins(123456, "gold"),
-        }
-        .into(),
+        &CosmosMsg::Stargate {
+            type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+            value: Binary::encode_prost_message(&expected_stargate_msg).unwrap(),
+        },
     );
 
     // check there is no data in storage

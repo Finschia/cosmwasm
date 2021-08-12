@@ -1,6 +1,7 @@
 use cosmwasm_std::{
-    attr, entry_point, BankMsg, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
+    attr, entry_point, Binary, CosmosMsg, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
 };
+use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
 use crate::msg::{InstantiateMsg, MigrateMsg};
 
@@ -30,10 +31,15 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
     }
 
     // get balance and send all to recipient
-    let balance = deps.querier.query_all_balances(env.contract.address)?;
-    let send = BankMsg::Send {
-        to_address: msg.payout.clone(),
-        amount: balance,
+    let balance = deps.querier.query_all_balances(env.contract.address.clone())?;
+    let stargate_msg = MsgSend {
+        from_address: env.contract.address.into(),
+        to_address: msg.payout.clone().into(),
+        amount: balance.iter().map(|s| s.into()).collect(),
+    };
+    let send = CosmosMsg::Stargate {
+        type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+        value: Binary::encode_prost_message(&stargate_msg)?,
     };
 
     let data_msg = format!("burnt {} keys", count).into_bytes();
@@ -49,7 +55,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{coins, StdError, Storage};
 
     #[test]
@@ -88,13 +94,17 @@ mod tests {
         // check payout
         assert_eq!(1, res.messages.len());
         let msg = res.messages.get(0).expect("no message");
+        let expected_stargate_msg = MsgSend {
+            from_address: MOCK_CONTRACT_ADDR.into(),
+            to_address: payout.into(),
+            amount: coins(123456, "gold").iter().map(|s| s.into()).collect(),
+        };
         assert_eq!(
             msg,
-            &BankMsg::Send {
-                to_address: payout,
-                amount: coins(123456, "gold"),
+            &CosmosMsg::Stargate {
+                type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+                value: Binary::encode_prost_message(&expected_stargate_msg).unwrap(),
             }
-            .into(),
         );
 
         // check there is no data in storage

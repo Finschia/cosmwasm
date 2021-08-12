@@ -1,9 +1,10 @@
 use cosmwasm_std::{
-    attr, entry_point, from_slice, to_binary, wasm_execute, BankMsg, Binary, ContractResult,
+    attr, entry_point, from_slice, to_binary, wasm_execute, Binary, ContractResult,
     CosmosMsg, Deps, DepsMut, Empty, Env, Event, IbcAcknowledgement, IbcBasicResponse, IbcChannel,
     IbcOrder, IbcPacket, IbcReceiveResponse, MessageInfo, Order, QueryResponse, Reply, ReplyOn,
     Response, StdError, StdResult, SubMsg, SubcallResponse, WasmMsg,
 };
+use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
 use crate::msg::{
     AccountInfo, AccountResponse, AcknowledgementMsg, BalancesResponse, DispatchResponse,
@@ -200,12 +201,17 @@ pub fn ibc_channel_close(
     // transfer current balance if any (steal the money)
     let amount = deps.querier.query_all_balances(&reflect_addr)?;
     let messages: Vec<CosmosMsg<Empty>> = if !amount.is_empty() {
-        let bank_msg = BankMsg::Send {
+        let stargate_msg = MsgSend {
+            from_address: reflect_addr.clone().into(),
             to_address: env.contract.address.into(),
-            amount,
+            amount: amount.iter().map(|s| s.into()).collect(),
+        };
+        let cosmos_msg = CosmosMsg::Stargate {
+            type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+            value: Binary::encode_prost_message(&stargate_msg)?,
         };
         let reflect_msg = ReflectExecuteMsg::ReflectMsg {
-            msgs: vec![bank_msg.into()],
+            msgs: vec![cosmos_msg],
         };
         let wasm_msg = wasm_execute(reflect_addr, &reflect_msg, vec![])?;
         vec![wasm_msg.into()]
@@ -370,7 +376,7 @@ mod tests {
         mock_dependencies, mock_env, mock_ibc_channel, mock_ibc_packet_recv, mock_info, MockApi,
         MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
     };
-    use cosmwasm_std::{coin, coins, from_slice, BankMsg, OwnedDeps, WasmMsg};
+    use cosmwasm_std::{coin, coins, from_slice, OwnedDeps, WasmMsg};
 
     const CREATOR: &str = "creator";
     // code id of the reflect contract
@@ -537,11 +543,15 @@ mod tests {
         let account = "acct-123";
 
         // receive a packet for an unregistered channel returns app-level error (not Result::Err)
-        let msgs_to_dispatch = vec![BankMsg::Send {
+        let stargate_msg = MsgSend {
+            from_address: MOCK_CONTRACT_ADDR.into(),
             to_address: "my-friend".into(),
-            amount: coins(123456789, "uatom"),
-        }
-        .into()];
+            amount: coins(123456789, "uatom").iter().map(|s| s.into()).collect(),
+        };
+        let msgs_to_dispatch = vec![CosmosMsg::Stargate {
+            type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+            value: Binary::encode_prost_message(&stargate_msg).unwrap(),
+        }.into()];
         let ibc_msg = PacketMsg::Dispatch {
             msgs: msgs_to_dispatch.clone(),
         };
@@ -641,13 +651,17 @@ mod tests {
             match reflect {
                 ReflectExecuteMsg::ReflectMsg { msgs } => {
                     assert_eq!(1, msgs.len());
+                    let expected_stargate_msg = MsgSend {
+                        from_address: account.into(),
+                        to_address: MOCK_CONTRACT_ADDR.into(),
+                        amount: funds.iter().map(|s| s.into()).collect(),
+                    };
                     assert_eq!(
                         &msgs[0],
-                        &BankMsg::Send {
-                            to_address: MOCK_CONTRACT_ADDR.into(),
-                            amount: funds
+                        &CosmosMsg::Stargate {
+                            type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+                            value: Binary::encode_prost_message(&expected_stargate_msg).unwrap(),
                         }
-                        .into()
                     )
                 }
             }

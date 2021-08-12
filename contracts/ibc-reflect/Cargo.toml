@@ -35,6 +35,7 @@ cosmwasm-std = { path = "../../packages/std", features = ["iterator", "staking",
 cosmwasm-storage = { path = "../../packages/storage", features = ["iterator"] }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+lfb-sdk-proto = { path = "../../packages/lfb-sdk-proto", default-features = false }
 
 [dev-dependencies]
 cosmwasm-vm = { path = "../../packages/vm", default-features = false, features = ["iterator", "stargate"] }

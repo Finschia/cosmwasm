@@ -18,7 +18,7 @@
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
 use cosmwasm_std::{
-    attr, coins, from_binary, to_vec, Addr, AllBalanceResponse, BankMsg, Binary, ContractResult,
+    attr, coins, from_binary, to_vec, Addr, AllBalanceResponse, Binary, ContractResult, CosmosMsg,
     Empty, Response,
 };
 use cosmwasm_vm::{
@@ -29,6 +29,7 @@ use cosmwasm_vm::{
     },
     Storage, VmError,
 };
+use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
 use hackatom::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
 use hackatom::state::{State, CONFIG_KEY};
@@ -51,7 +52,7 @@ fn make_init_msg() -> (InstantiateMsg, String) {
 #[test]
 fn proper_initialization() {
     let mut deps = mock_instance(WASM, &[]);
-    assert_eq!(deps.required_features.len(), 0);
+    assert_eq!(deps.required_features.len(), 1);
 
     let verifier = String::from("verifies");
     let beneficiary = String::from("benefits");
@@ -171,7 +172,16 @@ fn sudo_can_steal_tokens() {
     let res: Response = sudo(&mut deps, mock_env(), sys_msg).unwrap();
     assert_eq!(1, res.messages.len());
     let msg = res.messages.get(0).expect("no message");
-    assert_eq!(msg, &BankMsg::Send { to_address, amount }.into(),);
+    let expected_stargate_msg = MsgSend {
+        from_address: MOCK_CONTRACT_ADDR.into(),
+        to_address: to_address.into(),
+        amount: amount.iter().map(|s| s.into()).collect(),
+    };
+    let expected_msg = CosmosMsg::Stargate {
+        type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+        value: Binary::encode_prost_message(&expected_stargate_msg).unwrap(),
+    };
+    assert_eq!(msg, &expected_msg,);
 }
 
 #[test]
@@ -238,14 +248,16 @@ fn execute_release_works() {
         execute(&mut deps, mock_env(), execute_info, ExecuteMsg::Release {}).unwrap();
     assert_eq!(execute_res.messages.len(), 1);
     let msg = execute_res.messages.get(0).expect("no message");
-    assert_eq!(
-        msg,
-        &BankMsg::Send {
-            to_address: beneficiary,
-            amount: coins(1000, "earth"),
-        }
-        .into(),
-    );
+    let expected_stargate_msg = MsgSend {
+        from_address: MOCK_CONTRACT_ADDR.into(),
+        to_address: beneficiary.into(),
+        amount: coins(1000, "earth").iter().map(|s| s.into()).collect(),
+    };
+    let expected_msg = CosmosMsg::Stargate {
+        type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+        value: Binary::encode_prost_message(&expected_stargate_msg).unwrap(),
+    };
+    assert_eq!(msg, &expected_msg);
     assert_eq!(
         execute_res.attributes,
         vec![attr("action", "release"), attr("destination", "benefits")],

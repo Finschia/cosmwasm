@@ -19,7 +19,7 @@
 
 use cosmwasm_std::testing::{mock_ibc_channel, mock_ibc_packet_recv};
 use cosmwasm_std::{
-    attr, coins, BankMsg, ContractResult, CosmosMsg, Event, IbcBasicResponse, IbcOrder,
+    attr, coins, Binary, ContractResult, CosmosMsg, Event, IbcBasicResponse, IbcOrder,
     IbcReceiveResponse, Reply, Response, SubcallResponse, WasmMsg,
 };
 use cosmwasm_vm::testing::{
@@ -27,6 +27,7 @@ use cosmwasm_vm::testing::{
     mock_instance, query, reply, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
 };
 use cosmwasm_vm::{from_slice, Instance};
+use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
 use ibc_reflect::contract::{IBC_VERSION, RECEIVE_DISPATCH_ID};
 use ibc_reflect::msg::{
@@ -206,11 +207,15 @@ fn handle_dispatch_packet() {
     let account = "acct-123";
 
     // receive a packet for an unregistered channel returns app-level error (not Result::Err)
-    let msgs_to_dispatch = vec![BankMsg::Send {
+    let stargate_msg_to_dispatch = MsgSend {
+        from_address: account.into(),
         to_address: "my-friend".into(),
-        amount: coins(123456789, "uatom"),
-    }
-    .into()];
+        amount: coins(123456789, "uatom").iter().map(|s| s.into()).collect(),
+    };
+    let msgs_to_dispatch = vec![CosmosMsg::Stargate {
+        type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+        value: Binary::encode_prost_message(&stargate_msg_to_dispatch).unwrap(),
+    }];
     let ibc_msg = PacketMsg::Dispatch {
         msgs: msgs_to_dispatch.clone(),
     };

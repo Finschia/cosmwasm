@@ -86,8 +86,9 @@ fn proper_initialization() {
     );
     let (instance_options, memory_limit) = mock_instance_options();
     let mut deps = Instance::from_code(WASM, backend, instance_options, memory_limit).unwrap();
-    assert_eq!(deps.required_features.len(), 1);
+    assert_eq!(deps.required_features.len(), 2);
     assert!(deps.required_features.contains("staking"));
+    assert!(deps.required_features.contains("stargate"));
 
     let creator = String::from("creator");
     let msg = InstantiateMsg {
