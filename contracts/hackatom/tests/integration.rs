@@ -174,7 +174,7 @@ fn sudo_can_steal_tokens() {
     let msg = res.messages.get(0).expect("no message");
     let expected_stargate_msg = MsgSend {
         from_address: MOCK_CONTRACT_ADDR.into(),
-        to_address: to_address.into(),
+        to_address,
         amount: amount.iter().map(|s| s.into()).collect(),
     };
     let expected_msg = CosmosMsg::Stargate {
@@ -250,7 +250,7 @@ fn execute_release_works() {
     let msg = execute_res.messages.get(0).expect("no message");
     let expected_stargate_msg = MsgSend {
         from_address: MOCK_CONTRACT_ADDR.into(),
-        to_address: beneficiary.into(),
+        to_address: beneficiary,
         amount: coins(1000, "earth").iter().map(|s| s.into()).collect(),
     };
     let expected_msg = CosmosMsg::Stargate {

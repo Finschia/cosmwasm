@@ -17,8 +17,10 @@
 //!      });
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
-use cosmwasm_std::{coins, Binary, CosmosMsg, ContractResult, Order, Response};
-use cosmwasm_vm::testing::{instantiate, migrate, mock_env, mock_info, mock_instance, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::{coins, Binary, ContractResult, CosmosMsg, Order, Response};
+use cosmwasm_vm::testing::{
+    instantiate, migrate, mock_env, mock_info, mock_instance, MOCK_CONTRACT_ADDR,
+};
 use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
 use burner::msg::{InstantiateMsg, MigrateMsg};
@@ -71,7 +73,7 @@ fn migrate_cleans_up_data() {
     let msg = res.messages.get(0).expect("no message");
     let expected_stargate_msg = MsgSend {
         from_address: MOCK_CONTRACT_ADDR.into(),
-        to_address: payout.into(),
+        to_address: payout,
         amount: coins(123456, "gold").iter().map(|s| s.into()).collect(),
     };
     assert_eq!(

@@ -22,7 +22,7 @@ impl Binary {
     }
 
     #[cfg(feature = "stargate")]
-    pub fn encode_prost_message<T:prost::Message>(msg: &T) -> StdResult<Self> {
+    pub fn encode_prost_message<T: prost::Message>(msg: &T) -> StdResult<Self> {
         let mut buf = Vec::new();
         buf.reserve(msg.encoded_len());
         msg.encode(&mut buf).map_err(StdError::encode_err)?;

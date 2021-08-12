@@ -167,7 +167,7 @@ fn proper_handshake_flow() {
     let response = Reply {
         id,
         result: ContractResult::Ok(SubcallResponse {
-            events: fake_events(&REFLECT_ADDR),
+            events: fake_events(REFLECT_ADDR),
             data: None,
         }),
     };
@@ -260,7 +260,7 @@ fn handle_dispatch_packet() {
         assert_eq!(account, contract_addr.as_str());
         assert_eq!(0, send.len());
         // parse the message - should callback with proper channel_id
-        let rmsg: ReflectExecuteMsg = from_slice(&msg).unwrap();
+        let rmsg: ReflectExecuteMsg = from_slice(msg).unwrap();
         assert_eq!(
             rmsg,
             ReflectExecuteMsg::ReflectMsg {

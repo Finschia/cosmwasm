@@ -1,9 +1,9 @@
 use sha2::{Digest, Sha256};
 
 use cosmwasm_std::{
-    entry_point, from_slice, to_binary, to_vec, Addr, AllBalanceResponse, Api,
-    Binary, CanonicalAddr, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryRequest, QueryResponse, Response,
-    StdError, StdResult, WasmQuery,
+    entry_point, from_slice, to_binary, to_vec, Addr, AllBalanceResponse, Api, Binary,
+    CanonicalAddr, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryRequest, QueryResponse,
+    Response, StdError, StdResult, WasmQuery,
 };
 use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
@@ -54,16 +54,14 @@ pub fn sudo(_deps: DepsMut, env: Env, msg: SudoMsg) -> Result<Response, HackErro
         SudoMsg::StealFunds { recipient, amount } => {
             let stargate_msg = MsgSend {
                 from_address: env.contract.address.into(),
-                to_address: recipient.into(),
+                to_address: recipient,
                 amount: amount.iter().map(|s| s.into()).collect(),
             };
             let mut response = Response::default();
-            response.add_message(
-                CosmosMsg::Stargate {
-                    type_url: "/lfb.bank.v1beta1.MsgSend".into(),
-                    value: Binary::encode_prost_message(&stargate_msg)?,
-                }
-            );
+            response.add_message(CosmosMsg::Stargate {
+                type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+                value: Binary::encode_prost_message(&stargate_msg)?,
+            });
             Ok(response)
         }
     }
@@ -95,21 +93,21 @@ fn do_release(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Ha
 
     if info.sender == state.verifier {
         let to_addr = state.beneficiary;
-        let balance = deps.querier.query_all_balances(env.contract.address.clone())?;
+        let balance = deps
+            .querier
+            .query_all_balances(env.contract.address.clone())?;
         let stargate_msg = MsgSend {
             from_address: env.contract.address.into(),
-            to_address: to_addr.clone().into(),
+            to_address: to_addr.to_string(),
             amount: balance.iter().map(|s| s.into()).collect(),
         };
         let mut resp = Response::new();
         resp.add_attribute("action", "release");
-        resp.add_attribute("destination", to_addr.clone());
-        resp.add_message(
-            CosmosMsg::Stargate {
-                type_url: "/lfb.bank.v1beta1.MsgSend".into(),
-                value: Binary::encode_prost_message(&stargate_msg)?,
-            }
-        );
+        resp.add_attribute("destination", to_addr);
+        resp.add_message(CosmosMsg::Stargate {
+            type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+            value: Binary::encode_prost_message(&stargate_msg)?,
+        });
         resp.set_data(&[0xF0, 0x0B, 0xAA]);
         Ok(resp)
     } else {
@@ -409,12 +407,12 @@ mod tests {
         let msg = res.messages.get(0).expect("no message");
         let expected_stargate_msg = MsgSend {
             from_address: MOCK_CONTRACT_ADDR.into(),
-            to_address: to_address.into(),
+            to_address,
             amount: amount.iter().map(|s| s.into()).collect(),
         };
         let expected_msg = CosmosMsg::Stargate {
             type_url: "/lfb.bank.v1beta1.MsgSend".into(),
-            value: Binary::encode_prost_message(&expected_stargate_msg).unwrap()
+            value: Binary::encode_prost_message(&expected_stargate_msg).unwrap(),
         };
         assert_eq!(msg, &expected_msg,);
     }
@@ -468,7 +466,7 @@ mod tests {
         let msg = execute_res.messages.get(0).expect("no message");
         let expected_stargate_msg = MsgSend {
             from_address: MOCK_CONTRACT_ADDR.into(),
-            to_address: beneficiary.into(),
+            to_address: beneficiary,
             amount: coins(1000, "earth").iter().map(|s| s.into()).collect(),
         };
         let expected_msg = CosmosMsg::Stargate {

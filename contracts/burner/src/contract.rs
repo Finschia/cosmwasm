@@ -1,5 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, Binary, CosmosMsg, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
+    attr, entry_point, Binary, CosmosMsg, DepsMut, Env, MessageInfo, Order, Response, StdError,
+    StdResult,
 };
 use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
@@ -31,10 +32,12 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
     }
 
     // get balance and send all to recipient
-    let balance = deps.querier.query_all_balances(env.contract.address.clone())?;
+    let balance = deps
+        .querier
+        .query_all_balances(env.contract.address.clone())?;
     let stargate_msg = MsgSend {
         from_address: env.contract.address.into(),
-        to_address: msg.payout.clone().into(),
+        to_address: msg.payout.clone(),
         amount: balance.iter().map(|s| s.into()).collect(),
     };
     let send = CosmosMsg::Stargate {
@@ -46,7 +49,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
 
     Ok(Response {
         submessages: vec![],
-        messages: vec![send.into()],
+        messages: vec![send],
         attributes: vec![attr("action", "burn"), attr("payout", msg.payout)],
         data: Some(data_msg.into()),
     })
@@ -96,7 +99,7 @@ mod tests {
         let msg = res.messages.get(0).expect("no message");
         let expected_stargate_msg = MsgSend {
             from_address: MOCK_CONTRACT_ADDR.into(),
-            to_address: payout.into(),
+            to_address: payout,
             amount: coins(123456, "gold").iter().map(|s| s.into()).collect(),
         };
         assert_eq!(

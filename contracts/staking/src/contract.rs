@@ -1,13 +1,10 @@
 use cosmwasm_std::{
-    attr, Binary, coin, entry_point, to_binary, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, QuerierWrapper, QueryResponse, Response, StdError, StdResult, Uint128,
-    WasmMsg,
+    attr, coin, entry_point, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, QuerierWrapper, QueryResponse, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use lfb_sdk_proto::{
-    lfb::bank::v1beta1::MsgSend,
-    lfb::distribution::v1beta1::MsgWithdrawDelegatorReward,
-    lfb::staking::v1beta1::MsgDelegate,
-    lfb::staking::v1beta1::MsgUndelegate,
+    lfb::bank::v1beta1::MsgSend, lfb::distribution::v1beta1::MsgWithdrawDelegatorReward,
+    lfb::staking::v1beta1::MsgDelegate, lfb::staking::v1beta1::MsgUndelegate,
 };
 
 use crate::errors::{StakingError, Unauthorized};
@@ -182,17 +179,15 @@ pub fn bond(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Response> {
     // bond them to the validator
     let stargate_msg = MsgDelegate {
         delegator_address: env.contract.address.into(),
-        validator_address: invest.validator.into(),
+        validator_address: invest.validator,
         amount: Some(payment.into()),
     };
     let res = Response {
         submessages: vec![],
-        messages: vec![
-            CosmosMsg::Stargate {
+        messages: vec![CosmosMsg::Stargate {
             type_url: "/lfb.staking.v1beta1.MsgDelegate".into(),
             value: Binary::encode_prost_message(&stargate_msg)?,
-            }
-        ],
+        }],
         attributes: vec![
             attr("action", "bond"),
             attr("from", info.sender),
@@ -256,17 +251,15 @@ pub fn unbond(deps: DepsMut, env: Env, info: MessageInfo, amount: Uint128) -> St
     // unbond them
     let stargate_msg = MsgUndelegate {
         delegator_address: env.contract.address.into(),
-        validator_address: invest.validator.into(),
+        validator_address: invest.validator,
         amount: Some(coin(unbond.u128(), &invest.bond_denom).into()),
     };
     let res = Response {
         submessages: vec![],
-        messages: vec![
-            CosmosMsg::Stargate {
-                type_url: "/lfb.staking.v1beta1.MsgUndelegate".into(),
-                value: Binary::encode_prost_message(&stargate_msg)?,
-            }
-        ],
+        messages: vec![CosmosMsg::Stargate {
+            type_url: "/lfb.staking.v1beta1.MsgUndelegate".into(),
+            value: Binary::encode_prost_message(&stargate_msg)?,
+        }],
         attributes: vec![
             attr("action", "unbond"),
             attr("to", info.sender),
@@ -314,12 +307,10 @@ pub fn claim(deps: DepsMut, env: Env, info: MessageInfo) -> StdResult<Response> 
     };
     let res = Response {
         submessages: vec![],
-        messages: vec![
-            CosmosMsg::Stargate {
-                type_url: "/lfb.bank.v1beta1.MsgSend".into(),
-                value: Binary::encode_prost_message(&stargate_msg)?,
-            }
-        ],
+        messages: vec![CosmosMsg::Stargate {
+            type_url: "/lfb.bank.v1beta1.MsgSend".into(),
+            value: Binary::encode_prost_message(&stargate_msg)?,
+        }],
         attributes: vec![
             attr("action", "claim"),
             attr("from", info.sender),
@@ -341,7 +332,7 @@ pub fn reinvest(deps: DepsMut, env: Env, _info: MessageInfo) -> StdResult<Respon
     // and bond them to the validator
     let stargate_msg = MsgWithdrawDelegatorReward {
         delegator_address: contract_addr.clone().into(),
-        validator_address: invest.validator.into(),
+        validator_address: invest.validator,
     };
     let res = Response {
         submessages: vec![],
@@ -397,17 +388,15 @@ pub fn _bond_all_tokens(
     // and bond them to the validator
     let stargate_msg = MsgDelegate {
         delegator_address: env.contract.address.into(),
-        validator_address: invest.validator.into(),
+        validator_address: invest.validator,
         amount: Some(balance.clone().into()),
     };
     let res = Response {
         submessages: vec![],
-        messages: vec![
-            CosmosMsg::Stargate {
-                type_url: "/lfb.staking.v1beta1.MsgDelegate".into(),
-                value: Binary::encode_prost_message(&stargate_msg)?,
-            }
-        ],
+        messages: vec![CosmosMsg::Stargate {
+            type_url: "/lfb.staking.v1beta1.MsgDelegate".into(),
+            value: Binary::encode_prost_message(&stargate_msg)?,
+        }],
         attributes: vec![attr("action", "reinvest"), attr("bonded", balance.amount)],
         data: None,
     };
@@ -645,7 +634,7 @@ mod tests {
                     amount: Some(coin(1000, "ustake").into()),
                 };
                 assert_eq!(*value, Binary::encode_prost_message(&expected_msg).unwrap());
-            },
+            }
             _ => panic!("Unexpected message: {:?}", delegate),
         }
 

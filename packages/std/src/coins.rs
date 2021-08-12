@@ -30,21 +30,21 @@ impl fmt::Display for Coin {
 }
 
 #[cfg(feature = "stargate")]
-impl Into<lfb_sdk_proto::lfb::base::v1beta1::Coin> for Coin {
-    fn into(self) -> lfb_sdk_proto::lfb::base::v1beta1::Coin {
+impl From<Coin> for lfb_sdk_proto::lfb::base::v1beta1::Coin {
+    fn from(coin: Coin) -> lfb_sdk_proto::lfb::base::v1beta1::Coin {
         lfb_sdk_proto::lfb::base::v1beta1::Coin {
-            denom: self.denom,
-            amount: self.amount.into(),
+            denom: coin.denom,
+            amount: coin.amount.into(),
         }
     }
 }
 
 #[cfg(feature = "stargate")]
-impl Into<lfb_sdk_proto::lfb::base::v1beta1::Coin> for &Coin {
-    fn into(self) -> lfb_sdk_proto::lfb::base::v1beta1::Coin {
+impl From<&Coin> for lfb_sdk_proto::lfb::base::v1beta1::Coin {
+    fn from(coin: &Coin) -> lfb_sdk_proto::lfb::base::v1beta1::Coin {
         lfb_sdk_proto::lfb::base::v1beta1::Coin {
-            denom: self.denom.clone(),
-            amount: self.amount.into(),
+            denom: coin.denom.clone(),
+            amount: coin.amount.into(),
         }
     }
 }

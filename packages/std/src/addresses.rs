@@ -251,7 +251,7 @@ impl Deref for CanonicalAddr {
 
 impl CanonicalAddr {
     pub fn as_slice(&self) -> &[u8] {
-        &self.0.as_slice()
+        self.0.as_slice()
     }
 }
 

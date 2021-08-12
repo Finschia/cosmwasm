@@ -36,7 +36,7 @@ pub fn ed25519_verify(message: &[u8], signature: &[u8], public_key: &[u8]) -> Cr
 
     // Verification
     match VerificationKey::try_from(pubkey)
-        .and_then(|vk| vk.verify(&Signature::from(signature), &message))
+        .and_then(|vk| vk.verify(&Signature::from(signature), message))
     {
         Ok(()) => Ok(true),
         Err(_) => Ok(false),

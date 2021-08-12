@@ -85,9 +85,7 @@ pub enum StdError {
     },
     #[cfg(feature = "stargate")]
     #[error("Error encode proto messages")]
-    EncodeErr {
-        source: prost::EncodeError,
-    },
+    EncodeErr { source: prost::EncodeError },
     #[error("Overflow: {source}")]
     Overflow {
         source: OverflowError,
@@ -181,9 +179,7 @@ impl StdError {
 
     #[cfg(feature = "stargate")]
     pub fn encode_err(source: prost::EncodeError) -> Self {
-        StdError::EncodeErr {
-            source,
-        }
+        StdError::EncodeErr { source }
     }
 
     pub fn overflow(source: OverflowError) -> Self {
@@ -357,13 +353,8 @@ impl PartialEq<StdError> for StdError {
                 }
             }
             #[cfg(feature = "stargate")]
-            StdError::EncodeErr {
-                source,
-            } => {
-                if let StdError::EncodeErr {
-                    source: rhs_source,
-                } = rhs
-                {
+            StdError::EncodeErr { source } => {
+                if let StdError::EncodeErr { source: rhs_source } = rhs {
                     source == rhs_source
                 } else {
                     false
@@ -684,10 +675,7 @@ mod tests {
         let expected = r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" } }"#;
         #[cfg(feature = "backtraces")]
         let expected = r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" }, backtrace: <disabled> }"#;
-        assert_eq!(
-            embedded,
-            expected
-        );
+        assert_eq!(embedded, expected);
     }
 
     #[test]

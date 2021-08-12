@@ -1,8 +1,8 @@
 use cosmwasm_std::{
-    attr, entry_point, from_slice, to_binary, wasm_execute, Binary, ContractResult,
-    CosmosMsg, Deps, DepsMut, Empty, Env, Event, IbcAcknowledgement, IbcBasicResponse, IbcChannel,
-    IbcOrder, IbcPacket, IbcReceiveResponse, MessageInfo, Order, QueryResponse, Reply, ReplyOn,
-    Response, StdError, StdResult, SubMsg, SubcallResponse, WasmMsg,
+    attr, entry_point, from_slice, to_binary, wasm_execute, Binary, ContractResult, CosmosMsg,
+    Deps, DepsMut, Empty, Env, Event, IbcAcknowledgement, IbcBasicResponse, IbcChannel, IbcOrder,
+    IbcPacket, IbcReceiveResponse, MessageInfo, Order, QueryResponse, Reply, ReplyOn, Response,
+    StdError, StdResult, SubMsg, SubcallResponse, WasmMsg,
 };
 use lfb_sdk_proto::lfb::bank::v1beta1::MsgSend;
 
@@ -504,7 +504,7 @@ mod tests {
         let response = Reply {
             id,
             result: ContractResult::Ok(SubcallResponse {
-                events: fake_events(&REFLECT_ADDR),
+                events: fake_events(REFLECT_ADDR),
                 data: None,
             }),
         };
@@ -551,7 +551,7 @@ mod tests {
         let msgs_to_dispatch = vec![CosmosMsg::Stargate {
             type_url: "/lfb.bank.v1beta1.MsgSend".into(),
             value: Binary::encode_prost_message(&stargate_msg).unwrap(),
-        }.into()];
+        }];
         let ibc_msg = PacketMsg::Dispatch {
             msgs: msgs_to_dispatch.clone(),
         };
@@ -592,7 +592,7 @@ mod tests {
             assert_eq!(account, contract_addr.as_str());
             assert_eq!(0, send.len());
             // parse the message - should callback with proper channel_id
-            let rmsg: ReflectExecuteMsg = from_slice(&msg).unwrap();
+            let rmsg: ReflectExecuteMsg = from_slice(msg).unwrap();
             assert_eq!(
                 rmsg,
                 ReflectExecuteMsg::ReflectMsg {
