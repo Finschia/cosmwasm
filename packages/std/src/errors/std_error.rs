@@ -83,6 +83,11 @@ pub enum StdError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[cfg(feature = "stargate")]
+    #[error("Error encode proto messages")]
+    EncodeErr {
+        source: prost::EncodeError,
+    },
     #[error("Overflow: {source}")]
     Overflow {
         source: OverflowError,
@@ -171,6 +176,13 @@ impl StdError {
             msg: msg.to_string(),
             #[cfg(feature = "backtraces")]
             backtrace: Backtrace::capture(),
+        }
+    }
+
+    #[cfg(feature = "stargate")]
+    pub fn encode_err(source: prost::EncodeError) -> Self {
+        StdError::EncodeErr {
+            source,
         }
     }
 
@@ -340,6 +352,19 @@ impl PartialEq<StdError> for StdError {
                 } = rhs
                 {
                     source_type == rhs_source_type && msg == rhs_msg
+                } else {
+                    false
+                }
+            }
+            #[cfg(feature = "stargate")]
+            StdError::EncodeErr {
+                source,
+            } => {
+                if let StdError::EncodeErr {
+                    source: rhs_source,
+                } = rhs
+                {
+                    source == rhs_source
                 } else {
                     false
                 }
@@ -655,9 +680,13 @@ mod tests {
     fn implements_debug() {
         let error: StdError = StdError::from(OverflowError::new(OverflowOperation::Sub, 3, 5));
         let embedded = format!("Debug: {:?}", error);
+        #[cfg(not(feature = "backtraces"))]
+        let expected = r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" } }"#;
+        #[cfg(feature = "backtraces")]
+        let expected = r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" }, backtrace: <disabled> }"#;
         assert_eq!(
             embedded,
-            r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" } }"#
+            expected
         );
     }
 
