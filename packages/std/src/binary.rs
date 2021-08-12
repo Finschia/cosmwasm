@@ -21,6 +21,14 @@ impl Binary {
         Ok(Binary(binary))
     }
 
+    #[cfg(feature = "stargate")]
+    pub fn encode_prost_message<T:prost::Message>(msg: &T) -> StdResult<Self> {
+        let mut buf = Vec::new();
+        buf.reserve(msg.encoded_len());
+        msg.encode(&mut buf).map_err(StdError::encode_err)?;
+        Ok(buf.into())
+    }
+
     /// encode to base64 string (guaranteed to be success as we control the data inside).
     /// this returns normalized form (with trailing = if needed)
     pub fn to_base64(&self) -> String {
