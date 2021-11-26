@@ -165,6 +165,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44c32f031ea41b4291d695026c023b95d59db2d8a2c7640800ed56bc8f510f22"
 
 [[package]]
+name = "convert_case"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
+
+[[package]]
 name = "cosmwasm-crypto"
 version = "0.16.2"
 dependencies = [
@@ -193,6 +199,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmwasm-event-derive"
+version = "0.16.2"
+dependencies = [
+ "convert_case",
+ "cosmwasm-std",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "cosmwasm-schema"
 version = "0.16.2"
 dependencies = [
@@ -208,6 +225,7 @@ dependencies = [
  "chrono",
  "cosmwasm-crypto",
  "cosmwasm-derive",
+ "cosmwasm-event-derive",
  "cosmwasm-schema",
  "hex",
  "hex-literal",
@@ -1053,9 +1071,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.27"
+version = "1.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0d8caf72986c1a598726adc988bb5984792ef84f5ee5aa50209145ee8077038"
+checksum = "ba508cc11742c0dc5c1659771673afbab7a0efab23aa17e854cbab0837ed0b43"
 dependencies = [
  "unicode-xid",
 ]
