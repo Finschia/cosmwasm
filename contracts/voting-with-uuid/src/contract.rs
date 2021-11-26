@@ -67,6 +67,8 @@ pub fn execute(
             start_height,
             end_height,
         ),
+        ExecuteMsg::MakeUuid {} => make_uuid(deps, env, info),
+        ExecuteMsg::MakeSequenceId {} => make_seq_id(deps, env, info),
     }
 }
 
@@ -430,6 +432,45 @@ fn send_tokens(to_address: &Addr, amount: Vec<Coin>, action: &str) -> Response {
         data: None,
     }
 }
+
+
+pub fn make_uuid(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let uuid = new_uuid(&env, deps.storage);
+    let r = Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![
+            attr("action", "make_uuid"),
+            attr("uuid", uuid.to_string()),
+        ],
+        data: None,
+    };
+    Ok(r)
+}
+
+pub fn make_seq_id(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let seq_id: u64 = 0;
+
+    let r = Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![
+            attr("action", "make_uuid"),
+            attr("uuid", seq_id),
+        ],
+        data: None,
+    };
+    Ok(r)
+}
+
 
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {

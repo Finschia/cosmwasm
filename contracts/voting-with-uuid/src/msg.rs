@@ -29,6 +29,8 @@ pub enum ExecuteMsg {
     EndPoll {
         poll_id: Uuid,
     },
+    MakeUuid {},
+    MakeSequenceId {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -62,4 +64,15 @@ pub struct PollCountResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 pub struct TokenStakeResponse {
     pub token_balance: Uint128,
+}
+
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+pub struct MakeUuidResponse {
+    pub uuid: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+pub struct MakeSequenceIdResponse {
+    pub seq_id: u64,
 }
