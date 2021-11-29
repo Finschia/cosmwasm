@@ -114,5 +114,4 @@ pub mod testing {
 
 // Re-exports
 
-pub use cosmwasm_derive::entry_point;
-pub use cosmwasm_event_derive::IntoEvent;
+pub use cosmwasm_derive::{entry_point, IntoEvent};

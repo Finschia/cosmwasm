@@ -1,6 +1,6 @@
-extern crate cosmwasm_event_derive;
+extern crate cosmwasm_derive;
 
-use cosmwasm_event_derive::IntoEvent;
+use cosmwasm_derive::IntoEvent;
 use cosmwasm_std::{attr, coins, Addr, Coin, Event};
 
 fn coins_to_string(coins: Vec<Coin>) -> String {

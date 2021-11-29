@@ -194,14 +194,6 @@ dependencies = [
 name = "cosmwasm-derive"
 version = "0.16.2"
 dependencies = [
- "cosmwasm-std",
- "syn",
-]
-
-[[package]]
-name = "cosmwasm-event-derive"
-version = "0.16.2"
-dependencies = [
  "convert_case",
  "cosmwasm-std",
  "proc-macro2",
@@ -225,7 +217,6 @@ dependencies = [
  "chrono",
  "cosmwasm-crypto",
  "cosmwasm-derive",
- "cosmwasm-event-derive",
  "cosmwasm-schema",
  "hex",
  "hex-literal",
