@@ -463,7 +463,7 @@ pub fn make_seq_id(
         submessages: vec![],
         messages: vec![],
         attributes: vec![
-            attr("action", "make_uuid"),
+            attr("action", "make_seq_id"),
             attr("uuid", seq_id),
         ],
         data: None,
