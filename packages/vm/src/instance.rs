@@ -12,7 +12,7 @@ use crate::imports::{
     native_addr_canonicalize, native_addr_humanize, native_addr_validate, native_db_read,
     native_db_remove, native_db_write, native_debug, native_ed25519_batch_verify,
     native_ed25519_verify, native_query_chain, native_secp256k1_recover_pubkey,
-    native_secp256k1_verify,
+    native_secp256k1_verify, native_sha1_calculate,
 };
 #[cfg(feature = "iterator")]
 use crate::imports::{native_db_next, native_db_scan};
@@ -162,6 +162,16 @@ where
             "ed25519_batch_verify",
             Function::new_native_with_env(store, env.clone(), native_ed25519_batch_verify),
         );
+
+        // Calculates the inputs using the sha1
+        // Returns 0 if inputs are some invalid and pointer to result region otherwise.
+        // Ownership of the inputs pointer is not transferred to the host.
+        // Ownership of the hash pointer is transferred to the contract.
+        env_imports.insert(
+            "sha1_calculate",
+            Function::new_native_with_env(store, env.clone(), native_sha1_calculate),
+        );
+
 
         // Allows the contract to emit debug logs that the host can either process or ignore.
         // This is never written to chain.

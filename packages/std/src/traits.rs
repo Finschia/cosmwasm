@@ -4,7 +4,7 @@ use std::ops::Deref;
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
 use crate::coins::Coin;
-use crate::errors::{RecoverPubkeyError, StdError, StdResult, VerificationError};
+use crate::errors::{RecoverPubkeyError, StdError, StdResult, VerificationError, HashCalculationError};
 #[cfg(feature = "iterator")]
 use crate::iterator::{Order, Pair};
 use crate::query::{
@@ -114,6 +114,11 @@ pub trait Api {
         signatures: &[&[u8]],
         public_keys: &[&[u8]],
     ) -> Result<bool, VerificationError>;
+
+    fn sha1_calculate(
+        &self,
+        inputs: &[&[u8]],
+    ) -> Result<[u8;20], HashCalculationError>;
 
     /// Emits a debugging message that is handled depending on the environment (typically printed to console or ignored).
     /// Those messages are not persisted to chain.

@@ -4,11 +4,11 @@ use std::cmp::max;
 use std::convert::TryInto;
 
 use cosmwasm_crypto::{
-    ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify, CryptoError,
+    ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify, sha1_calculate, CryptoError,
 };
 use cosmwasm_crypto::{
     BATCH_MAX_LEN, ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN,
-    MESSAGE_HASH_MAX_LEN, MESSAGE_MAX_LEN,
+    MESSAGE_HASH_MAX_LEN, MESSAGE_MAX_LEN, INPUTS_MAX_CNT, INPUT_MAX_LEN,
 };
 
 #[cfg(feature = "iterator")]
@@ -130,6 +130,13 @@ pub fn native_ed25519_batch_verify<A: BackendApi, S: Storage, Q: Querier>(
     pubkeys_ptr: u32,
 ) -> VmResult<u32> {
     do_ed25519_batch_verify(env, messages_ptr, signatures_ptr, pubkeys_ptr)
+}
+
+pub fn native_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    hash_inputs_ptr: u32,
+) -> VmResult<u64> {
+    do_sha1_calculate(env, hash_inputs_ptr)
 }
 
 pub fn native_query_chain<A: BackendApi, S: Storage, Q: Querier>(
@@ -328,7 +335,9 @@ fn do_secp256k1_verify<A: BackendApi, S: Storage, Q: Querier>(
             | CryptoError::GenericErr { .. } => err.code(),
             CryptoError::BatchErr { .. }
             | CryptoError::InvalidRecoveryParam { .. }
-            | CryptoError::MessageTooLong { .. } => panic!("Error must not happen for this call"),
+            | CryptoError::MessageTooLong { .. }
+            | CryptoError::InputsTooLarger { .. }
+            | CryptoError::InputTooLong { .. } => panic!("Error must not happen for this call"),
         },
         |valid| if valid { 0 } else { 1 },
     ))
@@ -362,7 +371,9 @@ fn do_secp256k1_recover_pubkey<A: BackendApi, S: Storage, Q: Querier>(
             | CryptoError::GenericErr { .. } => Ok(to_high_half(err.code())),
             CryptoError::BatchErr { .. }
             | CryptoError::InvalidPubkeyFormat { .. }
-            | CryptoError::MessageTooLong { .. } => panic!("Error must not happen for this call"),
+            | CryptoError::MessageTooLong { .. }
+            | CryptoError::InputsTooLarger { .. }
+            | CryptoError::InputTooLong { .. } => panic!("Error must not happen for this call"),
         },
     }
 }
@@ -388,9 +399,9 @@ fn do_ed25519_verify<A: BackendApi, S: Storage, Q: Querier>(
             | CryptoError::GenericErr { .. } => err.code(),
             CryptoError::BatchErr { .. }
             | CryptoError::InvalidHashFormat { .. }
-            | CryptoError::InvalidRecoveryParam { .. } => {
-                panic!("Error must not happen for this call")
-            }
+            | CryptoError::InvalidRecoveryParam { .. }
+            | CryptoError::InputsTooLarger { .. }
+            | CryptoError::InputTooLong { .. } => panic!("Error must not happen for this call"),
         },
         |valid| if valid { 0 } else { 1 },
     ))
@@ -437,12 +448,52 @@ fn do_ed25519_batch_verify<A: BackendApi, S: Storage, Q: Querier>(
             | CryptoError::InvalidPubkeyFormat { .. }
             | CryptoError::InvalidSignatureFormat { .. }
             | CryptoError::GenericErr { .. } => err.code(),
-            CryptoError::InvalidHashFormat { .. } | CryptoError::InvalidRecoveryParam { .. } => {
-                panic!("Error must not happen for this call")
-            }
+            CryptoError::InvalidHashFormat { .. } | CryptoError::InvalidRecoveryParam { .. }
+            | CryptoError::InputsTooLarger { .. }
+            | CryptoError::InputTooLong { .. } => panic!("Error must not happen for this call"),
         },
         |valid| (!valid).into(),
     ))
+}
+
+pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    hash_inputs_ptr: u32,
+) -> VmResult<u64> {
+
+    let hash_inputs = read_region(
+        &env.memory(),
+        hash_inputs_ptr,
+        (INPUT_MAX_LEN + 4) * INPUTS_MAX_CNT,
+    )?;
+
+    let hash_inputs = decode_sections(&hash_inputs);
+    let result = sha1_calculate(&hash_inputs);
+    let mut gas_cost = env.gas_config.sha1_calculate_cost;
+    //For sha1, the execution time does not increase linearly by the number of updates(count of inputs).
+    if hash_inputs.len() > 1 {
+        gas_cost += (env.gas_config.sha1_calculate_cost * (hash_inputs.len() -1) as u64) / 2;
+    }
+    let gas_info = GasInfo::with_cost(gas_cost);
+    process_gas_info::<A, S, Q>(env, gas_info)?;
+    match result {
+        Ok(hash) => {
+            let hash_ptr = write_to_contract::<A, S, Q>(env, &hash)?;
+            Ok(to_low_half(hash_ptr))
+        }
+        Err(err) => match err {
+            CryptoError::InputsTooLarger { .. } |
+            CryptoError::InputTooLong { .. } => Ok(to_high_half(err.code())), 
+            CryptoError::BatchErr { .. }
+            | CryptoError::MessageTooLong { .. }
+            | CryptoError::InvalidPubkeyFormat { .. }
+            | CryptoError::InvalidSignatureFormat { .. }
+            | CryptoError::GenericErr { .. }
+            | CryptoError::InvalidHashFormat { .. } | CryptoError::InvalidRecoveryParam { .. } => {
+                panic!("Error must not happen for this call")
+            }
+        }
+    }
 }
 
 /// Creates a Region in the contract, writes the given data to it and returns the memory location
@@ -511,6 +562,7 @@ fn do_next<A: BackendApi, S: Storage, Q: Querier>(
     let out_data = encode_sections(&[key, value])?;
     write_to_contract::<A, S, Q>(env, &out_data)
 }
+
 
 /// Returns the data shifted by 32 bits towards the most significant bit.
 ///
@@ -600,6 +652,7 @@ mod tests {
                 "secp256k1_recover_pubkey" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
                 "ed25519_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
                 "ed25519_batch_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "sha1_calculate" => Function::new_native(&store, |_a: u32| -> u64 { 0 }),
                 "debug" => Function::new_native(&store, |_a: u32| {}),
             },
         };

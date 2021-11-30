@@ -12,7 +12,7 @@ use k256::ecdsa::SigningKey; // type alias
 use sha2::Sha256;
 
 use cosmwasm_crypto::{
-    ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify,
+    ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify, sha1_calculate, INPUT_MAX_LEN
 };
 use std::cmp::min;
 
@@ -105,6 +105,28 @@ fn bench_crypto(c: &mut Criterion) {
             assert_eq!(pubkey, expected);
         });
     });
+
+    group.bench_function("sha1_calculate_one", |b| {
+        let inputs: Vec<&[u8]> = vec![&[0;INPUT_MAX_LEN]]; 
+        b.iter(|| {
+            let hash = sha1_calculate(&inputs).unwrap();
+            assert_eq!(hash.len(), 20);
+        });
+    });  
+    group.bench_function("sha1_calculate_two", |b| {
+        let inputs: Vec<&[u8]> = vec![&[0;INPUT_MAX_LEN], &[1;INPUT_MAX_LEN]]; 
+        b.iter(|| {
+            let hash = sha1_calculate(&inputs).unwrap();
+            assert_eq!(hash.len(), 20);
+        });
+    });          
+    group.bench_function("sha1_calculate_four", |b| {
+        let inputs: Vec<&[u8]> = vec![&[0;INPUT_MAX_LEN], &[1;INPUT_MAX_LEN], &[2;INPUT_MAX_LEN], &[3;INPUT_MAX_LEN]]; 
+        b.iter(|| {
+            let hash = sha1_calculate(&inputs).unwrap();
+            assert_eq!(hash.len(), 20);
+        });
+    });          
 
     group.bench_function("ed25519_verify", |b| {
         let message = hex::decode(COSMOS_ED25519_MSG_HEX).unwrap();
