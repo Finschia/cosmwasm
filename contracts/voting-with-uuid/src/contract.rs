@@ -193,7 +193,7 @@ pub fn create_poll(
     validate_description(&description)?;
 
     let mut state = config(deps.storage).load()?;
-    let poll_id = new_uuid(&env, deps.storage);
+    let poll_id = new_uuid(&env, deps.storage, deps.api)?;
     
     let new_poll = Poll {
         creator: info.sender,
@@ -439,7 +439,7 @@ pub fn make_uuid(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let uuid = new_uuid(&env, deps.storage);
+    let uuid = new_uuid(&env, deps.storage, deps.api)?;
     let r = Response {
         submessages: vec![],
         messages: vec![],
