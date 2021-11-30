@@ -51,15 +51,15 @@ pub enum CryptoError {
         limit: usize,
         actual: usize,
         #[cfg(feature = "backtraces")]
-        backtrace: Backtrace,       
+        backtrace: Backtrace,
     },
     #[error("Input is longer than supported by this implementation (Limit: {limit}, actual length: {actual})")]
     InputTooLong {
         limit: usize,
         actual: usize,
         #[cfg(feature = "backtraces")]
-        backtrace: Backtrace,       
-    }
+        backtrace: Backtrace,
+    },
 }
 
 impl CryptoError {

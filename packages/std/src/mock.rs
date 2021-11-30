@@ -7,7 +7,9 @@ use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
 use crate::coins::Coin;
 use crate::deps::OwnedDeps;
-use crate::errors::{RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError, HashCalculationError};
+use crate::errors::{
+    HashCalculationError, RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
+};
 #[cfg(feature = "stargate")]
 use crate::ibc::{IbcChannel, IbcEndpoint, IbcOrder, IbcPacket, IbcTimeoutBlock};
 use crate::query::{
@@ -176,13 +178,8 @@ impl Api for MockApi {
         )?)
     }
 
-    fn sha1_calculate(
-        &self,
-        inputs: &[&[u8]],
-    ) -> Result<[u8;20], HashCalculationError> {
-        Ok(cosmwasm_crypto::sha1_calculate(
-            inputs,
-        )?)
+    fn sha1_calculate(&self, inputs: &[&[u8]]) -> Result<[u8; 20], HashCalculationError> {
+        Ok(cosmwasm_crypto::sha1_calculate(inputs)?)
     }
 
     fn debug(&self, message: &str) {

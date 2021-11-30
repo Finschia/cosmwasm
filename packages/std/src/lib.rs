@@ -65,7 +65,7 @@ pub use crate::storage::MemoryStorage;
 pub use crate::timestamp::Timestamp;
 pub use crate::traits::{Api, Querier, QuerierResult, QuerierWrapper, Storage};
 pub use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo};
-pub use crate::uuid::{Uuid, new_uuid};
+pub use crate::uuid::{new_uuid, Uuid};
 
 // Exposed in wasm build only
 

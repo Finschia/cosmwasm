@@ -58,7 +58,6 @@ impl GasConfig {
     // sha1 cost factor
     const SHA1_CALCULATE_FACTOR: (u64, u64) = (266, 15400); // 266 ns in crypto benchmarks when INPUT_MAX_LEN=40
 
-
     fn calc_crypto_cost(factor: (u64, u64)) -> u64 {
         (GasConfig::BASE_CRYPTO_COST * factor.0) / factor.1
     }
@@ -78,9 +77,7 @@ impl Default for GasConfig {
             ed25519_batch_verify_one_pubkey_cost: GasConfig::calc_crypto_cost(
                 GasConfig::ED255219_BATCH_VERIFY_ONE_PUBKEY_FACTOR,
             ),
-            sha1_calculate_cost: GasConfig::calc_crypto_cost(
-                GasConfig::SHA1_CALCULATE_FACTOR,
-            )
+            sha1_calculate_cost: GasConfig::calc_crypto_cost(GasConfig::SHA1_CALCULATE_FACTOR),
         }
     }
 }

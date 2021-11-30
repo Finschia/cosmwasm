@@ -21,6 +21,6 @@ pub use crate::secp256k1::{secp256k1_recover_pubkey, secp256k1_verify};
 #[doc(hidden)]
 pub use crate::secp256k1::{ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, MESSAGE_HASH_MAX_LEN};
 #[doc(hidden)]
-pub use crate::sha1::{sha1_calculate};
+pub use crate::sha1::sha1_calculate;
 #[doc(hidden)]
 pub use crate::sha1::{INPUTS_MAX_CNT, INPUT_MAX_LEN};

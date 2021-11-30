@@ -1,9 +1,11 @@
-use std::vec::Vec;
 use std::convert::TryInto;
+use std::vec::Vec;
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
-use crate::errors::{RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError, HashCalculationError};
+use crate::errors::{
+    HashCalculationError, RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
+};
 use crate::import_helpers::{from_high_half, from_low_half};
 use crate::memory::{alloc, build_region, consume_region, Region};
 use crate::results::SystemResult;
@@ -322,29 +324,26 @@ impl Api for ExternalApi {
         }
     }
 
-    fn sha1_calculate(
-        &self,
-        inputs: &[&[u8]],
-    ) -> Result<[u8; 20], HashCalculationError> {
+    fn sha1_calculate(&self, inputs: &[&[u8]]) -> Result<[u8; 20], HashCalculationError> {
         let inputs_encoded = encode_sections(inputs);
         let inputs_send = build_region(&inputs_encoded);
-        let inputs_send_ptr = &*inputs_send as *const Region as u32;        
-        
+        let inputs_send_ptr = &*inputs_send as *const Region as u32;
+
         let result = unsafe { sha1_calculate(inputs_send_ptr) };
         let error_code = from_high_half(result);
         let hash_ptr = from_low_half(result);
         match error_code {
             0 => {
                 let hash = unsafe { consume_region(hash_ptr as *mut Region) };
-                let hash_array: [u8;20] = hash.try_into().unwrap_or_else(
-                    |v: Vec<u8>| panic!("Expected a Vec of length {} but it was {}", 20, v.len())
-                );
+                let hash_array: [u8; 20] = hash.try_into().unwrap_or_else(|v: Vec<u8>| {
+                    panic!("Expected a Vec of length {} but it was {}", 20, v.len())
+                });
                 Ok(hash_array)
             }
             1 => Err(HashCalculationError::InputsTooLarger),
             2 => Err(HashCalculationError::InputTooLonger),
             error_code => Err(HashCalculationError::unknown_err(error_code)),
-        }    
+        }
     }
 
     fn debug(&self, message: &str) {

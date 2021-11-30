@@ -4,11 +4,12 @@ use std::cmp::max;
 use std::convert::TryInto;
 
 use cosmwasm_crypto::{
-    ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify, sha1_calculate, CryptoError,
+    ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify,
+    sha1_calculate, CryptoError,
 };
 use cosmwasm_crypto::{
-    BATCH_MAX_LEN, ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN,
-    MESSAGE_HASH_MAX_LEN, MESSAGE_MAX_LEN, INPUTS_MAX_CNT, INPUT_MAX_LEN,
+    BATCH_MAX_LEN, ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN, INPUTS_MAX_CNT,
+    INPUT_MAX_LEN, MESSAGE_HASH_MAX_LEN, MESSAGE_MAX_LEN,
 };
 
 #[cfg(feature = "iterator")]
@@ -448,7 +449,8 @@ fn do_ed25519_batch_verify<A: BackendApi, S: Storage, Q: Querier>(
             | CryptoError::InvalidPubkeyFormat { .. }
             | CryptoError::InvalidSignatureFormat { .. }
             | CryptoError::GenericErr { .. } => err.code(),
-            CryptoError::InvalidHashFormat { .. } | CryptoError::InvalidRecoveryParam { .. }
+            CryptoError::InvalidHashFormat { .. }
+            | CryptoError::InvalidRecoveryParam { .. }
             | CryptoError::InputsTooLarger { .. }
             | CryptoError::InputTooLong { .. } => panic!("Error must not happen for this call"),
         },
@@ -460,7 +462,6 @@ pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     hash_inputs_ptr: u32,
 ) -> VmResult<u64> {
-
     let hash_inputs = read_region(
         &env.memory(),
         hash_inputs_ptr,
@@ -472,7 +473,7 @@ pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
     let mut gas_cost = env.gas_config.sha1_calculate_cost;
     //For sha1, the execution time does not increase linearly by the number of updates(count of inputs).
     if hash_inputs.len() > 1 {
-        gas_cost += (env.gas_config.sha1_calculate_cost * (hash_inputs.len() -1) as u64) / 2;
+        gas_cost += (env.gas_config.sha1_calculate_cost * (hash_inputs.len() - 1) as u64) / 2;
     }
     let gas_info = GasInfo::with_cost(gas_cost);
     process_gas_info::<A, S, Q>(env, gas_info)?;
@@ -482,17 +483,19 @@ pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
             Ok(to_low_half(hash_ptr))
         }
         Err(err) => match err {
-            CryptoError::InputsTooLarger { .. } |
-            CryptoError::InputTooLong { .. } => Ok(to_high_half(err.code())), 
+            CryptoError::InputsTooLarger { .. } | CryptoError::InputTooLong { .. } => {
+                Ok(to_high_half(err.code()))
+            }
             CryptoError::BatchErr { .. }
             | CryptoError::MessageTooLong { .. }
             | CryptoError::InvalidPubkeyFormat { .. }
             | CryptoError::InvalidSignatureFormat { .. }
             | CryptoError::GenericErr { .. }
-            | CryptoError::InvalidHashFormat { .. } | CryptoError::InvalidRecoveryParam { .. } => {
+            | CryptoError::InvalidHashFormat { .. }
+            | CryptoError::InvalidRecoveryParam { .. } => {
                 panic!("Error must not happen for this call")
             }
-        }
+        },
     }
 }
 
@@ -562,7 +565,6 @@ fn do_next<A: BackendApi, S: Storage, Q: Querier>(
     let out_data = encode_sections(&[key, value])?;
     write_to_contract::<A, S, Q>(env, &out_data)
 }
-
 
 /// Returns the data shifted by 32 bits towards the most significant bit.
 ///

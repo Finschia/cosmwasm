@@ -3,7 +3,7 @@ use std::backtrace::Backtrace;
 use std::fmt;
 use thiserror::Error;
 
-use crate::errors::{RecoverPubkeyError, VerificationError, HashCalculationError};
+use crate::errors::{HashCalculationError, RecoverPubkeyError, VerificationError};
 
 /// Structured error type for init, execute and query.
 ///
@@ -39,7 +39,7 @@ pub enum StdError {
         source: HashCalculationError,
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
-    },    
+    },
     /// Whenever there is no specific error type available
     #[error("Generic error: {msg}")]
     GenericErr {
@@ -254,7 +254,7 @@ impl PartialEq<StdError> for StdError {
                 } else {
                     false
                 }
-            }            
+            }
             StdError::GenericErr {
                 msg,
                 #[cfg(feature = "backtraces")]

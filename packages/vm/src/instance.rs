@@ -172,7 +172,6 @@ where
             Function::new_native_with_env(store, env.clone(), native_sha1_calculate),
         );
 
-
         // Allows the contract to emit debug logs that the host can either process or ignore.
         // This is never written to chain.
         // Takes a pointer argument of a memory region that must contain an UTF-8 encoded string.

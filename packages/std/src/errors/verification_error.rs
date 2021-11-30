@@ -84,8 +84,9 @@ impl From<CryptoError> for VerificationError {
             CryptoError::GenericErr { .. } => VerificationError::GenericErr,
             CryptoError::InvalidRecoveryParam { .. } => VerificationError::InvalidRecoveryParam,
             CryptoError::BatchErr { .. } => VerificationError::BatchErr,
-            CryptoError::InputsTooLarger { .. } |
-            CryptoError::InputTooLong { .. } => panic!("Conversion not supported"),
+            CryptoError::InputsTooLarger { .. } | CryptoError::InputTooLong { .. } => {
+                panic!("Conversion not supported")
+            }
         }
     }
 }
