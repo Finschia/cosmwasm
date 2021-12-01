@@ -129,6 +129,30 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "make_uuid"
+      ],
+      "properties": {
+        "make_uuid": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "make_sequence_id"
+      ],
+      "properties": {
+        "make_sequence_id": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
