@@ -83,6 +83,7 @@ mod tests {
     use crate::{new_uuid, Uuid};
     use crate::{to_vec, Storage, Addr};
     use std::str::FromStr;
+    use uuid as raw_uuid;
 
     const CONTRACT_UUID_SEQ_KEY: &[u8] = b"contract_uuid_seq";
 
@@ -103,6 +104,25 @@ mod tests {
 
         assert_eq!(uuid2.to_string(), "61b5574c-d3e4-5d06-8a87-ab28a7353dfd");
         assert_ne!(uuid, uuid2);
+    }
+
+    #[test]
+    fn same_output_as_raw_uuid() {
+        let env = mock_env();
+        let api = MockApi::default();
+        let mut storage = MockStorage::new();
+        let our_uuid = new_uuid(&env, &mut storage, &api).unwrap();
+ 
+        let uuid_name = format!(
+            "{} {} {}",
+            env.contract.address, env.block.height, 0
+        );        
+        let raw = raw_uuid::Uuid::new_v5(
+            &raw_uuid::Uuid::NAMESPACE_OID,
+            uuid_name.as_bytes()
+        );
+
+        assert_eq!(our_uuid.to_string(), raw.to_string());
     }
 
     #[test]
