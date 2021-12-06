@@ -192,7 +192,6 @@ pub fn create_poll(
     validate_end_height(end_height, env.clone())?;
     validate_description(&description)?;
 
-    let mut state = config(deps.storage).load()?;
     let poll_id = new_uuid(&env, deps.storage, deps.api)?;
     
     let new_poll = Poll {
@@ -208,8 +207,6 @@ pub fn create_poll(
         description,
     };
     poll(deps.storage).save(poll_id.as_slice(), &new_poll)?;
-
-    config(deps.storage).save(&state)?;
 
     let r = Response {
         submessages: vec![],
@@ -437,7 +434,7 @@ fn send_tokens(to_address: &Addr, amount: Vec<Coin>, action: &str) -> Response {
 pub fn make_uuid(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let uuid = new_uuid(&env, deps.storage, deps.api)?;
     let r = Response {
@@ -453,9 +450,9 @@ pub fn make_uuid(
 }
 
 pub fn make_seq_id(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let seq_id: u64 = 0;
 
