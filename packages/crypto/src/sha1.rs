@@ -11,7 +11,7 @@ pub const INPUTS_MAX_CNT: usize = 4;
 /// After executing the crypto bench according to INPUT_MAX_LEN,
 /// the gas factor is determined based on the result.
 /// If you modify this value, you need to adjust the gas factor.
-pub const INPUT_MAX_LEN: usize = 64;
+pub const INPUT_MAX_LEN: usize = 80;
 
 pub fn sha1_calculate(hash_inputs: &[&[u8]]) -> CryptoResult<[u8; 20]> {
     check_hash_inputs(hash_inputs)?;

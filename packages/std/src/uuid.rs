@@ -40,15 +40,15 @@ const CONTRACT_UUID_SEQ_KEY: &[u8] = b"contract_uuid_seq";
 
 pub fn new_uuid(env: &Env, storage: &mut dyn Storage, api: &dyn Api) -> StdResult<Uuid> {
     let raw_seq = storage.get(CONTRACT_UUID_SEQ_KEY);
-    let seq: u64 = match raw_seq {
+    let seq: u16 = match raw_seq {
         Some(data) => from_slice(&data).unwrap(),
         None => 0,
     };
-    let next_seq: u64 = seq.wrapping_add(1);
+    let next_seq: u16 = seq.wrapping_add(1);
 
     let uuid_name = format!(
-        "{} {} {} {}",
-        env.block.chain_id, env.contract.address, env.block.height, seq
+        "{} {} {}",
+        env.contract.address, env.block.height, seq
     );
     storage.set(CONTRACT_UUID_SEQ_KEY, &(to_vec(&next_seq).unwrap()));
 
@@ -95,13 +95,13 @@ mod tests {
         let uuid = new_uuid(&env, &mut storage, &api).unwrap();
         let uuid2 = new_uuid(&env, &mut storage, &api).unwrap();
 
-        assert_eq!(uuid.to_string(), "f448062e-7f17-5b6a-b683-1a6c01e0578f");
+        assert_eq!(uuid.to_string(), "417d3461-5f6c-584b-8035-482a70997aee");
         assert_eq!(uuid.get_variant(), uuid::Variant::RFC4122);
         assert_eq!(uuid.get_version(), Some(uuid::Version::Sha1));
-        let parsed_uuid = Uuid::from_str("f448062e-7f17-5b6a-b683-1a6c01e0578f");
+        let parsed_uuid = Uuid::from_str("417d3461-5f6c-584b-8035-482a70997aee");
         assert_eq!(uuid, parsed_uuid.unwrap());
 
-        assert_eq!(uuid2.to_string(), "d45dfca2-dd58-543c-885c-8465cda0cff7");
+        assert_eq!(uuid2.to_string(), "61b5574c-d3e4-5d06-8a87-ab28a7353dfd");
         assert_ne!(uuid, uuid2);
     }
 
