@@ -44,7 +44,7 @@ pub fn new_uuid(env: &Env, storage: &mut dyn Storage, api: &dyn Api) -> StdResul
         Some(data) => from_slice(&data).unwrap(),
         None => 0,
     };
-    let next_seq: u64 = if seq < u64::MAX { seq + 1 } else { 0 };
+    let next_seq: u64 = seq.wrapping_add(1);
 
     let uuid_name = format!(
         "{} {} {} {}",
