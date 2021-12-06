@@ -81,7 +81,10 @@ impl FromStr for Uuid {
 mod tests {
     use crate::testing::{mock_env, MockApi, MockStorage};
     use crate::{new_uuid, Uuid};
+    use crate::{to_vec, Storage, Addr};
     use std::str::FromStr;
+
+    const CONTRACT_UUID_SEQ_KEY: &[u8] = b"contract_uuid_seq";
 
     #[test]
     fn generate_uuid_v5() {
@@ -101,4 +104,21 @@ mod tests {
         assert_eq!(uuid2.to_string(), "d45dfca2-dd58-543c-885c-8465cda0cff7");
         assert_ne!(uuid, uuid2);
     }
+
+    #[test]
+    fn work_fine_as_longest_name() {
+        let mut env = mock_env();
+        let api = MockApi::default();
+        let mut storage = MockStorage::new();
+
+        //enforce the max value
+        env.contract.address = Addr::unchecked("link1qyqszqgpqyqszqgpqyqszqgpqyqszqgp8apuk5");
+        env.block.height = u64::MAX; 
+        let stor: &mut dyn Storage = &mut storage;
+        stor.set(CONTRACT_UUID_SEQ_KEY, &(to_vec(&u16::MAX).unwrap()));
+
+        let uuid = new_uuid(&env, &mut storage, &api);
+        assert!(uuid.is_ok());
+
+    }    
 }
