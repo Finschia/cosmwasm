@@ -46,10 +46,7 @@ pub fn new_uuid(env: &Env, storage: &mut dyn Storage, api: &dyn Api) -> StdResul
     };
     let next_seq: u16 = seq.wrapping_add(1);
 
-    let uuid_name = format!(
-        "{} {} {}",
-        env.contract.address, env.block.height, seq
-    );
+    let uuid_name = format!("{} {} {}", env.contract.address, env.block.height, seq);
     storage.set(CONTRACT_UUID_SEQ_KEY, &(to_vec(&next_seq).unwrap()));
 
     Uuid::new_v5(
@@ -81,7 +78,7 @@ impl FromStr for Uuid {
 mod tests {
     use crate::testing::{mock_env, MockApi, MockStorage};
     use crate::{new_uuid, Uuid};
-    use crate::{to_vec, Storage, Addr};
+    use crate::{to_vec, Addr, Storage};
     use std::str::FromStr;
     use uuid as raw_uuid;
 
@@ -112,15 +109,9 @@ mod tests {
         let api = MockApi::default();
         let mut storage = MockStorage::new();
         let our_uuid = new_uuid(&env, &mut storage, &api).unwrap();
- 
-        let uuid_name = format!(
-            "{} {} {}",
-            env.contract.address, env.block.height, 0
-        );        
-        let raw = raw_uuid::Uuid::new_v5(
-            &raw_uuid::Uuid::NAMESPACE_OID,
-            uuid_name.as_bytes()
-        );
+
+        let uuid_name = format!("{} {} {}", env.contract.address, env.block.height, 0);
+        let raw = raw_uuid::Uuid::new_v5(&raw_uuid::Uuid::NAMESPACE_OID, uuid_name.as_bytes());
 
         assert_eq!(our_uuid.to_string(), raw.to_string());
     }
@@ -133,12 +124,11 @@ mod tests {
 
         //enforce the max value
         env.contract.address = Addr::unchecked("link1qyqszqgpqyqszqgpqyqszqgpqyqszqgp8apuk5");
-        env.block.height = u64::MAX; 
+        env.block.height = u64::MAX;
         let stor: &mut dyn Storage = &mut storage;
         stor.set(CONTRACT_UUID_SEQ_KEY, &(to_vec(&u16::MAX).unwrap()));
 
         let uuid = new_uuid(&env, &mut storage, &api);
         assert!(uuid.is_ok());
-
-    }    
+    }
 }
