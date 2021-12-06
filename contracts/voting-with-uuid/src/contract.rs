@@ -7,8 +7,8 @@ use crate::state::{
     bank, bank_read, config, config_read, poll, poll_read, Poll, PollStatus, State, Voter,
 };
 use cosmwasm_std::{
-    attr, coin, entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Storage, Uint128, Uuid, new_uuid,
+    attr, coin, entry_point, new_uuid, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps,
+    DepsMut, Env, MessageInfo, Response, StdError, StdResult, Storage, Uint128, Uuid,
 };
 
 pub const VOTING_TOKEN: &str = "voting_token";
@@ -193,7 +193,7 @@ pub fn create_poll(
     validate_description(&description)?;
 
     let poll_id = new_uuid(&env, deps.storage, deps.api)?;
-    
+
     let new_poll = Poll {
         creator: info.sender,
         status: PollStatus::InProgress,
@@ -367,12 +367,10 @@ pub fn cast_vote(
     weight: Uint128,
 ) -> Result<Response, ContractError> {
     let poll_key = poll_id.as_bytes();
-    let state = config_read(deps.storage).load()?;
-
 
     let mut a_poll = match poll(deps.storage).load(poll_key) {
         Ok(poll) => poll,
-        Err(_) => return Err(ContractError::PollNotExist {}), 
+        Err(_) => return Err(ContractError::PollNotExist {}),
     };
 
     if a_poll.status != PollStatus::InProgress {
@@ -430,20 +428,12 @@ fn send_tokens(to_address: &Addr, amount: Vec<Coin>, action: &str) -> Response {
     }
 }
 
-
-pub fn make_uuid(
-    deps: DepsMut,
-    env: Env,
-    _info: MessageInfo,
-) -> Result<Response, ContractError> {
+pub fn make_uuid(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let uuid = new_uuid(&env, deps.storage, deps.api)?;
     let r = Response {
         submessages: vec![],
         messages: vec![],
-        attributes: vec![
-            attr("action", "make_uuid"),
-            attr("uuid", uuid.to_string()),
-        ],
+        attributes: vec![attr("action", "make_uuid"), attr("uuid", uuid.to_string())],
         data: None,
     };
     Ok(r)
@@ -459,15 +449,11 @@ pub fn make_seq_id(
     let r = Response {
         submessages: vec![],
         messages: vec![],
-        attributes: vec![
-            attr("action", "make_seq_id"),
-            attr("uuid", seq_id),
-        ],
+        attributes: vec![attr("action", "make_seq_id"), attr("uuid", seq_id)],
         data: None,
     };
     Ok(r)
 }
-
 
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {

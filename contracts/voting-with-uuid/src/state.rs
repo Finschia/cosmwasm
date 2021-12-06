@@ -19,7 +19,7 @@ pub struct State {
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TokenManager {
-    pub token_balance: Uint128,             // total staked balance
+    pub token_balance: Uint128,              // total staked balance
     pub locked_tokens: Vec<(Uuid, Uint128)>, //maps poll_id to weight voted
     pub participated_polls: Vec<Uuid>,       // poll_id
 }

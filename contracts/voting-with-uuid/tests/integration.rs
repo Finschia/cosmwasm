@@ -17,24 +17,12 @@
 //!      });
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
-use cosmwasm_std::{
-    attr, coins, from_binary, to_vec, Addr, AllBalanceResponse, BankMsg, Binary, ContractResult,
-    Empty, Response, Uint128,
-};
-use cosmwasm_vm::{
-    call_execute, from_slice,
-    testing::{
-        execute, instantiate, mock_env, mock_info, mock_instance,
-        mock_instance_with_balances, query, sudo, test_io, MOCK_CONTRACT_ADDR,
-    },
-    Storage, VmError,
-};
+use cosmwasm_std::{coins, Response};
+use cosmwasm_vm::testing::{execute, instantiate, mock_env, mock_info, mock_instance};
 
-use cw_voting_with_uuid::msg::{ExecuteMsg, InstantiateMsg, QueryMsg,};
-use cw_voting_with_uuid::state::State;
+use cw_voting_with_uuid::msg::{ExecuteMsg, InstantiateMsg};
 
-static WASM: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/release/cw_voting_with_uuid.wasm");
-const TEST_CREATOR: &str = "creator";
+static WASM: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/release/optimized.wasm");
 const DENOM: &str = "voting_token";
 
 #[test]
@@ -44,21 +32,20 @@ fn compare_gas_spent() {
     let creator = String::from("creator");
     let info = mock_info(&creator, &coins(1000, "earth"));
 
-
     let msg = InstantiateMsg {
         denom: String::from(DENOM),
-    };  
+    };
     let res: Response = instantiate(&mut deps, env.clone(), info.clone(), msg).unwrap();
     assert_eq!(res.messages.len(), 0);
 
     let uuid_msg = ExecuteMsg::MakeUuid {};
     let before_gas1 = deps.get_gas_left();
-    let execute_res: Response = execute(&mut deps, env.clone(), info.clone(), uuid_msg).unwrap();
+    let _execute_res: Response = execute(&mut deps, env.clone(), info.clone(), uuid_msg).unwrap();
     let gas_used_uuid = before_gas1 - deps.get_gas_left();
 
     let seq_msg = ExecuteMsg::MakeSequenceId {};
     let before_gas2 = deps.get_gas_left();
-    let execute_res: Response = execute(&mut deps, env.clone(), info.clone(), seq_msg).unwrap();
+    let _execute_res: Response = execute(&mut deps, env.clone(), info.clone(), seq_msg).unwrap();
     let gas_used_seq_id = before_gas2 - deps.get_gas_left();
 
     assert!(gas_used_seq_id < gas_used_uuid);

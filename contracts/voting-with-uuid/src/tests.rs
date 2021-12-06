@@ -65,7 +65,11 @@ mod tests {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
         let mut deps = mock_dependencies(&[]);
         mock_instantiate(deps.as_mut());
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: poll_id });
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Poll { poll_id: poll_id },
+        );
 
         match res {
             Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Poll does not exist"),
@@ -201,7 +205,12 @@ mod tests {
         );
 
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: poll_id }).unwrap();
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Poll { poll_id: poll_id },
+        )
+        .unwrap();
         let value: PollResponse = from_binary(&res).unwrap();
         assert_eq!(Some(10001), value.end_height);
 
@@ -304,7 +313,12 @@ mod tests {
                 attr("passed", "true"),
             ]
         );
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: poll_id }).unwrap();
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Poll { poll_id: poll_id },
+        )
+        .unwrap();
         let value: PollResponse = from_binary(&res).unwrap();
         assert_eq!(PollStatus::Passed, value.status);
     }
@@ -319,7 +333,15 @@ mod tests {
         let msg = create_poll_msg(0, "test".to_string(), None, Some(env.block.height + 1));
 
         let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-        assert_create_poll_result(&poll_id, 0, 1001, 0, TEST_CREATOR, execute_res, deps.as_mut());
+        assert_create_poll_result(
+            &poll_id,
+            0,
+            1001,
+            0,
+            TEST_CREATOR,
+            execute_res,
+            deps.as_mut(),
+        );
         let msg = ExecuteMsg::EndPoll { poll_id: poll_id };
         env.block.height = &env.block.height + 2;
 
@@ -335,7 +357,12 @@ mod tests {
             ]
         );
 
-        let res = query(deps.as_ref(), env.clone(), QueryMsg::Poll { poll_id: poll_id }).unwrap();
+        let res = query(
+            deps.as_ref(),
+            env.clone(),
+            QueryMsg::Poll { poll_id: poll_id },
+        )
+        .unwrap();
         let value: PollResponse = from_binary(&res).unwrap();
         assert_eq!(PollStatus::Rejected, value.status);
     }
@@ -419,7 +446,12 @@ mod tests {
             ]
         );
 
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: poll_id }).unwrap();
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Poll { poll_id: poll_id },
+        )
+        .unwrap();
         let value: PollResponse = from_binary(&res).unwrap();
         assert_eq!(PollStatus::Rejected, value.status);
     }
@@ -471,11 +503,7 @@ mod tests {
         let info = mock_info(TEST_VOTER_2, &coins(voter2_stake, VOTING_TOKEN));
 
         let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
-        assert_stake_tokens_result(
-            voter1_stake + voter2_stake,
-            execute_res,
-            deps.as_mut(),
-        );
+        assert_stake_tokens_result(voter1_stake + voter2_stake, execute_res, deps.as_mut());
 
         let (env, info) = mock_info_height(TEST_VOTER_2, &[], 0, 0);
         let msg = ExecuteMsg::CastVote {
@@ -506,7 +534,12 @@ mod tests {
             ]
         );
 
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: poll_id }).unwrap();
+        let res = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::Poll { poll_id: poll_id },
+        )
+        .unwrap();
         let value: PollResponse = from_binary(&res).unwrap();
         assert_eq!(PollStatus::Rejected, value.status);
     }
@@ -889,11 +922,7 @@ mod tests {
         );
     }
 
-    fn assert_stake_tokens_result(
-        staked_tokens: u128,
-        execute_res: Response,
-        deps: DepsMut,
-    ) {
+    fn assert_stake_tokens_result(staked_tokens: u128, execute_res: Response, deps: DepsMut) {
         assert_eq!(execute_res, Response::default());
 
         let state = config_read(deps.storage).load().unwrap();

@@ -66,7 +66,6 @@ pub struct TokenStakeResponse {
     pub token_balance: Uint128,
 }
 
-
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 pub struct MakeUuidResponse {
     pub uuid: Uuid,
