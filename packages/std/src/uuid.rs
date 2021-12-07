@@ -39,15 +39,15 @@ impl Uuid {
 const CONTRACT_UUID_SEQ_NUM_KEY: &[u8] = b"contract_uuid_seq_num";
 
 pub fn new_uuid(env: &Env, storage: &mut dyn Storage, api: &dyn Api) -> StdResult<Uuid> {
-    let raw_seq = storage.get(CONTRACT_UUID_SEQ_NUM_KEY);
-    let seq: u16 = match raw_seq {
+    let raw_seq_num = storage.get(CONTRACT_UUID_SEQ_NUM_KEY);
+    let seq_num: u16 = match raw_seq_num {
         Some(data) => from_slice(&data).unwrap(),
         None => 0,
     };
-    let next_seq: u16 = seq.wrapping_add(1);
+    let next_seq_num: u16 = seq_num.wrapping_add(1);
 
-    let uuid_name = format!("{} {} {}", env.contract.address, env.block.height, seq);
-    storage.set(CONTRACT_UUID_SEQ_NUM_KEY, &(to_vec(&next_seq).unwrap()));
+    let uuid_name = format!("{} {} {}", env.contract.address, env.block.height, seq_num);
+    storage.set(CONTRACT_UUID_SEQ_NUM_KEY, &(to_vec(&next_seq_num).unwrap()));
 
     Uuid::new_v5(
         api,
