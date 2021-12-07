@@ -36,10 +36,10 @@ impl Uuid {
     }
 }
 
-const CONTRACT_UUID_SEQ_KEY: &[u8] = b"contract_uuid_seq";
+const CONTRACT_UUID_SEQ_NUM_KEY: &[u8] = b"contract_uuid_seq_num";
 
 pub fn new_uuid(env: &Env, storage: &mut dyn Storage, api: &dyn Api) -> StdResult<Uuid> {
-    let raw_seq = storage.get(CONTRACT_UUID_SEQ_KEY);
+    let raw_seq = storage.get(CONTRACT_UUID_SEQ_NUM_KEY);
     let seq: u16 = match raw_seq {
         Some(data) => from_slice(&data).unwrap(),
         None => 0,
@@ -47,7 +47,7 @@ pub fn new_uuid(env: &Env, storage: &mut dyn Storage, api: &dyn Api) -> StdResul
     let next_seq: u16 = seq.wrapping_add(1);
 
     let uuid_name = format!("{} {} {}", env.contract.address, env.block.height, seq);
-    storage.set(CONTRACT_UUID_SEQ_KEY, &(to_vec(&next_seq).unwrap()));
+    storage.set(CONTRACT_UUID_SEQ_NUM_KEY, &(to_vec(&next_seq).unwrap()));
 
     Uuid::new_v5(
         api,
@@ -82,7 +82,7 @@ mod tests {
     use std::str::FromStr;
     use uuid as raw_uuid;
 
-    const CONTRACT_UUID_SEQ_KEY: &[u8] = b"contract_uuid_seq";
+    const CONTRACT_UUID_SEQ_NUM_KEY: &[u8] = b"contract_uuid_seq_num";
 
     #[test]
     fn generate_uuid_v5() {
@@ -126,7 +126,7 @@ mod tests {
         env.contract.address = Addr::unchecked("link1qyqszqgpqyqszqgpqyqszqgpqyqszqgp8apuk5");
         env.block.height = u64::MAX;
         let stor: &mut dyn Storage = &mut storage;
-        stor.set(CONTRACT_UUID_SEQ_KEY, &(to_vec(&u16::MAX).unwrap()));
+        stor.set(CONTRACT_UUID_SEQ_NUM_KEY, &(to_vec(&u16::MAX).unwrap()));
 
         let uuid = new_uuid(&env, &mut storage, &api);
         assert!(uuid.is_ok());
