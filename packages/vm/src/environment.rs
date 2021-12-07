@@ -29,6 +29,8 @@ pub struct GasConfig {
     pub ed25519_batch_verify_cost: u64,
     /// ed25519 batch signature verification cost (single public key)
     pub ed25519_batch_verify_one_pubkey_cost: u64,
+    /// sha1 hash calculation cost (single input)
+    pub sha1_calculate_cost: u64,
 }
 
 impl GasConfig {
@@ -53,6 +55,9 @@ impl GasConfig {
         GasConfig::ED25519_VERIFY_FACTOR.1 * 4,
     ); // 0.41 / 4. ~ 0.1
 
+    // sha1 cost factor
+    const SHA1_CALCULATE_FACTOR: (u64, u64) = (270, 15400); // 270 ns in crypto benchmarks when INPUT_MAX_LEN=80
+
     fn calc_crypto_cost(factor: (u64, u64)) -> u64 {
         (GasConfig::BASE_CRYPTO_COST * factor.0) / factor.1
     }
@@ -72,6 +77,7 @@ impl Default for GasConfig {
             ed25519_batch_verify_one_pubkey_cost: GasConfig::calc_crypto_cost(
                 GasConfig::ED255219_BATCH_VERIFY_ONE_PUBKEY_FACTOR,
             ),
+            sha1_calculate_cost: GasConfig::calc_crypto_cost(GasConfig::SHA1_CALCULATE_FACTOR),
         }
     }
 }
@@ -436,6 +442,7 @@ mod tests {
                 "secp256k1_recover_pubkey" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
                 "ed25519_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
                 "ed25519_batch_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "sha1_calculate" => Function::new_native(&store, |_a: u32| -> u64 { 0 }),
                 "debug" => Function::new_native(&store, |_a: u32| {}),
             },
         };

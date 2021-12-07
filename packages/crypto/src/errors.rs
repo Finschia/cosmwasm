@@ -46,6 +46,20 @@ pub enum CryptoError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[error("Inputs are larger than supported by this implementation (Limit: {limit}, actual length: {actual})")]
+    InputsTooLarger {
+        limit: usize,
+        actual: usize,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("Input is longer than supported by this implementation (Limit: {limit}, actual length: {actual})")]
+    InputTooLong {
+        limit: usize,
+        actual: usize,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
 }
 
 impl CryptoError {
@@ -101,6 +115,22 @@ impl CryptoError {
             backtrace: Backtrace::capture(),
         }
     }
+    pub fn inputs_too_larger(limit: usize, actual: usize) -> Self {
+        CryptoError::InputsTooLarger {
+            limit,
+            actual,
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+    pub fn input_too_long(limit: usize, actual: usize) -> Self {
+        CryptoError::InputTooLong {
+            limit,
+            actual,
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
 
     /// Numeric error code that can easily be passed over the
     /// contract VM boundary.
@@ -112,6 +142,8 @@ impl CryptoError {
             CryptoError::InvalidPubkeyFormat { .. } => 5,
             CryptoError::InvalidRecoveryParam { .. } => 6,
             CryptoError::BatchErr { .. } => 7,
+            CryptoError::InputsTooLarger { .. } => 8,
+            CryptoError::InputTooLong { .. } => 9,
             CryptoError::GenericErr { .. } => 10,
         }
     }

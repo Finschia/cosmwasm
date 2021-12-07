@@ -3,7 +3,7 @@ use std::backtrace::Backtrace;
 use std::fmt;
 use thiserror::Error;
 
-use crate::errors::{RecoverPubkeyError, VerificationError};
+use crate::errors::{HashCalculationError, RecoverPubkeyError, VerificationError};
 
 /// Structured error type for init, execute and query.
 ///
@@ -31,6 +31,12 @@ pub enum StdError {
     #[error("Recover pubkey error: {source}")]
     RecoverPubkeyErr {
         source: RecoverPubkeyError,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("Hash Calculation error: {source}")]
+    HashCalculationError {
+        source: HashCalculationError,
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
@@ -114,6 +120,13 @@ impl StdError {
         }
     }
 
+    pub fn hash_calculation_err(source: HashCalculationError) -> Self {
+        StdError::HashCalculationError {
+            source,
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
     pub fn generic_err<S: Into<String>>(msg: S) -> Self {
         StdError::GenericErr {
             msg: msg.into(),
@@ -216,6 +229,22 @@ impl PartialEq<StdError> for StdError {
                     backtrace: _,
             } => {
                 if let StdError::RecoverPubkeyErr {
+                    source: rhs_source,
+                    #[cfg(feature = "backtraces")]
+                        backtrace: _,
+                } = rhs
+                {
+                    source == rhs_source
+                } else {
+                    false
+                }
+            }
+            StdError::HashCalculationError {
+                source,
+                #[cfg(feature = "backtraces")]
+                    backtrace: _,
+            } => {
+                if let StdError::HashCalculationError {
                     source: rhs_source,
                     #[cfg(feature = "backtraces")]
                         backtrace: _,
@@ -401,6 +430,12 @@ impl From<VerificationError> for StdError {
 impl From<RecoverPubkeyError> for StdError {
     fn from(source: RecoverPubkeyError) -> Self {
         Self::recover_pubkey_err(source)
+    }
+}
+
+impl From<HashCalculationError> for StdError {
+    fn from(source: HashCalculationError) -> Self {
+        Self::hash_calculation_err(source)
     }
 }
 

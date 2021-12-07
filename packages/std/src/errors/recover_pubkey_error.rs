@@ -71,6 +71,9 @@ impl From<CryptoError> for RecoverPubkeyError {
             CryptoError::GenericErr { .. } => RecoverPubkeyError::unknown_err(original.code()),
             CryptoError::InvalidRecoveryParam { .. } => RecoverPubkeyError::InvalidRecoveryParam,
             CryptoError::BatchErr { .. } => panic!("Conversion not supported"),
+            CryptoError::InputsTooLarger { .. } | CryptoError::InputTooLong { .. } => {
+                panic!("Conversion not supported")
+            }
         }
     }
 }

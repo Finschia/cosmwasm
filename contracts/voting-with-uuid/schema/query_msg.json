@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "config"
+      ],
+      "properties": {
+        "config": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "token_stake"
+      ],
+      "properties": {
+        "token_stake": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "poll"
+      ],
+      "properties": {
+        "poll": {
+          "type": "object",
+          "required": [
+            "poll_id"
+          ],
+          "properties": {
+            "poll_id": {
+              "$ref": "#/definitions/Uuid"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Uuid": {
+      "description": "Uuid Provides a Uuid that can be used deterministically. Use internally Uuidv5 and NAMESPACE_OID. The name is combined with cahin id, contract address, block height, and increased sequential.",
+      "type": "string"
+    }
+  }
+}
