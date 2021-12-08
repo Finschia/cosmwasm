@@ -1,5 +1,3 @@
-#![allow(dead_code)] // Disable unused code lint with the code used in https://github.com/line/cosmwasm-simulator.
-
 use crate::VmError;
 
 #[derive(Debug)]

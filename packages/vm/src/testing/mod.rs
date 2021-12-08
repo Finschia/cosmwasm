@@ -25,4 +25,5 @@ pub use mock::{
     mock_backend, mock_backend_with_balances, mock_env, mock_info, MockApi, MOCK_CONTRACT_ADDR,
 };
 pub use querier::MockQuerier;
+pub use result::{TestingError, TestingResult};
 pub use storage::MockStorage;
