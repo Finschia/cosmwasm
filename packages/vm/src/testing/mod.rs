@@ -10,6 +10,7 @@ mod result;
 mod storage;
 
 pub use calls::{execute, instantiate, migrate, query, reply, sudo};
+pub use contract::Contract;
 #[cfg(feature = "stargate")]
 pub use ibc_calls::{
     ibc_channel_close, ibc_channel_connect, ibc_channel_open, ibc_packet_ack, ibc_packet_receive,
