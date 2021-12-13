@@ -424,26 +424,26 @@ mod tests {
     ) {
         let env = Environment::new(MockApi::default(), gas_limit, false);
 
-        let module = compile(&CONTRACT, TESTING_MEMORY_LIMIT).unwrap();
+        let module = compile(CONTRACT, TESTING_MEMORY_LIMIT).unwrap();
         let store = module.store();
         // we need stubs for all required imports
         let import_obj = imports! {
             "env" => {
-                "db_read" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "db_write" => Function::new_native(&store, |_a: u32, _b: u32| {}),
-                "db_remove" => Function::new_native(&store, |_a: u32| {}),
-                "db_scan" => Function::new_native(&store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
-                "db_next" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "query_chain" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_validate" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_canonicalize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "addr_humanize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "secp256k1_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "secp256k1_recover_pubkey" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
-                "ed25519_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "ed25519_batch_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "sha1_calculate" => Function::new_native(&store, |_a: u32| -> u64 { 0 }),
-                "debug" => Function::new_native(&store, |_a: u32| {}),
+                "db_read" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "db_write" => Function::new_native(store, |_a: u32, _b: u32| {}),
+                "db_remove" => Function::new_native(store, |_a: u32| {}),
+                "db_scan" => Function::new_native(store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
+                "db_next" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "query_chain" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "addr_validate" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "addr_canonicalize" => Function::new_native(store, |_a: u32, _b: u32| -> u32 { 0 }),
+                "addr_humanize" => Function::new_native(store, |_a: u32, _b: u32| -> u32 { 0 }),
+                "secp256k1_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "secp256k1_recover_pubkey" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
+                "ed25519_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "ed25519_batch_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "sha1_calculate" => Function::new_native(store, |_a: u32| -> u64 { 0 }),
+                "debug" => Function::new_native(store, |_a: u32| {}),
             },
         };
         let instance = Box::from(WasmerInstance::new(&module, &import_obj).unwrap());
@@ -646,7 +646,7 @@ mod tests {
         let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
         leave_default_data(&env);
 
-        assert_eq!(env.is_storage_readonly(), true);
+        assert!(env.is_storage_readonly());
     }
 
     #[test]
@@ -656,15 +656,15 @@ mod tests {
 
         // change
         env.set_storage_readonly(false);
-        assert_eq!(env.is_storage_readonly(), false);
+        assert!(!env.is_storage_readonly());
 
         // still false
         env.set_storage_readonly(false);
-        assert_eq!(env.is_storage_readonly(), false);
+        assert!(!env.is_storage_readonly());
 
         // change back
         env.set_storage_readonly(true);
-        assert_eq!(env.is_storage_readonly(), true);
+        assert!(env.is_storage_readonly());
     }
 
     #[test]
@@ -711,7 +711,7 @@ mod tests {
         let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
         leave_default_data(&env);
 
-        env.call_function0("interface_version_5", &[]).unwrap();
+        env.call_function0("interface_version_7", &[]).unwrap();
     }
 
     #[test]
@@ -725,6 +725,7 @@ mod tests {
                 function_name,
                 expected,
                 actual,
+                ..
             } => {
                 assert_eq!(function_name, "allocate");
                 assert_eq!(expected, 0);
@@ -759,6 +760,7 @@ mod tests {
                 function_name,
                 expected,
                 actual,
+                ..
             } => {
                 assert_eq!(function_name, "deallocate");
                 assert_eq!(expected, 1);

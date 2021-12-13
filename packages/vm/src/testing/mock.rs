@@ -31,6 +31,14 @@ pub fn mock_backend_with_balances(
     }
 }
 
+/// Length of canonical addresses created with this API. Contracts should not make any assumtions
+/// what this value is.
+/// The value here must be restorable with `SHUFFLES_ENCODE` + `SHUFFLES_DECODE` in-shuffles.
+const CANONICAL_LENGTH: usize = 54;
+
+const SHUFFLES_ENCODE: usize = 18;
+const SHUFFLES_DECODE: usize = 2;
+
 /// Zero-pads all human addresses to make them fit the canonical_length and
 /// trims off zeros for the reverse operation.
 /// This is not really smart, but allows us to see a difference (and consistent length for canonical adddresses).
@@ -38,11 +46,11 @@ pub fn mock_backend_with_balances(
 pub struct MockApi {
     /// Length of canonical addresses created with this API. Contracts should not make any assumtions
     /// what this value is.
-    pub canonical_length: usize,
+    canonical_length: usize,
     /// `canonicalize_cost` is consumed gas value when the contract all api `canonical_address`
-    pub canonicalize_cost: u64,
+    canonicalize_cost: u64,
     /// `humanize_cost` is consumed gas value when the contract all api `human_address`
-    pub humanize_cost: u64,
+    humanize_cost: u64,
     /// When set, all calls to the API fail with BackendError::Unknown containing this message
     backend_error: Option<&'static str>,
 }
@@ -57,6 +65,21 @@ impl MockApi {
         }
     }
 
+    /// Read-only getter for `canonical_length`, which must not be changed by the caller.
+    pub fn canonical_length(&self) -> usize {
+        self.canonical_length
+    }
+
+    /// Read-only getter for `canonical_length`, which must not be changed by the caller.
+    pub fn canonicalize_cost(&self) -> u64 {
+        self.canonicalize_cost
+    }
+
+    /// Read-only getter for `canonical_length`, which must not be changed by the caller.
+    pub fn humanize_cost(&self) -> u64 {
+        self.humanize_cost
+    }
+
     pub fn new_failing(backend_error: &'static str) -> Self {
         MockApi {
             backend_error: Some(backend_error),
@@ -68,7 +91,7 @@ impl MockApi {
 impl Default for MockApi {
     fn default() -> Self {
         MockApi {
-            canonical_length: 24,
+            canonical_length: CANONICAL_LENGTH,
             canonicalize_cost: DEFAULT_GAS_COST_CANONICALIZE,
             humanize_cost: DEFAULT_GAS_COST_HUMANIZE,
             backend_error: None,
@@ -109,7 +132,7 @@ impl BackendApi for MockApi {
         // the most obvious structure (https://github.com/CosmWasm/cosmwasm/issues/552)
         let rotate_by = digit_sum(&out) % self.canonical_length;
         out.rotate_left(rotate_by);
-        for _ in 0..18 {
+        for _ in 0..SHUFFLES_ENCODE {
             out = riffle_shuffle(&out);
         }
         (Ok(out), gas_info)
@@ -133,7 +156,7 @@ impl BackendApi for MockApi {
 
         let mut tmp: Vec<u8> = canonical.into();
         // Shuffle two more times which restored the original value (24 elements are back to original after 20 rounds)
-        for _ in 0..2 {
+        for _ in 0..SHUFFLES_DECODE {
             tmp = riffle_shuffle(&tmp);
         }
         // Rotate back
@@ -232,7 +255,7 @@ mod test {
     #[test]
     fn canonical_address_max_input_length() {
         let api = MockApi::default();
-        let human = "longer-than-the-address-length-supported-by-this-api";
+        let human = "longer-than-the-address-length-supported-by-this-api-longer-than-54";
         match api.canonical_address(human).0.unwrap_err() {
             BackendError::UserErr { .. } => {}
             err => panic!("Unexpected error: {:?}", err),
@@ -256,7 +279,7 @@ mod test {
     #[test]
     fn test_specified_gas_cost() {
         let canonicalize_cost: u64 = 42;
-        let humanize_cost: u64 = 10101010;
+        let humanize_cost: u64 = 101010;
         assert_ne!(canonicalize_cost, DEFAULT_GAS_COST_CANONICALIZE);
         assert_ne!(humanize_cost, DEFAULT_GAS_COST_HUMANIZE);
         let api = MockApi::new_with_gas_cost(canonicalize_cost, humanize_cost);

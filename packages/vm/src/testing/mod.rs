@@ -2,7 +2,6 @@
 
 mod calls;
 mod contract;
-mod ibc_calls;
 mod instance;
 mod mock;
 mod querier;
@@ -11,7 +10,7 @@ mod storage;
 
 pub use calls::{execute, instantiate, migrate, query, reply, sudo};
 #[cfg(feature = "stargate")]
-pub use ibc_calls::{
+pub use calls::{
     ibc_channel_close, ibc_channel_connect, ibc_channel_open, ibc_packet_ack, ibc_packet_receive,
     ibc_packet_timeout,
 };
@@ -24,4 +23,5 @@ pub use mock::{
     mock_backend, mock_backend_with_balances, mock_env, mock_info, MockApi, MOCK_CONTRACT_ADDR,
 };
 pub use querier::MockQuerier;
+pub use result::{TestingError, TestingResult};
 pub use storage::MockStorage;

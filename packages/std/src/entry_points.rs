@@ -81,7 +81,7 @@ macro_rules! create_entry_points {
 
             $crate::create_entry_points!(@migration; $contract, $migration);
 
-            // Other C externs like interface_version_5, allocate, deallocate are available
+            // Other C externs like interface_version_7, allocate, deallocate are available
             // automatically because we `use cosmwasm_std`.
         }
     };
@@ -94,14 +94,14 @@ macro_rules! create_entry_points {
 /// This macro is very similar to the `create_entry_points` macro, except it also requires the `migrate` method:
 /// ```
 /// # use cosmwasm_std::{
-/// #     Storage, Api, Querier, DepsMut, Env, StdError, MigrateResponse, MessageInfo,
+/// #     Storage, Api, Querier, DepsMut, Env, StdError, Response, MessageInfo,
 /// # };
 /// # type MigrateMsg = ();
 /// pub fn migrate(
 ///     deps: DepsMut,
 ///     _env: Env,
 ///     msg: MigrateMsg,
-/// ) -> Result<MigrateResponse, StdError> {
+/// ) -> Result<Response, StdError> {
 /// #   Ok(Default::default())
 /// }
 /// ```
