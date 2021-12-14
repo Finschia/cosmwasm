@@ -97,11 +97,17 @@ pub fn entry_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
 /// #[derive(IntoEvent)]
 /// struct StructName {
 ///     field_name_1: field_type_1,
+///     // if the value's type does not implement `Into<String>` trait
+///     // and it implements `ToString` trait, programmers can specify
+///     // to use `field_name_1.to_string()` to get string
+///     // by applying `use_to_string`.
+///     #[use_to_string]
 ///     field_name_2: field_type_2,
-///     // if the value's type does not implement `ToString` trait,
-///     // programmers need specify the function with `to_string_fn`
-///     // attribute.
-///     // this `cast_fn_3` needs to have type `field_type -> String`.
+///     // if the value's type does not implement both `Into<String>` and
+///     // `ToString` traits, programmers need specify a function
+///     // to get string with `casting_fn(field_name_2)` by applying
+///     // `to_string_fn(casting_fn)` attribute.
+///     // this `casting_fn` needs to have the type `field_type -> String`.
 ///     #[to_string_fn(cast_fn_3)]
 ///     field_name_3: field_type_3,
 /// }
@@ -113,13 +119,13 @@ pub fn entry_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
 /// impl Into<cosmwasm::Event> for `StructName` {
 ///     fn into(self) -> Event {
 ///         Event::new("struct_name")
-///             .add_attribute("field_name_1", field_value_1)
-///             .add_attribute("field_name_2", field_value_2)
-///             .add_attribute("field_name_3", cast_fn_3(field_value_3))
+///             .add_attribute("field_name_1", self.field_value_1)
+///             .add_attribute("field_name_2", self.field_value_2.to_string())
+///             .add_attribute("field_name_3", casting_fn(self.field_value_3))
 ///     }
 /// }
 /// ```
-#[proc_macro_derive(IntoEvent, attributes(to_string_fn))]
+#[proc_macro_derive(IntoEvent, attributes(to_string_fn, use_to_string))]
 pub fn derive_into_event(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as syn::DeriveInput);
     into_event::derive_into_event(derive_input)

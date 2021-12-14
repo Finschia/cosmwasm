@@ -18,6 +18,8 @@ fn coins_to_string(coins: Vec<Coin>) -> String {
 fn basic() {
     #[derive(IntoEvent)]
     struct TransferEvent {
+        #[use_to_string]
+        id: u64,
         from: Addr,
         receiver: Addr,
         #[to_string_fn(coins_to_string)]
@@ -25,11 +27,13 @@ fn basic() {
     }
 
     let transfer = TransferEvent {
+        id: 42,
         from: Addr::unchecked("alice"),
         receiver: Addr::unchecked("bob"),
         amount: coins(42, "link"),
     };
     let expected = Event::new("transfer_event").add_attributes(vec![
+        attr("id", "42"),
         attr("from", "alice"),
         attr("receiver", "bob"),
         attr("amount", coins_to_string(coins(42, "link"))),

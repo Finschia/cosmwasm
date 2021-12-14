@@ -7,7 +7,7 @@ use syn::spanned::Spanned;
 use syn::{Attribute, DataStruct, DeriveInput, Error, Field, Ident, Result};
 
 /// scan attrs and get `to_string_fn` attribute
-fn scan_to_string_fn(field: Field) -> Result<Option<proc_macro2::TokenStream>> {
+fn scan_to_string_fn(field: &Field) -> Result<Option<proc_macro2::TokenStream>> {
     let filtered: Vec<&Attribute> = field
         .attrs
         .iter()
@@ -24,6 +24,21 @@ fn scan_to_string_fn(field: Field) -> Result<Option<proc_macro2::TokenStream>> {
     } else {
         Ok(Some(filtered[0].tokens.clone()))
     }
+}
+
+/// scan attrs and return if it has any `to_string`
+fn has_use_to_string(field: &Field) -> Result<bool> {
+    let mut filtered = field
+        .attrs
+        .iter()
+        .filter(|a| a.path.is_ident("use_to_string"));
+    if filtered.clone().any(|a| !a.tokens.is_empty()) {
+        return Err(Error::new(
+            field.span(),
+            "[IntoEvent] attribute `use_to_string` has some value. If you intend to specify the cast function to string, use `to_string_fn` instead.",
+        ));
+    }
+    Ok(filtered.next().is_some())
 }
 
 /// generate an ast for `impl Into<cosmwasm::Event>` from a struct
@@ -48,9 +63,14 @@ fn make_init_from_struct(id: Ident, struct_data: DataStruct) -> Result<proc_macr
             }
             Some(field_id) => field_id,
         };
-        let value = match scan_to_string_fn(field)? {
-            Some(to_string_fn) => quote!(#to_string_fn(self.#field_id)),
-            None => quote!(self.#field_id),
+        let value = match (scan_to_string_fn(&field)?, has_use_to_string(&field)?) {
+            (Some(_), true) => return Err(Error::new(
+                field.span(),
+                "[IntoEvent] Both `use_to_string` and `to_string_fn` are applied to an field. Only one can be applied.",
+            )),
+            (Some(to_string_fn), false) => quote!(#to_string_fn(self.#field_id)),
+            (None, true) => quote!(self.#field_id.to_string()),
+            (None, false) => quote!(self.#field_id),
         };
         fn_body.extend(quote!(
             .add_attribute(stringify!(#field_id), #value)
