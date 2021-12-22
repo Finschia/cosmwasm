@@ -338,7 +338,7 @@
       ]
     },
     "GovMsg": {
-      "anyOf": [
+      "oneOf": [
         {
           "description": "This maps directly to [MsgVote](https://github.com/cosmos/cosmos-sdk/blob/v0.42.5/proto/cosmos/gov/v1beta1/tx.proto#L46-L56) in the Cosmos SDK with voter set to the contract address.",
           "type": "object",
