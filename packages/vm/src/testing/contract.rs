@@ -125,7 +125,7 @@ mod test {
         // init
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
-        let _: Response = call_instantiate(&mut instance, &env, &info, &msg)
+        let _: Response = call_instantiate(&mut instance, &env, &info, msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -134,7 +134,7 @@ mod test {
         // query and confirm the queue is empty
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"count\": {}}".as_bytes();
-        let res: QueryResponse = call_query(&mut instance, &env, &msg)
+        let res: QueryResponse = call_query(&mut instance, &env, msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -144,7 +144,7 @@ mod test {
         // handle and enqueue 42
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"enqueue\": {\"value\": 42}}".as_bytes();
-        let _: Response = call_execute(&mut instance, &env, &info, &msg)
+        let _: Response = call_execute(&mut instance, &env, &info, msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -153,7 +153,7 @@ mod test {
         // query and confirm the length of the queue is 1
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"count\": {}}".as_bytes();
-        let res: QueryResponse = call_query(&mut instance, &env, &msg)
+        let res: QueryResponse = call_query(&mut instance, &env, msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -163,7 +163,7 @@ mod test {
         // query and confirm the sum of the queue is 42
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"sum\": {}}".as_bytes();
-        let res: QueryResponse = call_query(&mut instance, &env, &msg)
+        let res: QueryResponse = call_query(&mut instance, &env, msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -174,7 +174,7 @@ mod test {
         contract.change_wasm(CONTRACT_WITH_MIGRATE).unwrap();
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
-        let _: Response = call_migrate(&mut instance, &env, &msg)
+        let _: Response = call_migrate(&mut instance, &env, msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -183,7 +183,7 @@ mod test {
         // query and check the length of the queue is 3
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"count\": {}}".as_bytes();
-        let res: QueryResponse = call_query(&mut instance, &env, &msg)
+        let res: QueryResponse = call_query(&mut instance, &env, msg)
             .unwrap()
             .into_result()
             .unwrap();
@@ -193,7 +193,7 @@ mod test {
         // query and check the sum of the queue is 303
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{\"sum\": {}}".as_bytes();
-        let res: QueryResponse = call_query(&mut instance, &env, &msg)
+        let res: QueryResponse = call_query(&mut instance, &env, msg)
             .unwrap()
             .into_result()
             .unwrap();

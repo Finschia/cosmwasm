@@ -267,7 +267,7 @@ mod test {
         let api = MockApi::default();
 
         let original = "alice";
-        let (canonical_res, gas_cost) = api.canonical_address(&original);
+        let (canonical_res, gas_cost) = api.canonical_address(original);
         assert_eq!(gas_cost.cost, DEFAULT_GAS_COST_CANONICALIZE);
         assert_eq!(gas_cost.externally_used, 0);
         let canonical = canonical_res.unwrap();
@@ -285,7 +285,7 @@ mod test {
         let api = MockApi::new_with_gas_cost(canonicalize_cost, humanize_cost);
 
         let original = "bob";
-        let (canonical_res, gas_cost) = api.canonical_address(&original);
+        let (canonical_res, gas_cost) = api.canonical_address(original);
         assert_eq!(gas_cost.cost, canonicalize_cost);
         assert_eq!(gas_cost.externally_used, 0);
         let canonical = canonical_res.unwrap();

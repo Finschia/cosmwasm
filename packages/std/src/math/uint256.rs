@@ -159,6 +159,7 @@ impl Uint256 {
             .ok_or_else(|| OverflowError::new(OverflowOperation::Pow, self, exp))
     }
 
+    #[must_use]
     pub fn pow(self, exp: u32) -> Self {
         self.checked_pow(exp)
             .expect("attempt to raise to a power with overflow")
@@ -180,14 +181,17 @@ impl Uint256 {
         Ok(Self(self.0.shl(other)))
     }
 
+    #[must_use]
     pub fn saturating_add(self, other: Self) -> Self {
         Self(self.0.saturating_add(other.0))
     }
 
+    #[must_use]
     pub fn saturating_sub(self, other: Self) -> Self {
         Self(self.0.saturating_sub(other.0))
     }
 
+    #[must_use]
     pub fn saturating_mul(self, other: Self) -> Self {
         Self(self.0.saturating_mul(other.0))
     }
@@ -468,6 +472,7 @@ impl<'a> ops::ShrAssign<&'a u32> for Uint256 {
 
 impl Uint256 {
     /// Returns `self * numerator / denominator`
+    #[must_use]
     pub fn multiply_ratio<A: Into<Uint256>, B: Into<Uint256>>(
         &self,
         numerator: A,
