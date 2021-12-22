@@ -8,8 +8,7 @@ use cosmwasm_crypto::{
     sha1_calculate, CryptoError,
 };
 use cosmwasm_crypto::{
-    ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN,
-    MESSAGE_HASH_MAX_LEN,
+    ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN, MESSAGE_HASH_MAX_LEN,
 };
 
 #[cfg(feature = "iterator")]
@@ -63,7 +62,6 @@ pub const MAX_COUNT_SHA1_INPUT: usize = 4;
 /// the gas factor is determined based on the result.
 /// If you modify this value, you need to adjust the gas factor.
 pub const MAX_LENGTH_SHA1_MESSAGE: usize = 80;
-
 
 /// Max length for a debug message
 const MAX_LENGTH_DEBUG: usize = 2 * MI;

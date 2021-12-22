@@ -30,8 +30,8 @@ pub use crate::binary::Binary;
 pub use crate::coins::{coin, coins, has_coins, Coin};
 pub use crate::deps::{Deps, DepsMut, OwnedDeps};
 pub use crate::errors::{
-    DivideByZeroError, ConversionOverflowError, OverflowError, OverflowOperation, RecoverPubkeyError, StdError,
-    StdResult, SystemError, VerificationError,
+    ConversionOverflowError, DivideByZeroError, OverflowError, OverflowOperation,
+    RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
 };
 #[cfg(feature = "stargate")]
 pub use crate::ibc::{

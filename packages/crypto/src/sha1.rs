@@ -1,6 +1,6 @@
 use sha1::{Digest, Sha1};
 
-use crate::errors::{CryptoResult};
+use crate::errors::CryptoResult;
 
 pub fn sha1_calculate(hash_inputs: &[&[u8]]) -> CryptoResult<[u8; 20]> {
     let mut hasher = Sha1::new();

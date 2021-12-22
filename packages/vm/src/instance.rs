@@ -10,8 +10,8 @@ use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::features::required_features_from_module;
 use crate::imports::{
     do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
-    do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_query_chain, do_sha1_calculate,
-    do_secp256k1_recover_pubkey, do_secp256k1_verify,
+    do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_query_chain,
+    do_secp256k1_recover_pubkey, do_secp256k1_verify, do_sha1_calculate,
 };
 #[cfg(feature = "iterator")]
 use crate::imports::{do_db_next, do_db_scan};
