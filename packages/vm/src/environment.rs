@@ -7,6 +7,7 @@ use wasmer::{HostEnvInitError, Instance as WasmerInstance, Memory, Val, WasmerEn
 use wasmer_middlewares::metering::{get_remaining_points, set_remaining_points, MeteringPoints};
 
 use crate::backend::{BackendApi, GasInfo, Querier, Storage};
+use crate::dynamic_link::FunctionMetadata;
 use crate::errors::{VmError, VmResult};
 
 /// Never can never be instantiated.
@@ -191,7 +192,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
     /// The number of return values is variable and controlled by the guest.
     /// Usually we expect 0 or 1 return values. Use [`Self::call_function0`]
     /// or [`Self::call_function1`] to ensure the number of return values is checked.
-    fn call_function(&self, name: &str, args: &[Val]) -> VmResult<Box<[Val]>> {
+    pub fn call_function(&self, name: &str, args: &[Val]) -> VmResult<Box<[Val]>> {
         // Clone function before calling it to avoid dead locks
         let func = self.with_wasmer_instance(|instance| {
             let func = instance.exports.get_function(name)?;
@@ -340,6 +341,22 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             (context_data.storage.take(), context_data.querier.take())
         })
     }
+
+    pub fn set_callee_function_metadata(&self, func_metadata: Option<FunctionMetadata>) {
+        self.with_context_data_mut(|context_data| {
+            context_data.callee_func_metadata = func_metadata;
+        });
+    }
+
+    pub fn with_callee_function_metadata<C, R>(&self, callback: C) -> VmResult<R>
+    where
+        C: FnOnce(&FunctionMetadata) -> VmResult<R>,
+    {
+        self.with_context_data(|context_data| match &context_data.callee_func_metadata {
+            Some(func_info) => callback(&func_info),
+            None => Err(VmError::uninitialized_context_data("callee_func_metadata")),
+        })
+    }
 }
 
 pub struct ContextData<S: Storage, Q: Querier> {
@@ -349,6 +366,7 @@ pub struct ContextData<S: Storage, Q: Querier> {
     querier: Option<Q>,
     /// A non-owning link to the wasmer instance
     wasmer_instance: Option<NonNull<WasmerInstance>>,
+    callee_func_metadata: Option<FunctionMetadata>,
 }
 
 impl<S: Storage, Q: Querier> ContextData<S, Q> {
@@ -359,6 +377,7 @@ impl<S: Storage, Q: Querier> ContextData<S, Q> {
             storage_readonly: true,
             querier: None,
             wasmer_instance: None,
+            callee_func_metadata: None,
         }
     }
 }
