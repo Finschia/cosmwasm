@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::str;
 
 use crate::backend::{BackendApi, Querier, Storage};
@@ -20,6 +21,16 @@ impl Clone for FunctionMetadata {
             name: self.name.clone(),
             signature: self.signature.clone(),
         }
+    }
+}
+
+impl fmt::Display for FunctionMetadata {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            fmt,
+            "module_name:{}, name:{}, signature:{}",
+            self.module_name, self.name, self.signature
+        )
     }
 }
 
@@ -59,7 +70,10 @@ where
     process_gas_info::<A, S, Q>(env, gas_info)?;
     match call_result {
         Ok(ret) => Ok(ret.iter().map(|v| v.clone()).collect()),
-        Err(e) => Err(RuntimeError::new(e.to_string())),
+        Err(e) => Err(RuntimeError::new(format!(
+            "func_info:{{{}}}, error:{}",
+            func_info, e
+        ))),
     }
 }
 
