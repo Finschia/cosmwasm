@@ -110,6 +110,7 @@ pub struct Environment<A: BackendApi, S: Storage, Q: Querier> {
     pub print_debug: bool,
     pub gas_config: GasConfig,
     data: Arc<RwLock<ContextData<S, Q>>>,
+    callee_func_metadata: Option<FunctionMetadata>,
 }
 
 unsafe impl<A: BackendApi, S: Storage, Q: Querier> Send for Environment<A, S, Q> {}
@@ -123,6 +124,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Clone for Environment<A, S, Q> {
             print_debug: self.print_debug,
             gas_config: self.gas_config.clone(),
             data: self.data.clone(),
+            callee_func_metadata: self.callee_func_metadata.clone(),
         }
     }
 }
@@ -140,6 +142,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             print_debug,
             gas_config: GasConfig::default(),
             data: Arc::new(RwLock::new(ContextData::new(gas_limit))),
+            callee_func_metadata: None,
         }
     }
 
@@ -342,20 +345,18 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         })
     }
 
-    pub fn set_callee_function_metadata(&self, func_metadata: Option<FunctionMetadata>) {
-        self.with_context_data_mut(|context_data| {
-            context_data.callee_func_metadata = func_metadata;
-        });
+    pub fn set_callee_function_metadata(&mut self, func_metadata: Option<FunctionMetadata>) {
+        self.callee_func_metadata = func_metadata;
     }
 
     pub fn with_callee_function_metadata<C, R>(&self, callback: C) -> VmResult<R>
     where
         C: FnOnce(&FunctionMetadata) -> VmResult<R>,
     {
-        self.with_context_data(|context_data| match &context_data.callee_func_metadata {
+        match &self.callee_func_metadata {
             Some(func_info) => callback(&func_info),
             None => Err(VmError::uninitialized_context_data("callee_func_metadata")),
-        })
+        }
     }
 }
 
@@ -366,7 +367,6 @@ pub struct ContextData<S: Storage, Q: Querier> {
     querier: Option<Q>,
     /// A non-owning link to the wasmer instance
     wasmer_instance: Option<NonNull<WasmerInstance>>,
-    callee_func_metadata: Option<FunctionMetadata>,
 }
 
 impl<S: Storage, Q: Querier> ContextData<S, Q> {
@@ -377,7 +377,6 @@ impl<S: Storage, Q: Querier> ContextData<S, Q> {
             storage_readonly: true,
             querier: None,
             wasmer_instance: None,
-            callee_func_metadata: None,
         }
     }
 }

@@ -118,11 +118,8 @@ pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
         let func_infos = &import_functions_by_module[module_name];
         for func_metadata in func_infos {
             // make a new enviorment struct for pass the target function information
-            let dynamic_env = env.clone();
+            let mut dynamic_env = env.clone();
 
-            // FIXME: context_data is wrraped by Arc, so cloned envs are sharing the context_data.
-            // so if there are more then 2 imported functions,
-            // the code below will overwrite the previous metadata.
             dynamic_env.set_callee_function_metadata(Some(func_metadata.clone()));
             module_exports.insert(
                 func_metadata.name.clone(),
