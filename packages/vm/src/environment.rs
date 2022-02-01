@@ -56,7 +56,7 @@ impl GasConfig {
     ); // 0.41 / 4. ~ 0.1
 
     // sha1 cost factor
-    const SHA1_CALCULATE_FACTOR: (u64, u64) = (270, 15400); // 270 ns in crypto benchmarks when INPUT_MAX_LEN=80
+    const SHA1_CALCULATE_FACTOR: (u64, u64) = (270, 15400); // 270 ns in crypto benchmarks when imports::MAX_LENGTH_SHA1_MESSAGE=80
 
     fn calc_crypto_cost(factor: (u64, u64)) -> u64 {
         (GasConfig::BASE_CRYPTO_COST * factor.0) / factor.1
