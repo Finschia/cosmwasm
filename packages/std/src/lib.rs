@@ -74,7 +74,7 @@ mod exports;
 #[cfg(target_arch = "wasm32")]
 mod imports;
 #[cfg(target_arch = "wasm32")]
-mod memory; // Used by exports and imports only. This assumes pointers are 32 bit long, which makes it untestable on dev machines.
+pub mod memory; // Used by exports and imports only. This assumes pointers are 32 bit long, which makes it untestable on dev machines.
 
 #[cfg(target_arch = "wasm32")]
 pub use crate::exports::{do_execute, do_instantiate, do_migrate, do_query, do_reply, do_sudo};
