@@ -159,3 +159,198 @@ pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream 
     item.extend(entry);
     item
 }
+
+
+
+#[proc_macro_attribute]
+pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let attr_args = parse_macro_input!(attr as syn::AttributeArgs);
+    let contract_name = match parse_contract_name(attr_args) {
+        Ok(name) => name,
+        Err(_) => panic!("hmm")
+    };
+
+    let new_item = generate_import_contract_declaration(contract_name, item);
+    new_item
+}
+
+//Cannot use thisError::Error macro with proc_macro
+#[derive(Debug)]
+enum ContractNameError {
+    InvliadAttributesLength {actual: usize},
+    InvalidNestedMeta {nested_meta: syn::NestedMeta},
+    InvalidMeta {meta: syn::Meta},
+    InvalidNameValue {path: syn::Path,literal: syn::Lit},
+}
+fn parse_contract_name(attr_args: syn::AttributeArgs) -> Result<String, ContractNameError>{
+    if attr_args.len() != 1 {
+        return Err(ContractNameError::InvliadAttributesLength {
+            actual: attr_args.len()
+        });
+    }
+    let nested_meta = &attr_args[0];
+    let contract_name = match nested_meta {
+        syn::NestedMeta::Meta(meta) => {
+            match meta {
+                syn::Meta::NameValue(name_value) => {
+                    if name_value.path.is_ident("contract_name"){
+                        match &name_value.lit {
+                            syn::Lit::Str(literal) => Ok(literal.value()),
+                            _ => Err(ContractNameError::InvalidNameValue{
+                                path: name_value.path.clone(), 
+                                literal: name_value.lit.clone()
+                            }),
+                        }
+                    } else {
+                        Err(ContractNameError::InvalidNameValue{
+                            path: name_value.path.clone(),
+                            literal: name_value.lit.clone()
+                        })
+                    }
+                },
+                _ => Err(ContractNameError::InvalidMeta{
+                    meta: meta.clone()
+                })
+            }
+        }, 
+        _ => Err(ContractNameError::InvalidNestedMeta{
+            nested_meta: nested_meta.clone()
+        })
+    };
+
+    contract_name
+}
+
+fn generate_import_contract_declaration(contract_name: String, item: TokenStream) -> TokenStream {
+    let extern_block = parse_macro_input!(item as syn::ItemForeignMod);
+    let foreign_function_decls: Vec<&syn::ForeignItemFn> = extern_block.items.iter().map(|foregin_item| {
+        match foregin_item {
+            syn::ForeignItem::Fn(item_fn) => item_fn,
+            _ => panic!("dynamic_link only function type is allowed."),
+        }
+    }).collect();
+    
+    let mut new_item = TokenStream::new();
+    new_item.extend(generate_extern_block(contract_name, &foreign_function_decls));
+    for func_decl in foreign_function_decls {
+        new_item.extend(generate_serialization_func(func_decl));
+    }
+
+    new_item
+}
+
+fn generate_extern_block(module_name: String, origin_foreign_func_decls: &Vec<&syn::ForeignItemFn>) -> TokenStream {
+    let redeclared_funcs = origin_foreign_func_decls.iter().fold(String::new(), |acc, func_decl| {
+        let args_len = func_decl.sig.inputs.len();
+        let typed_ptrs = (0..args_len).fold(String::new(), |acc, i| format!("{}ptr{}: u32, ", acc, i));
+        
+        let return_types_len = get_return_len(&func_decl.sig.output);
+        let typed_return = match return_types_len {
+            0 => String::from(""),
+            1 => String::from(" -> u32"),
+            _ => format!(" -> ({})", (0..return_types_len).fold(String::new(), |acc, _| format!("{}u32, ", acc))),
+        };
+
+        format!("{}fn stub_{}({}){};\n", 
+        acc,    
+        func_decl.sig.ident, 
+            typed_ptrs, 
+            typed_return
+        )
+    });
+
+    let new_extern_block = format!(
+        r#"
+            #[link(wasm_import_module = "{module_name}")]
+            extern "C" {{
+            {redeclared_funcs}
+            }}
+        "#,
+        module_name = module_name,
+        redeclared_funcs = redeclared_funcs,
+    );
+
+    TokenStream::from_str(&new_extern_block).unwrap()
+}
+
+//Defines a function that was originally imported to execute serialization and call to imported stub_xxx.
+fn generate_serialization_func(origin_func_decl: &syn::ForeignItemFn) -> TokenStream {
+    let args_len = origin_func_decl.sig.inputs.len();
+    let arg_types: Vec<&syn::Type> = origin_func_decl.sig.inputs.iter().map(|arg| {
+        match arg {
+            syn::FnArg::Receiver(_) => panic!("dynamic_link Method type are not allowed."),
+            syn::FnArg::Typed(arg_info) => {
+                match arg_info.ty.as_ref() {
+                    syn::Type::BareFn(_) => panic!("dynamic_link function type by parameter are not allowed."),
+                    _ => arg_info.ty.as_ref(),
+                }
+            }
+        }
+    }).collect();
+    
+    let renamed_args = (0..args_len).fold(String::new(), |acc, i| {
+        let arg_type = arg_types[i];
+        format!("{}arg{}: {}, ", acc, i, quote!(#arg_type).to_string())
+    });
+
+    let vec_args = (0..args_len).fold(String::new(), |acc, i| {
+        format!("{}let vec_arg{} = cosmwasm_std::to_vec(&arg{}).unwrap();", acc, i, i)
+    });
+    let region_args = (0..args_len).fold(String::new(), |acc, i| {
+        format!("{}let region_arg{} = cosmwasm_std::memory::release_buffer(vec_arg{}) as u32;", acc, i, i)
+    });
+    let pass_args = (0..args_len).fold(String::new(), |acc, i| {
+        format!("{}region_arg{}, ", acc, i)
+    });
+    let return_types = &origin_func_decl.sig.output;
+    
+    let func_name = origin_func_decl.sig.ident.to_string();
+    let call_stub = match get_return_len(return_types) {
+        0 => format!("stub_{func_name}({pass_args});", func_name = func_name, pass_args = pass_args),
+        1 => {
+            format!("let result = stub_{func_name}({pass_args});
+            let vec_result = cosmwasm_std::memory::consume_region(result as *mut cosmwasm_std::memory::Region);    
+            cosmwasm_std::from_slice(&vec_result).unwrap()",
+            func_name = func_name,
+            pass_args = pass_args,
+            )
+        },
+        _ => {
+            unimplemented!()
+        },
+    };
+    let replaced_new_code = format!(
+        r##"
+            //replace function for serialization
+            fn {func_name}({renamed_args}) {origin_return} {{
+                {vec_args}
+                {region_args}
+                unsafe {{
+                    {call_stub}
+                }}
+            }}
+        "##,
+        func_name = func_name,
+        renamed_args = renamed_args,
+        origin_return = quote!(#return_types).to_string(),
+        vec_args = vec_args,
+        region_args = region_args,
+        call_stub = call_stub,    
+    );
+    TokenStream::from_str(&replaced_new_code).unwrap()
+}
+
+
+fn get_return_len(return_type: &syn::ReturnType) -> usize {
+    match return_type {
+        syn::ReturnType::Default => 0,
+        syn::ReturnType::Type(_, return_type) => {
+            match return_type.as_ref() {
+                syn::Type::Tuple(tuple) => {
+                    tuple.elems.len()
+                }
+                _ => 1,
+            }
+        } 
+    }
+}
