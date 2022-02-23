@@ -98,18 +98,7 @@ pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream 
 
 
     let args_len = function.sig.inputs.len();
-    let arg_types: Vec<&syn::Type> = function.sig.inputs.iter().map(|arg| {
-        match arg {
-            syn::FnArg::Receiver(_) => panic!("callable_point Method type are not allowed."),
-            syn::FnArg::Typed(arg_info) => {
-                match arg_info.ty.as_ref() {
-                    syn::Type::BareFn(_) => panic!("callable_point function type by parameter are not allowed."),
-                    _ => arg_info.ty.as_ref(),
-                }
-            }
-        }
-    }).collect();
-
+    let arg_types = collect_available_arg_types(&function.sig);
 
     // E.g. "ptr0: u32, ptr1: u32, ptr2: u32, "
     let typed_ptrs = (0..args_len).fold(String::new(), |acc, i| format!("{}ptr{}: u32, ", acc, i));
@@ -201,59 +190,40 @@ fn make_call_origin_and_return(func_name: &String, args_len: usize, return_type:
 #[proc_macro_attribute]
 pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr_args = parse_macro_input!(attr as syn::AttributeArgs);
-    let contract_name = match parse_contract_name(attr_args) {
-        Ok(name) => name,
-        Err(_) => panic!("hmm")
-    };
+    if attr_args.len() != 1 {
+        panic!("too many attributes");
+    }
+
+    let contract_name = parse_contract_name(&attr_args[0]);
 
     let new_item = generate_import_contract_declaration(contract_name, item);
     new_item
 }
 
-//Cannot use thisError::Error macro with proc_macro
-#[derive(Debug)]
-enum ContractNameError {
-    InvliadAttributesLength {actual: usize},
-    InvalidNestedMeta {nested_meta: syn::NestedMeta},
-    InvalidMeta {meta: syn::Meta},
-    InvalidNameValue {path: syn::Path,literal: syn::Lit},
-}
-fn parse_contract_name(attr_args: syn::AttributeArgs) -> Result<String, ContractNameError>{
-    if attr_args.len() != 1 {
-        return Err(ContractNameError::InvliadAttributesLength {
-            actual: attr_args.len()
-        });
-    }
-    let nested_meta = &attr_args[0];
-    let contract_name = match nested_meta {
+fn parse_contract_name(nested_meta: &syn::NestedMeta) -> String {
+    let name_value = match nested_meta {
         syn::NestedMeta::Meta(meta) => {
             match meta {
-                syn::Meta::NameValue(name_value) => {
-                    if name_value.path.is_ident("contract_name"){
-                        match &name_value.lit {
-                            syn::Lit::Str(literal) => Ok(literal.value()),
-                            _ => Err(ContractNameError::InvalidNameValue{
-                                path: name_value.path.clone(), 
-                                literal: name_value.lit.clone()
-                            }),
-                        }
-                    } else {
-                        Err(ContractNameError::InvalidNameValue{
-                            path: name_value.path.clone(),
-                            literal: name_value.lit.clone()
-                        })
-                    }
-                },
-                _ => Err(ContractNameError::InvalidMeta{
-                    meta: meta.clone()
-                })
+                syn::Meta::NameValue(name_value) => Some(name_value),
+                _ => None,
             }
         }, 
-        _ => Err(ContractNameError::InvalidNestedMeta{
-            nested_meta: nested_meta.clone()
-        })
+        _ => None,
     };
 
+    let contract_name = match name_value {
+        Some(name_value) => {
+            if name_value.path.is_ident("contract_name"){
+                match &name_value.lit {
+                    syn::Lit::Str(literal) => literal.value(),
+                    _ => abort!(name_value.lit, "contract_name value is not string literal"),
+                }
+            } else {
+                abort!(name_value.path, "only allowed the \"contract_name\"")
+            }
+        }
+        None => abort!(nested_meta, "invliad attribute type")
+    };
     contract_name
 }
 
@@ -262,7 +232,7 @@ fn generate_import_contract_declaration(contract_name: String, item: TokenStream
     let foreign_function_decls: Vec<&syn::ForeignItemFn> = extern_block.items.iter().map(|foregin_item| {
         match foregin_item {
             syn::ForeignItem::Fn(item_fn) => item_fn,
-            _ => panic!("dynamic_link only function type is allowed."),
+            _ => abort!(foregin_item, "only function type is allowed."),
         }
     }).collect();
     
@@ -308,17 +278,7 @@ fn generate_serialization_func(origin_func_decl: &syn::ForeignItemFn) -> TokenSt
     let func_name = origin_func_decl.sig.ident.to_string();
 
     let args_len = origin_func_decl.sig.inputs.len();
-    let arg_types: Vec<&syn::Type> = origin_func_decl.sig.inputs.iter().map(|arg| {
-        match arg {
-            syn::FnArg::Receiver(_) => panic!("dynamic_link Method type are not allowed."),
-            syn::FnArg::Typed(arg_info) => {
-                match arg_info.ty.as_ref() {
-                    syn::Type::BareFn(_) => panic!("dynamic_link function type by parameter are not allowed."),
-                    _ => arg_info.ty.as_ref(),
-                }
-            }
-        }
-    }).collect();
+    let arg_types = collect_available_arg_types(&origin_func_decl.sig);
     
     let renamed_args = (0..args_len).fold(String::new(), |acc, i| {
         let arg_type = arg_types[i];
@@ -395,12 +355,26 @@ fn make_call_stub_and_return(func_name: &String, args_len: usize, return_type: &
     }
 }
 
+fn collect_available_arg_types(func_sig: &syn::Signature) -> Vec<&syn::Type>{
+    func_sig.inputs.iter().map(|arg| {
+        match arg {
+            syn::FnArg::Receiver(_) => abort!(arg, "method type are not allowed."),
+            syn::FnArg::Typed(arg_info) => {
+                match arg_info.ty.as_ref() {
+                    syn::Type::BareFn(_) => abort!(arg, "function type by parameter are not allowed."),
+                    _ => arg_info.ty.as_ref(),
+                }
+            }
+        }
+    }).collect()
+}
+
 fn make_typed_return(return_type: &syn::ReturnType) -> String {
     let return_types_len = get_return_len(return_type);
     match return_types_len {
         0 => String::from(""),
         1 => String::from(" -> u32"),
-        // https://github.com/line/cosmwasm/issues/156
+        //TODO: see (https://github.com/line/cosmwasm/issues/156)
         _ => abort!(return_type, "Cannot support returning tuple type yet")
         //_ => format!(" -> ({})", (0..return_types_len).fold(String::new(), |acc, _| format!("{}u32, ", acc))),
     }
