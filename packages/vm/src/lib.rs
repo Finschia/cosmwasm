@@ -36,7 +36,8 @@ pub use crate::calls::{
 };
 pub use crate::checksum::Checksum;
 
-pub use crate::dynamic_link::{dynamic_link, FunctionMetadata, WasmerVal};
+pub use crate::dynamic_link::{dynamic_link, FunctionMetadata, WasmerVal, copy_region_vals_between_env};
+pub use crate::environment::Environment;
 pub use crate::errors::{
     CommunicationError, CommunicationResult, RegionValidationError, RegionValidationResult,
     VmError, VmResult,

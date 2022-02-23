@@ -3,8 +3,9 @@ use cosmwasm_std::{Addr, BlockInfo, Coin, ContractInfo, Env, MessageInfo, Timest
 
 use super::querier::MockQuerier;
 use super::storage::MockStorage;
-use crate::{Backend, BackendApi, BackendError, BackendResult, GasInfo};
+use crate::{Backend, BackendApi, BackendError, BackendResult, GasInfo, Storage, Querier,};
 use crate::{FunctionMetadata, WasmerVal};
+use crate::environment::Environment;
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 const DEFAULT_GAS_COST_HUMANIZE: u64 = 44;
@@ -149,13 +150,19 @@ impl BackendApi for MockApi {
         };
         (result, gas_info)
     }
-    fn contract_call(
+    fn contract_call<A, S, Q>(
         &self,
+        _: &Environment<A, S, Q>,
         _: &str,
         _: &FunctionMetadata,
         _: &[WasmerVal],
         _: u64,
-    ) -> BackendResult<Box<[WasmerVal]>> {
+    ) -> BackendResult<Box<[WasmerVal]>> 
+    where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+    {
         panic!("get_contract_call for the mock will be filled later")
     }
 }

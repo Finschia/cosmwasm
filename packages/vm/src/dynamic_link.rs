@@ -2,12 +2,16 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str;
 
+use crate::memory::{read_region, write_region};
+use crate::errors::{VmResult, CommunicationError};
+use crate::conversion::{ref_to_u32, to_u32};
 use crate::backend::{BackendApi, Querier, Storage};
 use crate::environment::{process_gas_info, Environment};
 use wasmer::{Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val};
 use wasmer_types::ImportIndex;
 
 pub type WasmerVal = Val;
+
 pub struct FunctionMetadata {
     pub module_name: String,
     pub name: String,
@@ -66,7 +70,7 @@ where
 
     let (call_result, gas_info) =
         env.api
-            .contract_call(contract_addr, &func_info, args, env.get_gas_left());
+            .contract_call(env, contract_addr, &func_info, args, env.get_gas_left());
     process_gas_info::<A, S, Q>(env, gas_info)?;
     match call_result {
         Ok(ret) => Ok(ret.to_vec()),
@@ -131,4 +135,40 @@ pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
 
         imports.register(module_name.to_string(), module_exports);
     }
+}
+
+pub fn copy_region_vals_between_env<A, S, Q, A2, S2, Q2>(
+    src_env: &Environment<A,S,Q>,
+    dst_env: &Environment<A2,S2,Q2>,
+    vals: &[WasmerVal],
+    deallocation: bool,
+) -> VmResult<Box<[WasmerVal]>>
+where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+    A2: BackendApi + 'static,
+    S2: Storage + 'static,
+    Q2: Querier + 'static,
+
+{
+    let mut copied_region_ptrs = Vec::<WasmerVal>::with_capacity(vals.len());
+    for val in vals {
+        let val_region_ptr = ref_to_u32(val)?;
+        let data = read_region(&src_env.memory(), val_region_ptr, u32::MAX as usize)?;
+        if deallocation {
+            src_env.call_function0("deallocate", &[val_region_ptr.into()])?;
+        }
+
+        let ret = dst_env.call_function1("allocate", &[to_u32(data.len())?.into()])?;
+        let region_ptr = ref_to_u32(&ret)?;
+        if region_ptr == 0 {
+            return Err(CommunicationError::zero_address().into());
+        }
+
+        write_region(&dst_env.memory(), region_ptr, &data)?;
+        copied_region_ptrs.push(region_ptr.into());
+    }
+
+    Ok(copied_region_ptrs.into_boxed_slice())
 }

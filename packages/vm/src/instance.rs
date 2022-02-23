@@ -49,7 +49,7 @@ pub struct Instance<A: BackendApi, S: Storage, Q: Querier> {
     ///
     /// This instance should only be accessed via the Environment, which provides safe access.
     _inner: Box<WasmerInstance>,
-    env: Environment<A, S, Q>,
+    pub env: Environment<A, S, Q>,
     pub required_features: HashSet<String>,
 }
 
