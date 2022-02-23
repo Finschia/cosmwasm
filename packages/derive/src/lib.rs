@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate syn;
 
+use proc_macro_error::{proc_macro_error, abort};
 use proc_macro::TokenStream;
 use quote::quote;
 use std::str::FromStr;
@@ -88,7 +89,7 @@ pub fn entry_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
     item
 }
 
-
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
     let cloned = item.clone();
@@ -196,7 +197,7 @@ fn make_call_origin_and_return(func_name: &String, args_len: usize, return_type:
 }
 
 
-
+#[proc_macro_error]
 #[proc_macro_attribute]
 pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr_args = parse_macro_input!(attr as syn::AttributeArgs);
@@ -399,7 +400,9 @@ fn make_typed_return(return_type: &syn::ReturnType) -> String {
     match return_types_len {
         0 => String::from(""),
         1 => String::from(" -> u32"),
-        _ => format!(" -> ({})", (0..return_types_len).fold(String::new(), |acc, _| format!("{}u32, ", acc))),
+        // https://github.com/line/cosmwasm/issues/156
+        _ => abort!(return_type, "Cannot support returning tuple type yet")
+        //_ => format!(" -> ({})", (0..return_types_len).fold(String::new(), |acc, _| format!("{}u32, ", acc))),
     }
 }
 fn get_return_len(return_type: &syn::ReturnType) -> usize {
