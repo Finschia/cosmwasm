@@ -1,14 +1,29 @@
 use cosmwasm_std::{
-    entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    entry_point, to_binary, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, dynamic_link,
     Uint128,
 };
+use std::fmt;
+use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 
-#[link(wasm_import_module = "dynamic_callee_contract")]
-extern "C" {
-    fn pong(int: u64) -> u64;
+#[derive(Serialize, Deserialize)]
+pub struct ExampleStruct {
+    pub str_field: String,
+    pub u64_field: u64,
+}
+impl fmt::Display for ExampleStruct {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.str_field, self.u64_field)
+    }    
+}
+
+
+#[dynamic_link(contract_name = "dynamic_callee_contract")]
+extern {
+    fn pong(ping_num: u64) -> u64;
+    fn pong_with_struct(example: ExampleStruct) -> ExampleStruct;
 }
 
 // Note, you can use StdResult in some functions where you do not
@@ -17,7 +32,7 @@ extern "C" {
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     deps.storage
@@ -31,7 +46,7 @@ pub fn instantiate(
 pub fn execute(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
@@ -39,18 +54,20 @@ pub fn execute(
     }
 }
 
-pub fn try_ping(_deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
-    let pong_ret: u64;
-    unsafe {
-        pong_ret = pong(ping_num.u128() as u64);
-    }
+pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
+    let pong_ret = pong(ping_num.u128() as u64);
+    let struct_ret = pong_with_struct(ExampleStruct {
+        str_field: String::from("hello"),
+        u64_field: 100u64,
+    });
 
     let mut res = Response::default();
     res.add_attribute("returned_pong", pong_ret.to_string());
+    res.add_attribute("returned_pong_with_struct", struct_ret.to_string());
     Ok(res)
 }
 
 #[entry_point]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {}
 }
