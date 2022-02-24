@@ -13,7 +13,7 @@ use sha2::Sha256;
 
 use cosmwasm_crypto::{
     ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify,
-    sha1_calculate, INPUT_MAX_LEN,
+    sha1_calculate,
 };
 use std::cmp::min;
 
@@ -74,6 +74,8 @@ fn read_decode_cosmos_sigs() -> (Vec<Vec<u8>>, Vec<Vec<u8>>, Vec<Vec<u8>>) {
 }
 
 fn bench_crypto(c: &mut Criterion) {
+    // same as vm::imports::MAX_LENGTH_SHA1_MESSAGE (=80)
+    const MAX_LENGTH_SHA1_MESSAGE: usize = 80;
     let mut group = c.benchmark_group("Crypto");
 
     group.bench_function("secp256k1_verify", |b| {
@@ -96,7 +98,7 @@ fn bench_crypto(c: &mut Criterion) {
 
         let expected = SigningKey::from_bytes(&private_key)
             .unwrap()
-            .verify_key()
+            .verifying_key()
             .to_encoded_point(false)
             .as_bytes()
             .to_vec();
@@ -108,14 +110,14 @@ fn bench_crypto(c: &mut Criterion) {
     });
 
     group.bench_function("sha1_calculate_one", |b| {
-        let inputs: Vec<&[u8]> = vec![&[0; INPUT_MAX_LEN]];
+        let inputs: Vec<&[u8]> = vec![&[0; MAX_LENGTH_SHA1_MESSAGE]];
         b.iter(|| {
             let hash = sha1_calculate(&inputs).unwrap();
             assert_eq!(hash.len(), 20);
         });
     });
     group.bench_function("sha1_calculate_two", |b| {
-        let inputs: Vec<&[u8]> = vec![&[0; INPUT_MAX_LEN], &[1; INPUT_MAX_LEN]];
+        let inputs: Vec<&[u8]> = vec![&[0; MAX_LENGTH_SHA1_MESSAGE], &[1; MAX_LENGTH_SHA1_MESSAGE]];
         b.iter(|| {
             let hash = sha1_calculate(&inputs).unwrap();
             assert_eq!(hash.len(), 20);
@@ -123,10 +125,10 @@ fn bench_crypto(c: &mut Criterion) {
     });
     group.bench_function("sha1_calculate_four", |b| {
         let inputs: Vec<&[u8]> = vec![
-            &[0; INPUT_MAX_LEN],
-            &[1; INPUT_MAX_LEN],
-            &[2; INPUT_MAX_LEN],
-            &[3; INPUT_MAX_LEN],
+            &[0; MAX_LENGTH_SHA1_MESSAGE],
+            &[1; MAX_LENGTH_SHA1_MESSAGE],
+            &[2; MAX_LENGTH_SHA1_MESSAGE],
+            &[3; MAX_LENGTH_SHA1_MESSAGE],
         ];
         b.iter(|| {
             let hash = sha1_calculate(&inputs).unwrap();

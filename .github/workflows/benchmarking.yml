@@ -28,7 +28,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.50.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-benchmarking-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-benchmarking-rust:1.57.0-{{ checksum "Cargo.lock" }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Run vm benchmarks (Singlepass)
