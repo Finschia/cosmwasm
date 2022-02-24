@@ -69,7 +69,7 @@ where
             .contract_call(contract_addr, &func_info, args, env.get_gas_left());
     process_gas_info::<A, S, Q>(env, gas_info)?;
     match call_result {
-        Ok(ret) => Ok(ret.iter().map(|v| v.clone()).collect()),
+        Ok(ret) => Ok(ret.to_vec()),
         Err(e) => Err(RuntimeError::new(format!(
             "func_info:{{{}}}, error:{}",
             func_info, e
@@ -94,8 +94,7 @@ pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
         .iter()
         .filter(|((module_name, _, _), _)| module_name != "env")
     {
-        match import_index {
-            ImportIndex::Function(func_index) => {
+        if let ImportIndex::Function(func_index) = import_index {
                 let func_sig = module_info.signatures[module_info.functions[*func_index]].clone();
                 //if compiled with '-s' option(symbol strapping), function_names is empty.
                 //let func_symbol = module_info.function_names[func_index].clone();
@@ -107,8 +106,6 @@ pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
                         name: func_name.to_string(),
                         signature: func_sig,
                     });
-            }
-            _ => {}
         }
     }
 
