@@ -5,14 +5,14 @@ use wasmer::Cranelift;
 #[cfg(not(feature = "cranelift"))]
 use wasmer::Singlepass;
 use wasmer::{
-    wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Pages, Store, Target, Universal,
+    wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Pages, Store, Target, JIT,
     WASM_PAGE_SIZE,
 };
 use wasmer_middlewares::Metering;
 
+use crate::middleware::Deterministic;
 use crate::size::Size;
 
-use super::gatekeeper::Gatekeeper;
 use super::limiting_tunables::LimitingTunables;
 
 /// WebAssembly linear memory objects have sizes measured in pages. Each page
@@ -32,7 +32,7 @@ fn cost(_operator: &Operator) -> u64 {
 /// If memory_limit is None, no limit is applied.
 pub fn make_compile_time_store(memory_limit: Option<Size>) -> Store {
     let gas_limit = 0;
-    let deterministic = Arc::new(Gatekeeper::default());
+    let deterministic = Arc::new(Deterministic::new());
     let metering = Arc::new(Metering::new(gas_limit, cost));
 
     #[cfg(feature = "cranelift")]
@@ -40,7 +40,7 @@ pub fn make_compile_time_store(memory_limit: Option<Size>) -> Store {
         let mut config = Cranelift::default();
         config.push_middleware(deterministic);
         config.push_middleware(metering);
-        let engine = Universal::new(config).engine();
+        let engine = JIT::new(config).engine();
         make_store_with_engine(&engine, memory_limit)
     }
 
@@ -49,7 +49,7 @@ pub fn make_compile_time_store(memory_limit: Option<Size>) -> Store {
         let mut config = Singlepass::default();
         config.push_middleware(deterministic);
         config.push_middleware(metering);
-        let engine = Universal::new(config).engine();
+        let engine = JIT::new(config).engine();
         make_store_with_engine(&engine, memory_limit)
     }
 }
@@ -57,7 +57,7 @@ pub fn make_compile_time_store(memory_limit: Option<Size>) -> Store {
 /// Created a store with no compiler and the given memory limit (in bytes)
 /// If memory_limit is None, no limit is applied.
 pub fn make_runtime_store(memory_limit: Option<Size>) -> Store {
-    let engine = Universal::headless().engine();
+    let engine = JIT::headless().engine();
     make_store_with_engine(&engine, memory_limit)
 }
 

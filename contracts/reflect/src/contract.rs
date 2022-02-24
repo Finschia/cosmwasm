@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, to_binary, to_vec, Binary, ContractResult, CosmosMsg, Deps, DepsMut, Env,
+    attr, entry_point, to_binary, to_vec, Binary, ContractResult, CosmosMsg, Deps, DepsMut, Env,
     MessageInfo, QueryRequest, QueryResponse, Reply, Response, StdError, StdResult, SubMsg,
     SystemResult,
 };
@@ -30,7 +30,7 @@ pub fn execute(
 ) -> Result<Response<CustomMsg>, ReflectError> {
     match msg {
         ExecuteMsg::ReflectMsg { msgs } => try_reflect(deps, env, info, msgs),
-        ExecuteMsg::ReflectSubMsg { msgs } => try_reflect_subcall(deps, env, info, msgs),
+        ExecuteMsg::ReflectSubCall { msgs } => try_reflect_subcall(deps, env, info, msgs),
         ExecuteMsg::ChangeOwner { owner } => try_change_owner(deps, env, info, owner),
     }
 }
@@ -53,10 +53,13 @@ pub fn try_reflect(
     if msgs.is_empty() {
         return Err(ReflectError::MessagesEmpty);
     }
-
-    Ok(Response::new()
-        .add_attribute("action", "reflect")
-        .add_messages(msgs))
+    let res = Response {
+        submessages: vec![],
+        messages: msgs,
+        attributes: vec![attr("action", "reflect")],
+        data: None,
+    };
+    Ok(res)
 }
 
 pub fn try_reflect_subcall(
@@ -76,10 +79,13 @@ pub fn try_reflect_subcall(
     if msgs.is_empty() {
         return Err(ReflectError::MessagesEmpty);
     }
-
-    Ok(Response::new()
-        .add_attribute("action", "reflect_subcall")
-        .add_submessages(msgs))
+    let res = Response {
+        submessages: msgs,
+        messages: vec![],
+        attributes: vec![attr("action", "reflect_subcall")],
+        data: None,
+    };
+    Ok(res)
 }
 
 pub fn try_change_owner(
@@ -99,9 +105,10 @@ pub fn try_change_owner(
         state.owner = api.addr_validate(&new_owner)?;
         Ok(state)
     })?;
-    Ok(Response::new()
-        .add_attribute("action", "change_owner")
-        .add_attribute("owner", new_owner))
+    Ok(Response {
+        attributes: vec![attr("action", "change_owner"), attr("owner", new_owner)],
+        ..Response::default()
+    })
 }
 
 /// This just stores the result for future query
@@ -118,7 +125,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
         QueryMsg::Capitalized { text } => to_binary(&query_capitalized(deps, text)?),
         QueryMsg::Chain { request } => to_binary(&query_chain(deps, &request)?),
         QueryMsg::Raw { contract, key } => to_binary(&query_raw(deps, contract, key)?),
-        QueryMsg::SubMsgResult { id } => to_binary(&query_subcall(deps, id)?),
+        QueryMsg::SubCallResult { id } => to_binary(&query_subcall(deps, id)?),
     }
 }
 
@@ -172,7 +179,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{
         coin, coins, from_binary, AllBalanceResponse, BankMsg, BankQuery, Binary, ContractResult,
-        Event, StakingMsg, StdError, SubMsgExecutionResponse,
+        Event, ReplyOn, StakingMsg, StdError, SubcallResponse,
     };
 
     #[test]
@@ -210,7 +217,6 @@ mod tests {
         };
         let info = mock_info("creator", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        let payload: Vec<_> = payload.into_iter().map(SubMsg::new).collect();
         assert_eq!(payload, res.messages);
     }
 
@@ -283,7 +289,6 @@ mod tests {
         };
         let info = mock_info("creator", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        let payload: Vec<_> = payload.into_iter().map(SubMsg::new).collect();
         assert_eq!(payload, res.messages);
     }
 
@@ -399,22 +404,26 @@ mod tests {
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         let id = 123u64;
-        let payload = SubMsg::reply_always(
-            BankMsg::Send {
+        let payload = SubMsg {
+            id,
+            gas_limit: None,
+            msg: BankMsg::Send {
                 to_address: String::from("friend"),
                 amount: coins(1, "token"),
-            },
-            id,
-        );
+            }
+            .into(),
+            reply_on: ReplyOn::default(),
+        };
 
-        let msg = ExecuteMsg::ReflectSubMsg {
+        let msg = ExecuteMsg::ReflectSubCall {
             msgs: vec![payload.clone()],
         };
         let info = mock_info("creator", &[]);
         let mut res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(1, res.messages.len());
-        let msg = res.messages.pop().expect("must have a message");
-        assert_eq!(payload, msg);
+        assert_eq!(0, res.messages.len());
+        assert_eq!(1, res.submessages.len());
+        let submsg = res.submessages.pop().expect("must have a submessage");
+        assert_eq!(payload, submsg);
     }
 
     // this mocks out what happens after reflect_subcall
@@ -428,8 +437,8 @@ mod tests {
 
         let id = 123u64;
         let data = Binary::from(b"foobar");
-        let events = vec![Event::new("message").add_attribute("signer", "caller-addr")];
-        let result = ContractResult::Ok(SubMsgExecutionResponse {
+        let events = vec![Event::new("message", vec![attr("signer", "caller-addr")])];
+        let result = ContractResult::Ok(SubcallResponse {
             events: events.clone(),
             data: Some(data.clone()),
         });
@@ -441,12 +450,12 @@ mod tests {
         let qres = query(
             deps.as_ref(),
             mock_env(),
-            QueryMsg::SubMsgResult { id: 65432 },
+            QueryMsg::SubCallResult { id: 65432 },
         );
         assert!(qres.is_err());
 
         // query for the real id
-        let raw = query(deps.as_ref(), mock_env(), QueryMsg::SubMsgResult { id }).unwrap();
+        let raw = query(deps.as_ref(), mock_env(), QueryMsg::SubCallResult { id }).unwrap();
         let qres: Reply = from_binary(&raw).unwrap();
         assert_eq!(qres.id, id);
         let result = qres.result.unwrap();

@@ -208,14 +208,19 @@ pub fn create_poll(
     };
     poll(deps.storage).save(poll_id.as_slice(), &new_poll)?;
 
-    let r = Response::new()
-        .add_attribute("action", "create_poll")
-        .add_attribute("creator", new_poll.creator)
-        .add_attribute("poll_id", poll_id.to_string())
-        .add_attribute("quorum_percentage", quorum_percentage.unwrap_or(0).to_string())
-        .add_attribute("end_height", new_poll.end_height.to_string().to_string())
-        .add_attribute("start_height", start_height.unwrap_or(0).to_string())
-        .set_data(to_binary(&CreatePollResponse { poll_id })?);
+    let r = Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![
+            attr("action", "create_poll"),
+            attr("creator", new_poll.creator),
+            attr("poll_id", poll_id.to_string()),
+            attr("quorum_percentage", quorum_percentage.unwrap_or(0)),
+            attr("end_height", new_poll.end_height),
+            attr("start_height", start_height.unwrap_or(0)),
+        ],
+        data: Some(to_binary(&CreatePollResponse { poll_id })?),
+    };
     Ok(r)
 }
 
@@ -311,10 +316,16 @@ pub fn end_poll(
         attr("action", "end_poll"),
         attr("poll_id", poll_id.to_string()),
         attr("rejected_reason", rejected_reason),
-        attr("passed", &passed.to_string()),
+        attr("passed", &passed),
     ];
 
-    Ok(Response::new().add_attributes(attributes))
+    let r = Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes,
+        data: None,
+    };
+    Ok(r)
 }
 
 // unlock voter's tokens in a given poll
@@ -390,30 +401,41 @@ pub fn cast_vote(
     let attributes = vec![
         attr("action", "vote_casted"),
         attr("poll_id", poll_id.to_string()),
-        attr("weight", &weight.to_string()),
+        attr("weight", &weight),
         attr("voter", &info.sender),
     ];
 
-    Ok(Response::new().add_attributes(attributes))
+    let r = Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes,
+        data: None,
+    };
+    Ok(r)
 }
 
 fn send_tokens(to_address: &Addr, amount: Vec<Coin>, action: &str) -> Response {
     let attributes = vec![attr("action", action), attr("to", to_address.clone())];
 
-    Response::new()
-        .add_message(
-            CosmosMsg::Bank(BankMsg::Send {
-                to_address: to_address.to_string(),
-                amount,
-            }))
-        .add_attributes(attributes)
+    Response {
+        submessages: vec![],
+        messages: vec![CosmosMsg::Bank(BankMsg::Send {
+            to_address: to_address.to_string(),
+            amount,
+        })],
+        attributes,
+        data: None,
+    }
 }
 
 pub fn make_uuid(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let uuid = new_uuid(&env, deps.storage, deps.api)?;
-    let r = Response::new()
-        .add_attribute("action", "make_uuid")
-        .add_attribute("uuid", uuid.to_string());
+    let r = Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![attr("action", "make_uuid"), attr("uuid", uuid.to_string())],
+        data: None,
+    };
     Ok(r)
 }
 
@@ -424,9 +446,12 @@ pub fn make_seq_id(
 ) -> Result<Response, ContractError> {
     let seq_id: u64 = 0;
 
-    let r = Response::new()
-        .add_attribute("action", "make_seq_id")
-        .add_attribute("uuid", seq_id.to_string());
+    let r = Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![attr("action", "make_seq_id"), attr("uuid", seq_id)],
+        data: None,
+    };
     Ok(r)
 }
 

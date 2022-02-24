@@ -34,6 +34,13 @@ pub enum CryptoError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[error("Message is longer than supported by this implementation (Limit: {limit}, actual length: {actual})")]
+    MessageTooLong {
+        limit: usize,
+        actual: usize,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
     #[error("Invalid recovery parameter. Supported values: 0 and 1.")]
     InvalidRecoveryParam {
         #[cfg(feature = "backtraces")]
@@ -56,7 +63,7 @@ pub enum CryptoError {
 }
 
 impl CryptoError {
-    pub fn batch_err(msg: impl Into<String>) -> Self {
+    pub fn batch_err<S: Into<String>>(msg: S) -> Self {
         CryptoError::BatchErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -64,7 +71,7 @@ impl CryptoError {
         }
     }
 
-    pub fn generic_err(msg: impl Into<String>) -> Self {
+    pub fn generic_err<S: Into<String>>(msg: S) -> Self {
         CryptoError::GenericErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -88,6 +95,15 @@ impl CryptoError {
 
     pub fn invalid_signature_format() -> Self {
         CryptoError::InvalidSignatureFormat {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub fn message_too_long(limit: usize, actual: usize) -> Self {
+        CryptoError::MessageTooLong {
+            limit,
+            actual,
             #[cfg(feature = "backtraces")]
             backtrace: Backtrace::capture(),
         }
@@ -120,6 +136,7 @@ impl CryptoError {
     /// contract VM boundary.
     pub fn code(&self) -> u32 {
         match self {
+            CryptoError::MessageTooLong { .. } => 2,
             CryptoError::InvalidHashFormat { .. } => 3,
             CryptoError::InvalidSignatureFormat { .. } => 4,
             CryptoError::InvalidPubkeyFormat { .. } => 5,
@@ -173,6 +190,18 @@ mod tests {
         let error = CryptoError::invalid_signature_format();
         match error {
             CryptoError::InvalidSignatureFormat { .. } => {}
+            _ => panic!("wrong error type!"),
+        }
+    }
+
+    #[test]
+    fn message_too_long_works() {
+        let error = CryptoError::message_too_long(5, 7);
+        match error {
+            CryptoError::MessageTooLong { limit, actual, .. } => {
+                assert_eq!(limit, 5);
+                assert_eq!(actual, 7);
+            }
             _ => panic!("wrong error type!"),
         }
     }

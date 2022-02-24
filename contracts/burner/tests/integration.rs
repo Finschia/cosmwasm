@@ -17,7 +17,7 @@
 //!      });
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
-use cosmwasm_std::{coins, BankMsg, ContractResult, Order, Response, SubMsg};
+use cosmwasm_std::{coins, BankMsg, ContractResult, Order, Response};
 use cosmwasm_vm::testing::{instantiate, migrate, mock_env, mock_info, mock_instance};
 
 use burner::msg::{InstantiateMsg, MigrateMsg};
@@ -70,10 +70,11 @@ fn migrate_cleans_up_data() {
     let msg = res.messages.get(0).expect("no message");
     assert_eq!(
         msg,
-        &SubMsg::new(BankMsg::Send {
+        &BankMsg::Send {
             to_address: payout,
             amount: coins(123456, "gold"),
-        }),
+        }
+        .into(),
     );
 
     // check there is no data in storage

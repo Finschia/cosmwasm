@@ -37,8 +37,6 @@ where
     #[cfg(feature = "stargate")]
     Ibc(IbcMsg),
     Wasm(WasmMsg),
-    #[cfg(feature = "stargate")]
-    Gov(GovMsg),
 }
 
 /// The message types of the bank module.
@@ -122,7 +120,7 @@ pub enum WasmMsg {
         contract_addr: String,
         /// msg is the json-encoded ExecuteMsg struct (as raw Binary)
         msg: Binary,
-        funds: Vec<Coin>,
+        send: Vec<Coin>,
     },
     /// Instantiates a new contracts from previously uploaded Wasm code.
     ///
@@ -133,7 +131,7 @@ pub enum WasmMsg {
         code_id: u64,
         /// msg is the JSON-encoded InstantiateMsg struct (as raw Binary)
         msg: Binary,
-        funds: Vec<Coin>,
+        send: Vec<Coin>,
         /// A human-readbale label for the contract
         label: String,
     },
@@ -162,54 +160,39 @@ pub enum WasmMsg {
     ClearAdmin { contract_addr: String },
 }
 
-#[cfg(feature = "stargate")]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum GovMsg {
-    /// This maps directly to [MsgVote](https://github.com/cosmos/cosmos-sdk/blob/v0.42.5/proto/cosmos/gov/v1beta1/tx.proto#L46-L56) in the Cosmos SDK with voter set to the contract address.
-    Vote { proposal_id: u64, vote: VoteOption },
-}
-
-#[cfg(feature = "stargate")]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum VoteOption {
-    Yes,
-    No,
-    Abstain,
-    NoWithVeto,
-}
-
 /// Shortcut helper as the construction of WasmMsg::Instantiate can be quite verbose in contract code.
 ///
 /// When using this, `admin` is always unset. If you need more flexibility, create the message directly.
-pub fn wasm_instantiate(
+pub fn wasm_instantiate<T>(
     code_id: u64,
-    msg: &impl Serialize,
-    funds: Vec<Coin>,
+    msg: &T,
+    send: Vec<Coin>,
     label: String,
-) -> StdResult<WasmMsg> {
+) -> StdResult<WasmMsg>
+where
+    T: Serialize,
+{
     let payload = to_binary(msg)?;
     Ok(WasmMsg::Instantiate {
         admin: None,
         code_id,
         msg: payload,
-        funds,
+        send,
         label,
     })
 }
 
 /// Shortcut helper as the construction of WasmMsg::Instantiate can be quite verbose in contract code
-pub fn wasm_execute(
-    contract_addr: impl Into<String>,
-    msg: &impl Serialize,
-    funds: Vec<Coin>,
-) -> StdResult<WasmMsg> {
+pub fn wasm_execute<T, U>(contract_addr: T, msg: &U, send: Vec<Coin>) -> StdResult<WasmMsg>
+where
+    T: Into<String>,
+    U: Serialize,
+{
     let payload = to_binary(msg)?;
     Ok(WasmMsg::Execute {
         contract_addr: contract_addr.into(),
         msg: payload,
-        funds,
+        send,
     })
 }
 
@@ -258,16 +241,6 @@ where
 {
     fn from(msg: IbcMsg) -> Self {
         CosmosMsg::Ibc(msg)
-    }
-}
-
-#[cfg(feature = "stargate")]
-impl<T> From<GovMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
-    fn from(msg: GovMsg) -> Self {
-        CosmosMsg::Gov(msg)
     }
 }
 

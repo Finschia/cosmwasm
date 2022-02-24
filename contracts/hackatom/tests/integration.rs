@@ -18,8 +18,8 @@
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
 use cosmwasm_std::{
-    coins, from_binary, to_vec, Addr, AllBalanceResponse, BankMsg, Binary, ContractResult, Empty,
-    Response, SubMsg,
+    attr, coins, from_binary, to_vec, Addr, AllBalanceResponse, BankMsg, Binary, ContractResult,
+    Empty, Response,
 };
 use cosmwasm_vm::{
     call_execute, from_slice,
@@ -34,8 +34,6 @@ use hackatom::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
 use hackatom::state::{State, CONFIG_KEY};
 
 static WASM: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/release/hackatom.wasm");
-
-const DESERIALIZATION_LIMIT: usize = 20_000;
 
 fn make_init_msg() -> (InstantiateMsg, String) {
     let verifier = String::from("verifies");
@@ -53,7 +51,7 @@ fn make_init_msg() -> (InstantiateMsg, String) {
 #[test]
 fn proper_initialization() {
     let mut deps = mock_instance(WASM, &[]);
-    assert_eq!(deps.required_features().len(), 0);
+    assert_eq!(deps.required_features.len(), 0);
 
     let verifier = String::from("verifies");
     let beneficiary = String::from("benefits");
@@ -71,7 +69,9 @@ fn proper_initialization() {
     let info = mock_info(&creator, &coins(1000, "earth"));
     let res: Response = instantiate(&mut deps, mock_env(), info, msg).unwrap();
     assert_eq!(res.messages.len(), 0);
-    assert_eq!(res.attributes, [("Let the", "hacking begin")]);
+    assert_eq!(res.attributes.len(), 1);
+    assert_eq!(res.attributes[0].key, "Let the");
+    assert_eq!(res.attributes[0].value, "hacking begin");
 
     // it worked, let's check the state
     let state: State = deps
@@ -81,7 +81,7 @@ fn proper_initialization() {
                 .0
                 .expect("error reading db")
                 .expect("no data stored");
-            from_slice(&data, DESERIALIZATION_LIMIT)
+            from_slice(&data)
         })
         .unwrap();
     assert_eq!(state, expected_state);
@@ -171,7 +171,7 @@ fn sudo_can_steal_tokens() {
     let res: Response = sudo(&mut deps, mock_env(), sys_msg).unwrap();
     assert_eq!(1, res.messages.len());
     let msg = res.messages.get(0).expect("no message");
-    assert_eq!(msg, &SubMsg::new(BankMsg::Send { to_address, amount }));
+    assert_eq!(msg, &BankMsg::Send { to_address, amount }.into(),);
 }
 
 #[test]
@@ -240,14 +240,15 @@ fn execute_release_works() {
     let msg = execute_res.messages.get(0).expect("no message");
     assert_eq!(
         msg,
-        &SubMsg::new(BankMsg::Send {
+        &BankMsg::Send {
             to_address: beneficiary,
             amount: coins(1000, "earth"),
-        }),
+        }
+        .into(),
     );
     assert_eq!(
         execute_res.attributes,
-        vec![("action", "release"), ("destination", "benefits")],
+        vec![attr("action", "release"), attr("destination", "benefits")],
     );
     assert_eq!(execute_res.data, Some(vec![0xF0, 0x0B, 0xAA].into()));
 }
@@ -295,7 +296,7 @@ fn execute_release_fails_for_wrong_sender() {
                 .expect("no data stored"))
         })
         .unwrap();
-    let state: State = from_slice(&data, DESERIALIZATION_LIMIT).unwrap();
+    let state: State = from_slice(&data).unwrap();
     assert_eq!(
         state,
         State {

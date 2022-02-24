@@ -131,18 +131,18 @@ mod tests {
         .unwrap();
         let checksum = Checksum::generate(&wasm);
 
-        assert!(!cache.has(&checksum));
+        assert_eq!(cache.has(&checksum), false);
 
         // Add
         let original = compile(&wasm, None).unwrap();
         cache.store(&checksum, original, 0).unwrap();
 
-        assert!(cache.has(&checksum));
+        assert_eq!(cache.has(&checksum), true);
 
         // Remove
         cache.remove(&checksum).unwrap();
 
-        assert!(!cache.has(&checksum));
+        assert_eq!(cache.has(&checksum), false);
     }
 
     #[test]

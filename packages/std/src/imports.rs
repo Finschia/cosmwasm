@@ -21,13 +21,13 @@ use crate::{
 };
 
 /// An upper bound for typical canonical address lengths (e.g. 20 in Cosmos SDK/Ethereum or 32 in Nano/Substrate)
-const CANONICAL_ADDRESS_BUFFER_LENGTH: usize = 64;
+const CANONICAL_ADDRESS_BUFFER_LENGTH: usize = 32;
 /// An upper bound for typical human readable address formats (e.g. 42 for Ethereum hex addresses or 90 for bech32)
 const HUMAN_ADDRESS_BUFFER_LENGTH: usize = 90;
 
 // This interface will compile into required Wasm imports.
 // A complete documentation those functions is available in the VM that provides them:
-// https://github.com/line/cosmwasm/blob/0342c82d5e5c588131c28fae1fb941505838f352/packages/vm/src/instance.rs#L84-L201
+// https://github.com/line/cosmwasm/blob/main/packages/vm/src/instance.rs
 extern "C" {
     fn db_read(key: u32) -> u32;
     fn db_write(key: u32, value: u32);
@@ -160,15 +160,8 @@ impl ExternalApi {
 }
 
 impl Api for ExternalApi {
-    fn addr_validate(&self, input: &str) -> StdResult<Addr> {
-        let input_bytes = input.as_bytes();
-        if input_bytes.len() > 90 {
-            // See MAX_LENGTH_HUMAN_ADDRESS in the VM.
-            // In this case, the VM will refuse to read the input from the contract.
-            // Stop here to allow handling the error in the contract.
-            return Err(StdError::generic_err("input too long for addr_validate"));
-        }
-        let source = build_region(input_bytes);
+    fn addr_validate(&self, human: &str) -> StdResult<Addr> {
+        let source = build_region(human.as_bytes());
         let source_ptr = &*source as *const Region as u32;
 
         let result = unsafe { addr_validate(source_ptr) };
@@ -180,20 +173,11 @@ impl Api for ExternalApi {
             )));
         }
 
-        Ok(Addr::unchecked(input))
+        Ok(Addr::unchecked(human))
     }
 
-    fn addr_canonicalize(&self, input: &str) -> StdResult<CanonicalAddr> {
-        let input_bytes = input.as_bytes();
-        if input_bytes.len() > 90 {
-            // See MAX_LENGTH_HUMAN_ADDRESS in the VM.
-            // In this case, the VM will refuse to read the input from the contract.
-            // Stop here to allow handling the error in the contract.
-            return Err(StdError::generic_err(
-                "input too long for addr_canonicalize",
-            ));
-        }
-        let send = build_region(input_bytes);
+    fn addr_canonicalize(&self, human: &str) -> StdResult<CanonicalAddr> {
+        let send = build_region(human.as_bytes());
         let send_ptr = &*send as *const Region as u32;
         let canon = alloc(CANONICAL_ADDRESS_BUFFER_LENGTH);
 
@@ -299,7 +283,7 @@ impl Api for ExternalApi {
         match result {
             0 => Ok(true),
             1 => Ok(false),
-            2 => panic!("Error code 2 unused since CosmWasm 0.15. This is a bug in the VM."),
+            2 => Err(VerificationError::MessageTooLong),
             3 => panic!("InvalidHashFormat must not happen. This is a bug in the VM."),
             4 => Err(VerificationError::InvalidSignatureFormat),
             5 => Err(VerificationError::InvalidPubkeyFormat),
@@ -331,7 +315,7 @@ impl Api for ExternalApi {
         match result {
             0 => Ok(true),
             1 => Ok(false),
-            2 => panic!("Error code 2 unused since CosmWasm 0.15. This is a bug in the VM."),
+            2 => Err(VerificationError::MessageTooLong),
             3 => panic!("InvalidHashFormat must not happen. This is a bug in the VM."),
             4 => Err(VerificationError::InvalidSignatureFormat),
             5 => Err(VerificationError::InvalidPubkeyFormat),
@@ -357,7 +341,7 @@ impl Api for ExternalApi {
                 Ok(hash_array)
             }
             1 => Err(HashCalculationError::InputsTooLarger),
-            2 => panic!("Error code 2 unused since CosmWasm 0.15. This is a bug in the VM."),
+            2 => Err(HashCalculationError::InputTooLonger),
             error_code => Err(HashCalculationError::unknown_err(error_code)),
         }
     }

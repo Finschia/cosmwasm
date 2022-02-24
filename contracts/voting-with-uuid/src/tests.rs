@@ -692,8 +692,8 @@ mod tests {
         let msg = execute_res.messages.get(0).expect("no message");
 
         assert_eq!(
-            msg.msg,
-            CosmosMsg::Bank(BankMsg::Send {
+            msg,
+            &CosmosMsg::Bank(BankMsg::Send {
                 to_address: TEST_VOTER.to_string(),
                 amount: coins(11, VOTING_TOKEN),
             })
@@ -750,7 +750,7 @@ mod tests {
         match res {
             Ok(_) => panic!("Must return error"),
             Err(ContractError::ExcessiveWithdraw { max_amount }) => {
-                assert_eq!(max_amount, Uint128::from(10u32))
+                assert_eq!(max_amount, Uint128(10))
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
         }
@@ -904,9 +904,9 @@ mod tests {
                 attr("action", "create_poll"),
                 attr("creator", creator),
                 attr("poll_id", poll_id.to_string()),
-                attr("quorum_percentage", quorum.to_string()),
-                attr("end_height", end_height.to_string()),
-                attr("start_height", start_height.to_string()),
+                attr("quorum_percentage", quorum),
+                attr("end_height", end_height),
+                attr("start_height", start_height),
             ]
         );
 
@@ -942,7 +942,7 @@ mod tests {
             vec![
                 attr("action", "vote_casted"),
                 attr("poll_id", poll_id.to_string()),
-                attr("weight", weight.to_string()),
+                attr("weight", weight),
                 attr("voter", voter),
             ]
         );

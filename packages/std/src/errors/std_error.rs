@@ -101,13 +101,6 @@ pub enum StdError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
-    #[error("Conversion error: ")]
-    ConversionOverflow {
-        #[from]
-        source: ConversionOverflowError,
-        #[cfg(feature = "backtraces")]
-        backtrace: Backtrace,
-    },
 }
 
 impl StdError {
@@ -134,8 +127,7 @@ impl StdError {
             backtrace: Backtrace::capture(),
         }
     }
-
-    pub fn generic_err(msg: impl Into<String>) -> Self {
+    pub fn generic_err<S: Into<String>>(msg: S) -> Self {
         StdError::GenericErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -143,7 +135,7 @@ impl StdError {
         }
     }
 
-    pub fn invalid_base64(msg: impl ToString) -> Self {
+    pub fn invalid_base64<S: ToString>(msg: S) -> Self {
         StdError::InvalidBase64 {
             msg: msg.to_string(),
             #[cfg(feature = "backtraces")]
@@ -161,7 +153,7 @@ impl StdError {
         }
     }
 
-    pub fn invalid_utf8(msg: impl ToString) -> Self {
+    pub fn invalid_utf8<S: ToString>(msg: S) -> Self {
         StdError::InvalidUtf8 {
             msg: msg.to_string(),
             #[cfg(feature = "backtraces")]
@@ -169,7 +161,7 @@ impl StdError {
         }
     }
 
-    pub fn not_found(kind: impl Into<String>) -> Self {
+    pub fn not_found<S: Into<String>>(kind: S) -> Self {
         StdError::NotFound {
             kind: kind.into(),
             #[cfg(feature = "backtraces")]
@@ -177,7 +169,7 @@ impl StdError {
         }
     }
 
-    pub fn parse_err(target: impl Into<String>, msg: impl ToString) -> Self {
+    pub fn parse_err<T: Into<String>, M: ToString>(target: T, msg: M) -> Self {
         StdError::ParseErr {
             target_type: target.into(),
             msg: msg.to_string(),
@@ -186,7 +178,7 @@ impl StdError {
         }
     }
 
-    pub fn serialize_err(source: impl Into<String>, msg: impl ToString) -> Self {
+    pub fn serialize_err<S: Into<String>, M: ToString>(source: S, msg: M) -> Self {
         StdError::SerializeErr {
             source_type: source.into(),
             msg: msg.to_string(),
@@ -413,22 +405,6 @@ impl PartialEq<StdError> for StdError {
                     false
                 }
             }
-            StdError::ConversionOverflow {
-                source,
-                #[cfg(feature = "backtraces")]
-                    backtrace: _,
-            } => {
-                if let StdError::ConversionOverflow {
-                    source: rhs_source,
-                    #[cfg(feature = "backtraces")]
-                        backtrace: _,
-                } = rhs
-                {
-                    source == rhs_source
-                } else {
-                    false
-                }
-            }
         }
     }
 }
@@ -488,8 +464,6 @@ pub enum OverflowOperation {
     Sub,
     Mul,
     Pow,
-    Shr,
-    Shl,
 }
 
 impl fmt::Display for OverflowOperation {
@@ -507,43 +481,11 @@ pub struct OverflowError {
 }
 
 impl OverflowError {
-    pub fn new(
-        operation: OverflowOperation,
-        operand1: impl ToString,
-        operand2: impl ToString,
-    ) -> Self {
+    pub fn new<U: ToString>(operation: OverflowOperation, operand1: U, operand2: U) -> Self {
         Self {
             operation,
             operand1: operand1.to_string(),
             operand2: operand2.to_string(),
-        }
-    }
-}
-
-/// The error returned by [`TryFrom`] conversions that overflow, for example
-/// when converting from [`Uint256`] to [`Uint128`].
-///
-/// [`TryFrom`]: std::convert::TryFrom
-/// [`Uint256`]: crate::Uint256
-/// [`Uint128`]: crate::Uint128
-#[derive(Error, Debug, PartialEq, Eq)]
-#[error("Error converting {source_type} to {target_type} for {value}")]
-pub struct ConversionOverflowError {
-    pub source_type: &'static str,
-    pub target_type: &'static str,
-    pub value: String,
-}
-
-impl ConversionOverflowError {
-    pub fn new(
-        source_type: &'static str,
-        target_type: &'static str,
-        value: impl Into<String>,
-    ) -> Self {
-        Self {
-            source_type,
-            target_type,
-            value: value.into(),
         }
     }
 }
@@ -555,7 +497,7 @@ pub struct DivideByZeroError {
 }
 
 impl DivideByZeroError {
-    pub fn new(operand: impl ToString) -> Self {
+    pub fn new<U: ToString>(operand: U) -> Self {
         Self {
             operand: operand.to_string(),
         }
@@ -748,11 +690,10 @@ mod tests {
     fn implements_debug() {
         let error: StdError = StdError::from(OverflowError::new(OverflowOperation::Sub, 3, 5));
         let embedded = format!("Debug: {:?}", error);
-        #[cfg(not(feature = "backtraces"))]
-        let expected = r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" } }"#;
-        #[cfg(feature = "backtraces")]
-        let expected = r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" }, backtrace: <disabled> }"#;
-        assert_eq!(embedded, expected);
+        assert_eq!(
+            embedded,
+            r#"Debug: Overflow { source: OverflowError { operation: Sub, operand1: "3", operand2: "5" } }"#
+        );
     }
 
     #[test]

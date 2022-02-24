@@ -8,11 +8,8 @@ repository = "https://github.com/line/cosmwasm/tree/main/packages/std"
 license = "Apache-2.0"
 readme = "README.md"
 
-[package.metadata.docs.rs]
-features = ["stargate", "staking"]
-
 [features]
-default = ["iterator"]
+default = []
 # iterator allows us to iterate over all DB items in a given range
 # optional as some merkle stores (like tries) don't support this
 # given Ethereum 1.0, 2.0, Substrate, and other major projects use Tries
@@ -33,10 +30,6 @@ stargate = []
 [dependencies]
 base64 = "0.13.0"
 cosmwasm-derive = { path = "../derive", version = "0.14.0-0.4.0" }
-# uint 0.9.2 uses edition2021 and this cannot be used from wasmvm now.
-# See also https://github.com/CosmWasm/wasmvm/issues/277
-# and https://github.com/CosmWasm/cosmwasm/issues/1204
-uint = "=0.9.1"
 serde-json-wasm = { version = "0.3.1" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive", "alloc"] }

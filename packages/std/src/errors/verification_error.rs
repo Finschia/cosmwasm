@@ -12,6 +12,8 @@ pub enum VerificationError {
     BatchErr,
     #[error("Generic error")]
     GenericErr,
+    #[error("Message is longer than supported")]
+    MessageTooLong,
     #[error("Invalid hash format")]
     InvalidHashFormat,
     #[error("Invalid signature format")]
@@ -43,6 +45,7 @@ impl PartialEq<VerificationError> for VerificationError {
         match self {
             VerificationError::BatchErr => matches!(rhs, VerificationError::BatchErr),
             VerificationError::GenericErr => matches!(rhs, VerificationError::GenericErr),
+            VerificationError::MessageTooLong => matches!(rhs, VerificationError::MessageTooLong),
             VerificationError::InvalidHashFormat => {
                 matches!(rhs, VerificationError::InvalidHashFormat)
             }
@@ -74,6 +77,7 @@ impl PartialEq<VerificationError> for VerificationError {
 impl From<CryptoError> for VerificationError {
     fn from(original: CryptoError) -> Self {
         match original {
+            CryptoError::MessageTooLong { .. } => VerificationError::MessageTooLong,
             CryptoError::InvalidHashFormat { .. } => VerificationError::InvalidHashFormat,
             CryptoError::InvalidPubkeyFormat { .. } => VerificationError::InvalidPubkeyFormat,
             CryptoError::InvalidSignatureFormat { .. } => VerificationError::InvalidSignatureFormat,
