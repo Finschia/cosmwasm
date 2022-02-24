@@ -61,7 +61,7 @@ where
     };
     let contract_addr = match str::from_utf8(&raw_contract_addr) {
         Ok(contract_addr) => contract_addr.trim_matches('"'),
-        Err(e) => return Err(RuntimeError::new("Invalid stored callee contract address")),
+        Err(_) => return Err(RuntimeError::new("Invalid stored callee contract address")),
     };
 
     let (call_result, gas_info) =
