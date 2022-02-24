@@ -95,17 +95,17 @@ pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
         .filter(|((module_name, _, _), _)| module_name != "env")
     {
         if let ImportIndex::Function(func_index) = import_index {
-                let func_sig = module_info.signatures[module_info.functions[*func_index]].clone();
-                //if compiled with '-s' option(symbol strapping), function_names is empty.
-                //let func_symbol = module_info.function_names[func_index].clone();
-                import_functions_by_module
-                    .entry(module_name.to_string())
-                    .or_insert_with(Vec::new)
-                    .push(FunctionMetadata {
-                        module_name: module_name.to_string(),
-                        name: func_name.to_string(),
-                        signature: func_sig,
-                    });
+            let func_sig = module_info.signatures[module_info.functions[*func_index]].clone();
+            //if compiled with '-s' option(symbol strapping), function_names is empty.
+            //let func_symbol = module_info.function_names[func_index].clone();
+            import_functions_by_module
+                .entry(module_name.to_string())
+                .or_insert_with(Vec::new)
+                .push(FunctionMetadata {
+                    module_name: module_name.to_string(),
+                    name: func_name.to_string(),
+                    signature: func_sig,
+                });
         }
     }
 
