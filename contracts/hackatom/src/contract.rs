@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 
 use cosmwasm_std::{
     entry_point, from_slice, to_binary, to_vec, Addr, AllBalanceResponse, Api, BankMsg,
-    CanonicalAddr, Deps, DepsMut, Env, Event, MessageInfo, QueryRequest, QueryResponse, Response,
+    CanonicalAddr, Deps, DepsMut, Env, MessageInfo, QueryRequest, QueryResponse, Response,
     StdError, StdResult, WasmQuery,
 };
 
@@ -30,7 +30,9 @@ pub fn instantiate(
     );
 
     // This adds some unrelated event attribute for testing purposes
-    Ok(Response::new().add_attribute("Let the", "hacking begin"))
+    let mut resp = Response::new();
+    resp.add_attribute("Let the", "hacking begin");
+    Ok(resp)
 }
 
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, HackError> {
@@ -53,7 +55,9 @@ pub fn sudo(_deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, HackErr
                 to_address: recipient,
                 amount,
             };
-            Ok(Response::new().add_message(msg))
+            let mut response = Response::default();
+            response.add_message(msg);
+            Ok(response)
         }
     }
 }
@@ -86,15 +90,14 @@ fn do_release(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Ha
         let to_addr = state.beneficiary;
         let balance = deps.querier.query_all_balances(env.contract.address)?;
 
-        let resp = Response::new()
-            .add_attribute("action", "release")
-            .add_attribute("destination", to_addr.clone())
-            .add_event(Event::new("hackatom").add_attribute("action", "release"))
-            .add_message(BankMsg::Send {
-                to_address: to_addr.into(),
-                amount: balance,
-            })
-            .set_data(&[0xF0, 0x0B, 0xAA]);
+        let mut resp = Response::new();
+        resp.add_attribute("action", "release");
+        resp.add_attribute("destination", to_addr.clone());
+        resp.add_message(BankMsg::Send {
+            to_address: to_addr.into(),
+            amount: balance,
+        });
+        resp.set_data(&[0xF0, 0x0B, 0xAA]);
         Ok(resp)
     } else {
         Err(HackError::Unauthorized {})
@@ -141,7 +144,10 @@ fn do_allocate_large_memory(pages: u32) -> Result<Response, HackError> {
         if old_size == usize::max_value() {
             return Err(StdError::generic_err("memory.grow failed").into());
         }
-        Ok(Response::new().set_data((old_size as u32).to_be_bytes()))
+        Ok(Response {
+            data: Some((old_size as u32).to_be_bytes().into()),
+            ..Response::default()
+        })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -167,8 +173,7 @@ fn do_user_errors_in_api_calls(api: &dyn Api) -> Result<Response, HackError> {
         }
     }
 
-    let invalid_bech32 =
-        "bn9hhssomeltvhzgvuqkwjkpwxojfuigltwedayzxljucefikuieillowaticksoistqoynmgcnj219a";
+    let invalid_bech32 = "bn93hg934hg08q340g8u4jcau3";
     match api.addr_canonicalize(invalid_bech32).unwrap_err() {
         StdError::GenericErr { .. } => {}
         err => {
@@ -280,7 +285,7 @@ mod tests {
         mock_dependencies, mock_dependencies_with_balances, mock_env, mock_info, MOCK_CONTRACT_ADDR,
     };
     // import trait Storage to get access to read
-    use cosmwasm_std::{coins, Binary, Storage, SubMsg};
+    use cosmwasm_std::{attr, coins, Binary, Storage};
 
     #[test]
     fn proper_initialization() {
@@ -302,7 +307,9 @@ mod tests {
         let info = mock_info(creator.as_str(), &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(res.messages.len(), 0);
-        assert_eq!(res.attributes, [("Let the", "hacking begin")]);
+        assert_eq!(res.attributes.len(), 1);
+        assert_eq!(res.attributes[0].key, "Let the");
+        assert_eq!(res.attributes[0].value, "hacking begin");
 
         // it worked, let's check the state
         let data = deps.storage.get(CONFIG_KEY).expect("no data stored");
@@ -387,7 +394,7 @@ mod tests {
         let res = sudo(deps.as_mut(), mock_env(), sys_msg).unwrap();
         assert_eq!(1, res.messages.len());
         let msg = res.messages.get(0).expect("no message");
-        assert_eq!(msg, &SubMsg::new(BankMsg::Send { to_address, amount }));
+        assert_eq!(msg, &BankMsg::Send { to_address, amount }.into(),);
     }
 
     #[test]
@@ -439,14 +446,15 @@ mod tests {
         let msg = execute_res.messages.get(0).expect("no message");
         assert_eq!(
             msg,
-            &SubMsg::new(BankMsg::Send {
+            &BankMsg::Send {
                 to_address: beneficiary,
                 amount: coins(1000, "earth"),
-            }),
+            }
+            .into(),
         );
         assert_eq!(
             execute_res.attributes,
-            vec![("action", "release"), ("destination", "benefits")],
+            vec![attr("action", "release"), attr("destination", "benefits")],
         );
         assert_eq!(execute_res.data, Some(vec![0xF0, 0x0B, 0xAA].into()));
     }

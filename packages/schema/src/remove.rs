@@ -42,58 +42,58 @@ mod tests {
 
     #[test]
     fn is_hidden_works() {
-        assert!(!is_hidden(Path::new("/foo")));
-        assert!(!is_hidden(Path::new("/foo/bar")));
-        assert!(!is_hidden(Path::new("/foo/bar.txt")));
-        assert!(!is_hidden(Path::new("~foo")));
-        assert!(!is_hidden(Path::new("foo")));
+        assert_eq!(is_hidden(Path::new("/foo")), false);
+        assert_eq!(is_hidden(Path::new("/foo/bar")), false);
+        assert_eq!(is_hidden(Path::new("/foo/bar.txt")), false);
+        assert_eq!(is_hidden(Path::new("~foo")), false);
+        assert_eq!(is_hidden(Path::new("foo")), false);
 
-        assert!(is_hidden(Path::new("/.foo")));
-        assert!(is_hidden(Path::new("/foo/.bar")));
-        assert!(is_hidden(Path::new("/foo/.bar.txt")));
-        assert!(is_hidden(Path::new(".foo")));
+        assert_eq!(is_hidden(Path::new("/.foo")), true);
+        assert_eq!(is_hidden(Path::new("/foo/.bar")), true);
+        assert_eq!(is_hidden(Path::new("/foo/.bar.txt")), true);
+        assert_eq!(is_hidden(Path::new(".foo")), true);
 
         // no filename
-        assert!(!is_hidden(Path::new("/")));
-        assert!(!is_hidden(Path::new("")));
+        assert_eq!(is_hidden(Path::new("/")), false);
+        assert_eq!(is_hidden(Path::new("")), false);
 
         // invalid UTF-8
         #[cfg(any(unix, target_os = "redox"))]
         {
             use std::os::unix::ffi::OsStrExt;
             let non_hidden = OsStr::from_bytes(&[0x66, 0x6f, 0x80, 0x6f]); // fo�o
-            assert!(!is_hidden(Path::new(non_hidden)));
+            assert_eq!(is_hidden(Path::new(non_hidden)), false);
             let hidden = OsStr::from_bytes(&[0x2e, 0x66, 0x6f, 0x80, 0x6f]); // .fo�o
-            assert!(is_hidden(Path::new(hidden)));
+            assert_eq!(is_hidden(Path::new(hidden)), true);
         }
     }
 
     #[test]
     fn is_json_works() {
-        assert!(!is_json(Path::new("/foo")));
-        assert!(!is_json(Path::new("/foo/bar")));
-        assert!(!is_json(Path::new("/foo/bar.txt")));
-        assert!(!is_json(Path::new("~foo")));
-        assert!(!is_json(Path::new("foo")));
-        assert!(!is_json(Path::new("foo.json5")));
+        assert_eq!(is_json(Path::new("/foo")), false);
+        assert_eq!(is_json(Path::new("/foo/bar")), false);
+        assert_eq!(is_json(Path::new("/foo/bar.txt")), false);
+        assert_eq!(is_json(Path::new("~foo")), false);
+        assert_eq!(is_json(Path::new("foo")), false);
+        assert_eq!(is_json(Path::new("foo.json5")), false);
 
-        assert!(is_json(Path::new("/.json")));
-        assert!(is_json(Path::new("/foo/.bar.json")));
-        assert!(is_json(Path::new("/foo/bar.json")));
-        assert!(is_json(Path::new("foo.json")));
+        assert_eq!(is_json(Path::new("/.json")), true);
+        assert_eq!(is_json(Path::new("/foo/.bar.json")), true);
+        assert_eq!(is_json(Path::new("/foo/bar.json")), true);
+        assert_eq!(is_json(Path::new("foo.json")), true);
 
         // no filename
-        assert!(!is_json(Path::new("/")));
-        assert!(!is_json(Path::new("")));
+        assert_eq!(is_json(Path::new("/")), false);
+        assert_eq!(is_json(Path::new("")), false);
 
         // invalid UTF-8
         #[cfg(any(unix, target_os = "redox"))]
         {
             use std::os::unix::ffi::OsStrExt;
             let non_hidden = OsStr::from_bytes(&[0x66, 0x6f, 0x80, 0x6f]); // fo�o
-            assert!(!is_json(Path::new(non_hidden)));
+            assert_eq!(is_json(Path::new(non_hidden)), false);
             let hidden = OsStr::from_bytes(&[0x66, 0x6f, 0x80, 0x6f, 0x2e, 0x6a, 0x73, 0x6f, 0x6e]); // fo�o.json
-            assert!(is_json(Path::new(hidden)));
+            assert_eq!(is_json(Path::new(hidden)), true);
         }
     }
 }

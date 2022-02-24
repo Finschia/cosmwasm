@@ -60,7 +60,8 @@ impl From<CryptoError> for HashCalculationError {
         match original {
             CryptoError::InputsTooLarger { .. } => HashCalculationError::InputsTooLarger,
             CryptoError::InputTooLong { .. } => HashCalculationError::InputTooLonger,
-            CryptoError::InvalidHashFormat { .. }
+            CryptoError::MessageTooLong { .. }
+            | CryptoError::InvalidHashFormat { .. }
             | CryptoError::InvalidPubkeyFormat { .. }
             | CryptoError::InvalidSignatureFormat { .. }
             | CryptoError::GenericErr { .. }

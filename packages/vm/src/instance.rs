@@ -7,14 +7,15 @@ use crate::backend::{Backend, BackendApi, Querier, Storage};
 use crate::conversion::{ref_to_u32, to_u32};
 use crate::environment::Environment;
 use crate::errors::{CommunicationError, VmError, VmResult};
-use crate::features::required_features_from_module;
+use crate::features::required_features_from_wasmer_instance;
 use crate::imports::{
-    do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
-    do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_query_chain,
-    do_secp256k1_recover_pubkey, do_secp256k1_verify, do_sha1_calculate,
+    native_addr_canonicalize, native_addr_humanize, native_addr_validate, native_db_read,
+    native_db_remove, native_db_write, native_debug, native_ed25519_batch_verify,
+    native_ed25519_verify, native_query_chain, native_secp256k1_recover_pubkey,
+    native_secp256k1_verify, native_sha1_calculate,
 };
 #[cfg(feature = "iterator")]
-use crate::imports::{do_db_next, do_db_scan};
+use crate::imports::{native_db_next, native_db_scan};
 use crate::memory::{read_region, write_region};
 use crate::size::Size;
 use crate::wasm_backend::compile;
@@ -46,6 +47,7 @@ pub struct Instance<A: BackendApi, S: Storage, Q: Querier> {
     /// This instance should only be accessed via the Environment, which provides safe access.
     _inner: Box<WasmerInstance>,
     env: Environment<A, S, Q>,
+    pub required_features: HashSet<String>,
 }
 
 impl<A, S, Q> Instance<A, S, Q>
@@ -85,14 +87,14 @@ where
         // Ownership of the value pointer is transferred to the contract.
         env_imports.insert(
             "db_read",
-            Function::new_native_with_env(store, env.clone(), do_db_read),
+            Function::new_native_with_env(store, env.clone(), native_db_read),
         );
 
         // Writes the given value into the database entry at the given key.
         // Ownership of both input and output pointer is not transferred to the host.
         env_imports.insert(
             "db_write",
-            Function::new_native_with_env(store, env.clone(), do_db_write),
+            Function::new_native_with_env(store, env.clone(), native_db_write),
         );
 
         // Removes the value at the given key. Different than writing &[] as future
@@ -101,7 +103,7 @@ where
         // Ownership of both key pointer is not transferred to the host.
         env_imports.insert(
             "db_remove",
-            Function::new_native_with_env(store, env.clone(), do_db_remove),
+            Function::new_native_with_env(store, env.clone(), native_db_remove),
         );
 
         // Reads human address from source_ptr and checks if it is valid.
@@ -109,7 +111,7 @@ where
         // Ownership of the input pointer is not transferred to the host.
         env_imports.insert(
             "addr_validate",
-            Function::new_native_with_env(store, env.clone(), do_addr_validate),
+            Function::new_native_with_env(store, env.clone(), native_addr_validate),
         );
 
         // Reads human address from source_ptr and writes canonicalized representation to destination_ptr.
@@ -118,7 +120,7 @@ where
         // Ownership of both input and output pointer is not transferred to the host.
         env_imports.insert(
             "addr_canonicalize",
-            Function::new_native_with_env(store, env.clone(), do_addr_canonicalize),
+            Function::new_native_with_env(store, env.clone(), native_addr_canonicalize),
         );
 
         // Reads canonical address from source_ptr and writes humanized representation to destination_ptr.
@@ -127,7 +129,7 @@ where
         // Ownership of both input and output pointer is not transferred to the host.
         env_imports.insert(
             "addr_humanize",
-            Function::new_native_with_env(store, env.clone(), do_addr_humanize),
+            Function::new_native_with_env(store, env.clone(), native_addr_humanize),
         );
 
         // Verifies message hashes against a signature with a public key, using the secp256k1 ECDSA parametrization.
@@ -135,12 +137,12 @@ where
         // Ownership of input pointers is not transferred to the host.
         env_imports.insert(
             "secp256k1_verify",
-            Function::new_native_with_env(store, env.clone(), do_secp256k1_verify),
+            Function::new_native_with_env(store, env.clone(), native_secp256k1_verify),
         );
 
         env_imports.insert(
             "secp256k1_recover_pubkey",
-            Function::new_native_with_env(store, env.clone(), do_secp256k1_recover_pubkey),
+            Function::new_native_with_env(store, env.clone(), native_secp256k1_recover_pubkey),
         );
 
         // Verifies a message against a signature with a public key, using the ed25519 EdDSA scheme.
@@ -148,7 +150,7 @@ where
         // Ownership of input pointers is not transferred to the host.
         env_imports.insert(
             "ed25519_verify",
-            Function::new_native_with_env(store, env.clone(), do_ed25519_verify),
+            Function::new_native_with_env(store, env.clone(), native_ed25519_verify),
         );
 
         // Verifies a batch of messages against a batch of signatures with a batch of public keys,
@@ -158,7 +160,7 @@ where
         // Ownership of input pointers is not transferred to the host.
         env_imports.insert(
             "ed25519_batch_verify",
-            Function::new_native_with_env(store, env.clone(), do_ed25519_batch_verify),
+            Function::new_native_with_env(store, env.clone(), native_ed25519_batch_verify),
         );
 
         // Calculates the inputs using the sha1
@@ -167,7 +169,7 @@ where
         // Ownership of the hash pointer is transferred to the contract.
         env_imports.insert(
             "sha1_calculate",
-            Function::new_native_with_env(store, env.clone(), do_sha1_calculate),
+            Function::new_native_with_env(store, env.clone(), native_sha1_calculate),
         );
 
         // Allows the contract to emit debug logs that the host can either process or ignore.
@@ -176,12 +178,12 @@ where
         // Ownership of both input and output pointer is not transferred to the host.
         env_imports.insert(
             "debug",
-            Function::new_native_with_env(store, env.clone(), do_debug),
+            Function::new_native_with_env(store, env.clone(), native_debug),
         );
 
         env_imports.insert(
             "query_chain",
-            Function::new_native_with_env(store, env.clone(), do_query_chain),
+            Function::new_native_with_env(store, env.clone(), native_query_chain),
         );
 
         // Creates an iterator that will go from start to end.
@@ -193,7 +195,7 @@ where
         #[cfg(feature = "iterator")]
         env_imports.insert(
             "db_scan",
-            Function::new_native_with_env(store, env.clone(), do_db_scan),
+            Function::new_native_with_env(store, env.clone(), native_db_scan),
         );
 
         // Get next element of iterator with ID `iterator_id`.
@@ -204,7 +206,7 @@ where
         #[cfg(feature = "iterator")]
         env_imports.insert(
             "db_next",
-            Function::new_native_with_env(store, env.clone(), do_db_next),
+            Function::new_native_with_env(store, env.clone(), native_db_next),
         );
 
         import_obj.register("env", env_imports);
@@ -215,6 +217,7 @@ where
             },
         )?);
 
+        let required_features = required_features_from_wasmer_instance(wasmer_instance.as_ref());
         let instance_ptr = NonNull::from(wasmer_instance.as_ref());
         env.set_wasmer_instance(Some(instance_ptr));
         env.set_gas_left(gas_limit);
@@ -222,6 +225,7 @@ where
         let instance = Instance {
             _inner: wasmer_instance,
             env,
+            required_features,
         };
         Ok(instance)
     }
@@ -243,15 +247,6 @@ where
         } else {
             None
         }
-    }
-
-    /// Returns the features required by this contract.
-    ///
-    /// This is not needed for production because we can do static analysis
-    /// on the Wasm file before instatiation to obtain this information. It's
-    /// only kept because it can be handy for integration testing.
-    pub fn required_features(&self) -> HashSet<String> {
-        required_features_from_module(self._inner.module())
     }
 
     /// Returns the size of the default memory in pages.
@@ -372,7 +367,7 @@ mod tests {
         let (instance_options, memory_limit) = mock_instance_options();
         let instance =
             Instance::from_code(CONTRACT, backend, instance_options, memory_limit).unwrap();
-        assert_eq!(instance.required_features().len(), 0);
+        assert_eq!(instance.required_features.len(), 0);
     }
 
     #[test]
@@ -394,24 +389,24 @@ mod tests {
         let backend = mock_backend(&[]);
         let (instance_options, memory_limit) = mock_instance_options();
         let instance = Instance::from_code(&wasm, backend, instance_options, memory_limit).unwrap();
-        assert_eq!(instance.required_features().len(), 3);
-        assert!(instance.required_features().contains("nutrients"));
-        assert!(instance.required_features().contains("sun"));
-        assert!(instance.required_features().contains("water"));
+        assert_eq!(instance.required_features.len(), 3);
+        assert!(instance.required_features.contains("nutrients"));
+        assert!(instance.required_features.contains("sun"));
+        assert!(instance.required_features.contains("water"));
     }
 
     #[test]
     fn call_function0_works() {
-        let instance = mock_instance(CONTRACT, &[]);
+        let instance = mock_instance(&CONTRACT, &[]);
 
         instance
-            .call_function0("interface_version_7", &[])
+            .call_function0("interface_version_5", &[])
             .expect("error calling function");
     }
 
     #[test]
     fn call_function1_works() {
-        let instance = mock_instance(CONTRACT, &[]);
+        let instance = mock_instance(&CONTRACT, &[]);
 
         // can call function few times
         let result = instance
@@ -433,7 +428,7 @@ mod tests {
     #[test]
     fn allocate_deallocate_works() {
         let mut instance = mock_instance_with_options(
-            CONTRACT,
+            &CONTRACT,
             MockInstanceOptions {
                 memory_limit: Some(Size::mebi(500)),
                 ..Default::default()
@@ -460,7 +455,7 @@ mod tests {
 
     #[test]
     fn write_and_read_memory_works() {
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
 
         let sizes: Vec<usize> = vec![
             0,
@@ -493,7 +488,7 @@ mod tests {
     fn errors_in_imports() {
         // set up an instance that will experience an error in an import
         let error_message = "Api failed intentionally";
-        let mut instance = mock_instance_with_failing_api(CONTRACT, &[], error_message);
+        let mut instance = mock_instance_with_failing_api(&CONTRACT, &[], error_message);
         let init_result = call_instantiate::<_, _, _, serde_json::Value>(
             &mut instance,
             &mock_env(),
@@ -511,7 +506,7 @@ mod tests {
     fn read_memory_errors_when_when_length_is_too_long() {
         let length = 6;
         let max_length = 5;
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
 
         // Allocate sets length to 0. Write some data to increase length.
         let region_ptr = instance.allocate(length).expect("error allocating");
@@ -548,7 +543,7 @@ mod tests {
 
                 (type (func))
                 (func (type 0) nop)
-                (export "interface_version_7" (func 0))
+                (export "interface_version_5" (func 0))
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
@@ -566,7 +561,7 @@ mod tests {
 
                 (type (func))
                 (func (type 0) nop)
-                (export "interface_version_7" (func 0))
+                (export "interface_version_5" (func 0))
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
@@ -579,7 +574,7 @@ mod tests {
 
     #[test]
     fn memory_pages_grows_with_usage() {
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
 
         assert_eq!(instance.memory_pages(), 17);
 
@@ -595,7 +590,7 @@ mod tests {
 
     #[test]
     fn get_gas_left_works() {
-        let instance = mock_instance_with_gas_limit(CONTRACT, 123321);
+        let instance = mock_instance_with_gas_limit(&CONTRACT, 123321);
         let orig_gas = instance.get_gas_left();
         assert_eq!(orig_gas, 123321);
     }
@@ -603,7 +598,7 @@ mod tests {
     #[test]
     fn create_gas_report_works() {
         const LIMIT: u64 = 7_000_000;
-        let mut instance = mock_instance_with_gas_limit(CONTRACT, LIMIT);
+        let mut instance = mock_instance_with_gas_limit(&CONTRACT, LIMIT);
 
         let report1 = instance.create_gas_report();
         assert_eq!(report1.used_externally, 0);
@@ -620,7 +615,7 @@ mod tests {
 
         let report2 = instance.create_gas_report();
         assert_eq!(report2.used_externally, 73);
-        assert_eq!(report2.used_internally, 36378);
+        assert_eq!(report2.used_internally, 38804);
         assert_eq!(report2.limit, LIMIT);
         assert_eq!(
             report2.remaining,
@@ -630,23 +625,23 @@ mod tests {
 
     #[test]
     fn set_storage_readonly_works() {
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
 
-        assert!(instance.env.is_storage_readonly());
-
-        instance.set_storage_readonly(false);
-        assert!(!instance.env.is_storage_readonly());
+        assert_eq!(instance.env.is_storage_readonly(), true);
 
         instance.set_storage_readonly(false);
-        assert!(!instance.env.is_storage_readonly());
+        assert_eq!(instance.env.is_storage_readonly(), false);
+
+        instance.set_storage_readonly(false);
+        assert_eq!(instance.env.is_storage_readonly(), false);
 
         instance.set_storage_readonly(true);
-        assert!(instance.env.is_storage_readonly());
+        assert_eq!(instance.env.is_storage_readonly(), true);
     }
 
     #[test]
     fn with_storage_works() {
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
 
         // initial check
         instance
@@ -677,7 +672,7 @@ mod tests {
     #[should_panic]
     fn with_storage_safe_for_panic() {
         // this should fail with the assertion, but not cause a double-free crash (issue #59)
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
         instance
             .with_storage::<_, ()>(|_store| panic!("trigger failure"))
             .unwrap();
@@ -687,7 +682,7 @@ mod tests {
     fn with_querier_works_readonly() {
         let rich_addr = String::from("foobar");
         let rich_balance = vec![coin(10000, "gold"), coin(8000, "silver")];
-        let mut instance = mock_instance_with_balances(CONTRACT, &[(&rich_addr, &rich_balance)]);
+        let mut instance = mock_instance_with_balances(&CONTRACT, &[(&rich_addr, &rich_balance)]);
 
         // query one
         instance
@@ -743,7 +738,7 @@ mod tests {
         let rich_addr = String::from("foobar");
         let rich_balance1 = vec![coin(10000, "gold"), coin(500, "silver")];
         let rich_balance2 = vec![coin(10000, "gold"), coin(8000, "silver")];
-        let mut instance = mock_instance_with_balances(CONTRACT, &[(&rich_addr, &rich_balance1)]);
+        let mut instance = mock_instance_with_balances(&CONTRACT, &[(&rich_addr, &rich_balance1)]);
 
         // Get initial state
         instance
@@ -808,7 +803,7 @@ mod singlepass_tests {
 
     #[test]
     fn contract_deducts_gas_init() {
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
         let orig_gas = instance.get_gas_left();
 
         // init contract
@@ -819,12 +814,12 @@ mod singlepass_tests {
             .unwrap();
 
         let init_used = orig_gas - instance.get_gas_left();
-        assert_eq!(init_used, 36451);
+        assert_eq!(init_used, 38877);
     }
 
     #[test]
     fn contract_deducts_gas_execute() {
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
 
         // init contract
         let info = mock_info("creator", &coins(1000, "earth"));
@@ -842,12 +837,12 @@ mod singlepass_tests {
             .unwrap();
 
         let execute_used = gas_before_execute - instance.get_gas_left();
-        assert_eq!(execute_used, 159020);
+        assert_eq!(execute_used, 157981);
     }
 
     #[test]
     fn contract_enforces_gas_limit() {
-        let mut instance = mock_instance_with_gas_limit(CONTRACT, 20_000);
+        let mut instance = mock_instance_with_gas_limit(&CONTRACT, 20_000);
 
         // init contract
         let info = mock_info("creator", &coins(1000, "earth"));
@@ -858,7 +853,7 @@ mod singlepass_tests {
 
     #[test]
     fn query_works_with_gas_metering() {
-        let mut instance = mock_instance(CONTRACT, &[]);
+        let mut instance = mock_instance(&CONTRACT, &[]);
 
         // init contract
         let info = mock_info("creator", &coins(1000, "earth"));
@@ -876,6 +871,6 @@ mod singlepass_tests {
         assert_eq!(answer.as_slice(), b"{\"verifier\":\"verifies\"}");
 
         let query_used = gas_before_query - instance.get_gas_left();
-        assert_eq!(query_used, 27629);
+        assert_eq!(query_used, 28999);
     }
 }

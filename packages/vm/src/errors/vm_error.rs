@@ -81,14 +81,6 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
-    #[error("Data too long for deserialization. Got: {length} bytes; limit: {max_length} bytes")]
-    DeserializationLimitExceeded {
-        /// the target type that was attempted
-        length: usize,
-        max_length: usize,
-        #[cfg(feature = "backtraces")]
-        backtrace: Backtrace,
-    },
     #[error("Error serializing type {source_type}: {msg}")]
     SerializeErr {
         /// the source type that was attempted
@@ -150,7 +142,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn cache_err(msg: impl Into<String>) -> Self {
+    pub(crate) fn cache_err<S: Into<String>>(msg: S) -> Self {
         VmError::CacheErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -158,7 +150,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn compile_err(msg: impl Into<String>) -> Self {
+    pub(crate) fn compile_err<S: Into<String>>(msg: S) -> Self {
         VmError::CompileErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -166,10 +158,10 @@ impl VmError {
         }
     }
 
-    pub(crate) fn conversion_err(
-        from_type: impl Into<String>,
-        to_type: impl Into<String>,
-        input: impl Into<String>,
+    pub(crate) fn conversion_err<S: Into<String>, T: Into<String>, U: Into<String>>(
+        from_type: S,
+        to_type: T,
+        input: U,
     ) -> Self {
         VmError::ConversionErr {
             from_type: from_type.into(),
@@ -195,7 +187,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn generic_err(msg: impl Into<String>) -> Self {
+    pub(crate) fn generic_err<S: Into<String>>(msg: S) -> Self {
         VmError::GenericErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -203,7 +195,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn instantiation_err(msg: impl Into<String>) -> Self {
+    pub(crate) fn instantiation_err<S: Into<String>>(msg: S) -> Self {
         VmError::InstantiationErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -218,7 +210,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn parse_err(target: impl Into<String>, msg: impl Display) -> Self {
+    pub(crate) fn parse_err<T: Into<String>, M: Display>(target: T, msg: M) -> Self {
         VmError::ParseErr {
             target_type: target.into(),
             msg: msg.to_string(),
@@ -227,16 +219,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn deserialization_limit_exceeded(length: usize, max_length: usize) -> Self {
-        VmError::DeserializationLimitExceeded {
-            length,
-            max_length,
-            #[cfg(feature = "backtraces")]
-            backtrace: Backtrace::capture(),
-        }
-    }
-
-    pub(crate) fn serialize_err(source: impl Into<String>, msg: impl Display) -> Self {
+    pub(crate) fn serialize_err<S: Into<String>, M: Display>(source: S, msg: M) -> Self {
         VmError::SerializeErr {
             source_type: source.into(),
             msg: msg.to_string(),
@@ -245,7 +228,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn resolve_err(msg: impl Into<String>) -> Self {
+    pub(crate) fn resolve_err<S: Into<String>>(msg: S) -> Self {
         VmError::ResolveErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -253,8 +236,8 @@ impl VmError {
         }
     }
 
-    pub(crate) fn result_mismatch(
-        function_name: impl Into<String>,
+    pub(crate) fn result_mismatch<S: Into<String>>(
+        function_name: S,
         expected: usize,
         actual: usize,
     ) -> Self {
@@ -267,7 +250,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn runtime_err(msg: impl Into<String>) -> Self {
+    pub(crate) fn runtime_err<S: Into<String>>(msg: S) -> Self {
         VmError::RuntimeErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -275,7 +258,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn static_validation_err(msg: impl Into<String>) -> Self {
+    pub(crate) fn static_validation_err<S: Into<String>>(msg: S) -> Self {
         VmError::StaticValidationErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -283,7 +266,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn uninitialized_context_data(kind: impl Into<String>) -> Self {
+    pub(crate) fn uninitialized_context_data<S: Into<String>>(kind: S) -> Self {
         VmError::UninitializedContextData {
             kind: kind.into(),
             #[cfg(feature = "backtraces")]

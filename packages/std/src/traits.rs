@@ -86,9 +86,7 @@ pub trait Api {
     fn addr_canonicalize(&self, human: &str) -> StdResult<CanonicalAddr>;
 
     /// Takes a canonical address and returns a human readble address.
-    /// This is the inverse of [`addr_canonicalize`].
-    ///
-    /// [`addr_canonicalize`]: Api::addr_canonicalize
+    /// This is the inverse of [addr_canonicalize].
     fn addr_humanize(&self, canonical: &CanonicalAddr) -> StdResult<Addr>;
 
     fn secp256k1_verify(
@@ -188,10 +186,10 @@ impl<'a> QuerierWrapper<'a> {
         }
     }
 
-    pub fn query_balance(
+    pub fn query_balance<U: Into<String>, V: Into<String>>(
         &self,
-        address: impl Into<String>,
-        denom: impl Into<String>,
+        address: U,
+        denom: V,
     ) -> StdResult<Coin> {
         let request = BankQuery::Balance {
             address: address.into(),
@@ -202,7 +200,7 @@ impl<'a> QuerierWrapper<'a> {
         Ok(res.amount)
     }
 
-    pub fn query_all_balances(&self, address: impl Into<String>) -> StdResult<Vec<Coin>> {
+    pub fn query_all_balances<U: Into<String>>(&self, address: U) -> StdResult<Vec<Coin>> {
         let request = BankQuery::AllBalances {
             address: address.into(),
         }
@@ -213,10 +211,10 @@ impl<'a> QuerierWrapper<'a> {
 
     // this queries another wasm contract. You should know a priori the proper types for T and U
     // (response and request) based on the contract API
-    pub fn query_wasm_smart<T: DeserializeOwned>(
+    pub fn query_wasm_smart<T: DeserializeOwned, U: Serialize, V: Into<String>>(
         &self,
-        contract_addr: impl Into<String>,
-        msg: &impl Serialize,
+        contract_addr: V,
+        msg: &U,
     ) -> StdResult<T> {
         let request = WasmQuery::Smart {
             contract_addr: contract_addr.into(),
@@ -233,10 +231,10 @@ impl<'a> QuerierWrapper<'a> {
     //
     // Similar return value to Storage.get(). Returns Some(val) or None if the data is there.
     // It only returns error on some runtime issue, not on any data cases.
-    pub fn query_wasm_raw(
+    pub fn query_wasm_raw<T: Into<String>, U: Into<Binary>>(
         &self,
-        contract_addr: impl Into<String>,
-        key: impl Into<Binary>,
+        contract_addr: T,
+        key: U,
     ) -> StdResult<Option<Vec<u8>>> {
         let request: QueryRequest<Empty> = WasmQuery::Raw {
             contract_addr: contract_addr.into(),
@@ -274,7 +272,7 @@ impl<'a> QuerierWrapper<'a> {
     }
 
     #[cfg(feature = "staking")]
-    pub fn query_validator(&self, address: impl Into<String>) -> StdResult<Option<Validator>> {
+    pub fn query_validator<U: Into<String>>(&self, address: U) -> StdResult<Option<Validator>> {
         let request = StakingQuery::Validator {
             address: address.into(),
         }
@@ -291,9 +289,9 @@ impl<'a> QuerierWrapper<'a> {
     }
 
     #[cfg(feature = "staking")]
-    pub fn query_all_delegations(
+    pub fn query_all_delegations<U: Into<String>>(
         &self,
-        delegator: impl Into<String>,
+        delegator: U,
     ) -> StdResult<Vec<Delegation>> {
         let request = StakingQuery::AllDelegations {
             delegator: delegator.into(),
@@ -304,10 +302,10 @@ impl<'a> QuerierWrapper<'a> {
     }
 
     #[cfg(feature = "staking")]
-    pub fn query_delegation(
+    pub fn query_delegation<U: Into<String>, V: Into<String>>(
         &self,
-        delegator: impl Into<String>,
-        validator: impl Into<String>,
+        delegator: U,
+        validator: V,
     ) -> StdResult<Option<FullDelegation>> {
         let request = StakingQuery::Delegation {
             delegator: delegator.into(),
@@ -360,6 +358,6 @@ mod tests {
             .unwrap()
             .unwrap();
         let balance: BalanceResponse = from_slice(&raw).unwrap();
-        assert_eq!(balance.amount.amount, Uint128::new(5));
+        assert_eq!(balance.amount.amount, Uint128(5));
     }
 }

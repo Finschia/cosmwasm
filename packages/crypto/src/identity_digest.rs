@@ -8,9 +8,17 @@ use digest::generic_array::GenericArray;
 use digest::{FixedOutputDirty, Output, Reset, Update};
 
 /// The 256-bits identity container
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Identity256 {
     array: GenericArray<u8, U32>,
+}
+
+impl Default for Identity256 {
+    fn default() -> Self {
+        Identity256 {
+            array: GenericArray::default(),
+        }
+    }
 }
 
 impl Update for Identity256 {

@@ -12,7 +12,6 @@ pub struct Env {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct BlockInfo {
-    /// The height of a block is the number of blocks preceding it in the blockchain.
     pub height: u64,
     /// Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).
     ///
@@ -37,8 +36,8 @@ pub struct BlockInfo {
     /// # };
     /// # extern crate chrono;
     /// use chrono::NaiveDateTime;
-    /// let seconds = env.block.time.seconds();
-    /// let nsecs = env.block.time.subsec_nanos();
+    /// let seconds = env.block.time.nanos() / 1_000_000_000;
+    /// let nsecs = env.block.time.nanos() % 1_000_000_000;
     /// let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32);
     /// ```
     ///

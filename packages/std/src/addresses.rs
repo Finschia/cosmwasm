@@ -2,7 +2,6 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 use std::fmt;
 use std::ops::Deref;
 
@@ -45,27 +44,13 @@ impl Addr {
     /// let address = Addr::unchecked("foobar");
     /// assert_eq!(address, "foobar");
     /// ```
-    pub fn unchecked(input: impl Into<String>) -> Addr {
+    pub fn unchecked<T: Into<String>>(input: T) -> Addr {
         Addr(input.into())
     }
 
     #[inline]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
-    }
-
-    /// Returns the UTF-8 encoded address string as a byte array.
-    ///
-    /// This is equivalent to `address.as_str().as_bytes()`.
-    #[inline]
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
-    }
-
-    /// Utility for explicit conversion to `String`.
-    #[inline]
-    pub fn into_string(self) -> String {
-        self.0
     }
 }
 
@@ -134,18 +119,6 @@ impl From<Addr> for HumanAddr {
 impl From<&Addr> for HumanAddr {
     fn from(addr: &Addr) -> Self {
         HumanAddr(addr.0.clone())
-    }
-}
-
-impl From<Addr> for Cow<'_, Addr> {
-    fn from(addr: Addr) -> Self {
-        Cow::Owned(addr)
-    }
-}
-
-impl<'a> From<&'a Addr> for Cow<'a, Addr> {
-    fn from(addr: &'a Addr) -> Self {
-        Cow::Borrowed(addr)
     }
 }
 
@@ -278,7 +251,7 @@ impl Deref for CanonicalAddr {
 
 impl CanonicalAddr {
     pub fn as_slice(&self) -> &[u8] {
-        self.0.as_slice()
+        &self.0.as_slice()
     }
 }
 
@@ -312,15 +285,6 @@ mod tests {
     fn addr_as_str_works() {
         let addr = Addr::unchecked("literal-string");
         assert_eq!(addr.as_str(), "literal-string");
-    }
-
-    #[test]
-    fn addr_as_bytes_works() {
-        let addr = Addr::unchecked("literal-string");
-        assert_eq!(
-            addr.as_bytes(),
-            [108, 105, 116, 101, 114, 97, 108, 45, 115, 116, 114, 105, 110, 103]
-        );
     }
 
     #[test]
@@ -499,9 +463,9 @@ mod tests {
     #[test]
     fn human_addr_is_empty() {
         let human_addr = HumanAddr::from("Hello, world!");
-        assert!(!human_addr.is_empty());
+        assert_eq!(false, human_addr.is_empty());
         let empty_human_addr = HumanAddr::from("");
-        assert!(empty_human_addr.is_empty());
+        assert_eq!(true, empty_human_addr.is_empty());
     }
 
     // Test CanonicalAddr as_slice() for each CanonicalAddr::from input type
@@ -563,9 +527,9 @@ mod tests {
     fn canonical_addr_is_empty() {
         let bytes: &[u8] = &[0u8, 187, 61, 11, 250, 0];
         let canonical_addr = CanonicalAddr::from(bytes);
-        assert!(!canonical_addr.is_empty());
+        assert_eq!(false, canonical_addr.is_empty());
         let empty_canonical_addr = CanonicalAddr::from(vec![]);
-        assert!(empty_canonical_addr.is_empty());
+        assert_eq!(true, empty_canonical_addr.is_empty());
     }
 
     #[test]
@@ -635,22 +599,5 @@ mod tests {
         let set1 = HashSet::<CanonicalAddr>::from_iter(vec![bob.clone(), alice1.clone()]);
         let set2 = HashSet::from_iter(vec![alice1, alice2, bob]);
         assert_eq!(set1, set2);
-    }
-
-    // helper to show we can handle Addr and &Addr equally
-    fn flexible<'a>(a: impl Into<Cow<'a, Addr>>) -> String {
-        a.into().into_owned().to_string()
-    }
-
-    #[test]
-    fn addr_into_cow() {
-        // owned Addr
-        let value = "wasmeucn0ur0ncny2308ry";
-        let addr = Addr::unchecked(value);
-
-        // pass by ref
-        assert_eq!(value, &flexible(&addr));
-        // pass by value
-        assert_eq!(value, &flexible(addr));
     }
 }

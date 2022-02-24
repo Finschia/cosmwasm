@@ -1,12 +1,11 @@
 use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Deserializer, Serialize};
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::fmt::{self};
 use std::iter::Sum;
 use std::ops;
 
 use crate::errors::{DivideByZeroError, OverflowError, OverflowOperation, StdError};
-use crate::Uint128;
 
 /// A thin wrapper around u64 that is using strings for JSON encoding/decoding,
 /// such that the full u64 range can be used for clients that convert JSON numbers to floats,
@@ -28,8 +27,6 @@ use crate::Uint128;
 pub struct Uint64(#[schemars(with = "String")] u64);
 
 impl Uint64 {
-    pub const MAX: Self = Self(u64::MAX);
-
     /// Creates a Uint64(value).
     ///
     /// This method is less flexible than `from` but can be called in a const context.
@@ -93,42 +90,34 @@ impl Uint64 {
             .ok_or_else(|| DivideByZeroError::new(self))
     }
 
-    #[must_use]
     pub fn wrapping_add(self, other: Self) -> Self {
         Self(self.0.wrapping_add(other.0))
     }
 
-    #[must_use]
     pub fn wrapping_sub(self, other: Self) -> Self {
         Self(self.0.wrapping_sub(other.0))
     }
 
-    #[must_use]
     pub fn wrapping_mul(self, other: Self) -> Self {
         Self(self.0.wrapping_mul(other.0))
     }
 
-    #[must_use]
     pub fn wrapping_pow(self, other: u32) -> Self {
         Self(self.0.wrapping_pow(other))
     }
 
-    #[must_use]
     pub fn saturating_add(self, other: Self) -> Self {
         Self(self.0.saturating_add(other.0))
     }
 
-    #[must_use]
     pub fn saturating_sub(self, other: Self) -> Self {
         Self(self.0.saturating_sub(other.0))
     }
 
-    #[must_use]
     pub fn saturating_mul(self, other: Self) -> Self {
         Self(self.0.saturating_mul(other.0))
     }
 
-    #[must_use]
     pub fn saturating_pow(self, other: u32) -> Self {
         Self(self.0.saturating_pow(other))
     }
@@ -188,7 +177,7 @@ impl From<Uint64> for u64 {
 
 impl fmt::Display for Uint64 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -208,38 +197,6 @@ impl<'a> ops::Add<&'a Uint64> for Uint64 {
     }
 }
 
-impl ops::Div<Uint64> for Uint64 {
-    type Output = Self;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        Self(self.u64().checked_div(rhs.u64()).unwrap())
-    }
-}
-
-impl<'a> ops::Div<&'a Uint64> for Uint64 {
-    type Output = Self;
-
-    fn div(self, rhs: &'a Uint64) -> Self::Output {
-        Self(self.u64().checked_div(rhs.u64()).unwrap())
-    }
-}
-
-impl ops::Shr<u32> for Uint64 {
-    type Output = Self;
-
-    fn shr(self, rhs: u32) -> Self::Output {
-        Self(self.u64().checked_shr(rhs).unwrap())
-    }
-}
-
-impl<'a> ops::Shr<&'a u32> for Uint64 {
-    type Output = Self;
-
-    fn shr(self, rhs: &'a u32) -> Self::Output {
-        Self(self.u64().checked_shr(*rhs).unwrap())
-    }
-}
-
 impl ops::AddAssign<Uint64> for Uint64 {
     fn add_assign(&mut self, rhs: Uint64) {
         self.0 = self.0.checked_add(rhs.u64()).unwrap();
@@ -252,65 +209,21 @@ impl<'a> ops::AddAssign<&'a Uint64> for Uint64 {
     }
 }
 
-impl ops::DivAssign<Uint64> for Uint64 {
-    fn div_assign(&mut self, rhs: Self) {
-        self.0 = self.0.checked_div(rhs.u64()).unwrap();
-    }
-}
-
-impl<'a> ops::DivAssign<&'a Uint64> for Uint64 {
-    fn div_assign(&mut self, rhs: &'a Uint64) {
-        self.0 = self.0.checked_div(rhs.u64()).unwrap();
-    }
-}
-
-impl ops::ShrAssign<u32> for Uint64 {
-    fn shr_assign(&mut self, rhs: u32) {
-        self.0 = self.0.checked_shr(rhs).unwrap();
-    }
-}
-
-impl<'a> ops::ShrAssign<&'a u32> for Uint64 {
-    fn shr_assign(&mut self, rhs: &'a u32) {
-        self.0 = self.0.checked_shr(*rhs).unwrap();
-    }
-}
-
 impl Uint64 {
     /// Returns `self * numerator / denominator`
-    #[must_use]
     pub fn multiply_ratio<A: Into<u64>, B: Into<u64>>(
         &self,
         numerator: A,
         denominator: B,
     ) -> Uint64 {
-        let numerator = numerator.into();
-        let denominator = denominator.into();
+        let numerator: u64 = numerator.into();
+        let denominator: u64 = denominator.into();
         if denominator == 0 {
             panic!("Denominator must not be zero");
         }
-
-        (self.full_mul(numerator) / Uint128::from(denominator))
-            .try_into()
-            .expect("multiplication overflow")
-    }
-
-    /// Multiplies two `Uint64`/`u64` values without overflow, producing an
-    /// [`Uint128`].
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use cosmwasm_std::Uint64;
-    ///
-    /// let a = Uint64::MAX;
-    /// let result = a.full_mul(2u32);
-    /// assert_eq!(result.to_string(), "36893488147419103230");
-    /// ```
-    pub fn full_mul(self, rhs: impl Into<u64>) -> Uint128 {
-        Uint128::from(self.u64())
-            .checked_mul(Uint128::from(rhs.into()))
-            .unwrap()
+        // TODO: minimize rounding that takes place (using gcd algorithm)
+        let val = self.u64() * numerator / denominator;
+        Uint64::from(val)
     }
 }
 
@@ -415,18 +328,12 @@ mod tests {
     }
 
     #[test]
-    fn uint64_display_padding_works() {
-        let a = Uint64::from(123u64);
-        assert_eq!(format!("Embedded: {:05}", a), "Embedded: 00123");
-    }
-
-    #[test]
     fn uint64_is_zero_works() {
-        assert!(Uint64::zero().is_zero());
-        assert!(Uint64(0).is_zero());
+        assert_eq!(Uint64::zero().is_zero(), true);
+        assert_eq!(Uint64(0).is_zero(), true);
 
-        assert!(!Uint64(1).is_zero());
-        assert!(!Uint64(123).is_zero());
+        assert_eq!(Uint64(1).is_zero(), false);
+        assert_eq!(Uint64(123).is_zero(), false);
     }
 
     #[test]
@@ -490,10 +397,9 @@ mod tests {
         let base = Uint64(500);
 
         // factor 1/1
-        assert_eq!(base.multiply_ratio(1u64, 1u64), base);
-        assert_eq!(base.multiply_ratio(3u64, 3u64), base);
-        assert_eq!(base.multiply_ratio(654321u64, 654321u64), base);
-        assert_eq!(base.multiply_ratio(u64::MAX, u64::MAX), base);
+        assert_eq!(base.multiply_ratio(1u64, 1u64), Uint64(500));
+        assert_eq!(base.multiply_ratio(3u64, 3u64), Uint64(500));
+        assert_eq!(base.multiply_ratio(654321u64, 654321u64), Uint64(500));
 
         // factor 3/2
         assert_eq!(base.multiply_ratio(3u64, 2u64), Uint64(750));
@@ -506,23 +412,6 @@ mod tests {
         // factor 5/6 (integer devision always floors the result)
         assert_eq!(base.multiply_ratio(5u64, 6u64), Uint64(416));
         assert_eq!(base.multiply_ratio(100u64, 120u64), Uint64(416));
-    }
-
-    #[test]
-    fn uint64_multiply_ratio_does_not_overflow_when_result_fits() {
-        // Almost max value for Uint64.
-        let base = Uint64(u64::MAX - 9);
-
-        assert_eq!(base.multiply_ratio(2u64, 2u64), base);
-    }
-
-    #[test]
-    #[should_panic]
-    fn uint64_multiply_ratio_panicks_on_overflow() {
-        // Almost max value for Uint64.
-        let base = Uint64(u64::MAX - 9);
-
-        assert_eq!(base.multiply_ratio(2u64, 1u64), base);
     }
 
     #[test]

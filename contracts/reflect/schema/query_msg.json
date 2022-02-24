@@ -82,13 +82,13 @@
       "additionalProperties": false
     },
     {
-      "description": "If there was a previous ReflectSubMsg with this ID, returns cosmwasm_std::Reply",
+      "description": "If there was a previous ReflectSubCall with this ID, returns cosmwasm_std::Reply",
       "type": "object",
       "required": [
-        "sub_msg_result"
+        "sub_call_result"
       ],
       "properties": {
-        "sub_msg_result": {
+        "sub_call_result": {
           "type": "object",
           "required": [
             "id"

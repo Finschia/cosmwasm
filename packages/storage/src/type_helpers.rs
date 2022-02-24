@@ -13,7 +13,7 @@ pub(crate) fn may_deserialize<T: DeserializeOwned>(
     value: &Option<Vec<u8>>,
 ) -> StdResult<Option<T>> {
     match value {
-        Some(data) => Ok(Some(from_slice(data)?)),
+        Some(vec) => Ok(Some(from_slice(&vec)?)),
         None => Ok(None),
     }
 }
@@ -21,7 +21,7 @@ pub(crate) fn may_deserialize<T: DeserializeOwned>(
 /// must_deserialize parses json bytes from storage (Option), returning NotFound error if no data present
 pub(crate) fn must_deserialize<T: DeserializeOwned>(value: &Option<Vec<u8>>) -> StdResult<T> {
     match value {
-        Some(data) => from_slice(data),
+        Some(vec) => from_slice(&vec),
         None => Err(StdError::not_found(type_name::<T>())),
     }
 }
