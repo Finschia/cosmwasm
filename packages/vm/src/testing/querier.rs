@@ -28,9 +28,9 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
     }
 
     // set a new balance for the given address and return the old balance
-    pub fn update_balance<U: Into<String>>(
+    pub fn update_balance(
         &mut self,
-        addr: U,
+        addr: impl Into<String>,
         balance: Vec<Coin>,
     ) -> Option<Vec<Coin>> {
         self.querier.update_balance(addr, balance)
@@ -46,6 +46,7 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
         self.querier.update_staking(denom, validators, delegations);
     }
 
+    #[must_use]
     pub fn with_custom_handler<CH: 'static>(mut self, handler: CH) -> Self
     where
         CH: Fn(&C) -> MockQuerierCustomHandlerResult,
