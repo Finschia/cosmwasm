@@ -1,10 +1,10 @@
 # CosmWasm Crypto
 
-[![cosmwasm-crypto on crates.io](https://img.shields.io/crates/v/cosmwasm-crypto.svg)](https://crates.io/crates/cosmwasm-crypto)
+_Forked from [CosmWasm/cosmwasm-crypto](https://github.com/CosmWasm/cosmwasm/tree/main/packages/crypto)_
 
 This crate implements cryptography-related functions, so that they can be
-available for both, the [cosmwasm-vm](`https://crates.io/crates/cosmwasm-vm`)
-and [cosmwasm-std](`https://crates.io/crates/cosmwasm-std`) crates.
+available for both, the [cosmwasm-vm](`https://github.com/line/cosmwasm/tree/main/packages/vm`)
+and [cosmwasm-std](`https://github.com/line/cosmwasm/tree/main/packages/std`) crates.
 
 ## Implementations
 
@@ -25,5 +25,5 @@ cargo bench
 ## License
 
 This package is part of the cosmwasm repository, licensed under the Apache
-License 2.0 (see [NOTICE](https://github.com/CosmWasm/cosmwasm/blob/main/NOTICE)
-and [LICENSE](https://github.com/CosmWasm/cosmwasm/blob/main/LICENSE)).
+License 2.0 (see [NOTICE](https://github.com/line/cosmwasm/blob/main/NOTICE)
+and [LICENSE](https://github.com/line/cosmwasm/blob/main/LICENSE)).

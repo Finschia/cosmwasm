@@ -22,6 +22,7 @@ mod storage;
 mod timestamp;
 mod traits;
 mod types;
+mod uuid;
 
 #[allow(deprecated)]
 pub use crate::addresses::{Addr, CanonicalAddr, HumanAddr};
@@ -29,8 +30,8 @@ pub use crate::binary::Binary;
 pub use crate::coins::{coin, coins, has_coins, Coin};
 pub use crate::deps::{Deps, DepsMut, OwnedDeps};
 pub use crate::errors::{
-    ConversionOverflowError, OverflowError, OverflowOperation, RecoverPubkeyError, StdError,
-    StdResult, SystemError, VerificationError,
+    ConversionOverflowError, DivideByZeroError, OverflowError, OverflowOperation,
+    RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
 };
 #[cfg(feature = "stargate")]
 pub use crate::ibc::{
@@ -66,6 +67,7 @@ pub use crate::storage::MemoryStorage;
 pub use crate::timestamp::Timestamp;
 pub use crate::traits::{Api, Querier, QuerierResult, QuerierWrapper, Storage};
 pub use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo};
+pub use crate::uuid::{new_uuid, Uuid};
 
 // Exposed in wasm build only
 

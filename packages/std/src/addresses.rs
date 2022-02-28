@@ -150,7 +150,7 @@ impl<'a> From<&'a Addr> for Cow<'a, Addr> {
 }
 
 #[deprecated(
-    since = "0.14.0",
+    since = "0.14.0-0.4.0",
     note = "HumanAddr is not much more than an alias to String and it does not provide significant safety advantages. With CosmWasm 0.14, we now use String when there was HumanAddr before. There is also the new Addr, which holds a validated immutable human readable address."
 )]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash, JsonSchema)]

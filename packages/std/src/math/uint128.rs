@@ -97,34 +97,42 @@ impl Uint128 {
             .ok_or_else(|| DivideByZeroError::new(self))
     }
 
+    #[must_use]
     pub fn wrapping_add(self, other: Self) -> Self {
         Self(self.0.wrapping_add(other.0))
     }
 
+    #[must_use]
     pub fn wrapping_sub(self, other: Self) -> Self {
         Self(self.0.wrapping_sub(other.0))
     }
 
+    #[must_use]
     pub fn wrapping_mul(self, other: Self) -> Self {
         Self(self.0.wrapping_mul(other.0))
     }
 
+    #[must_use]
     pub fn wrapping_pow(self, other: u32) -> Self {
         Self(self.0.wrapping_pow(other))
     }
 
+    #[must_use]
     pub fn saturating_add(self, other: Self) -> Self {
         Self(self.0.saturating_add(other.0))
     }
 
+    #[must_use]
     pub fn saturating_sub(self, other: Self) -> Self {
         Self(self.0.saturating_sub(other.0))
     }
 
+    #[must_use]
     pub fn saturating_mul(self, other: Self) -> Self {
         Self(self.0.saturating_mul(other.0))
     }
 
+    #[must_use]
     pub fn saturating_pow(self, other: u32) -> Self {
         Self(self.0.saturating_pow(other))
     }
@@ -380,6 +388,7 @@ impl<'a> ops::ShrAssign<&'a u32> for Uint128 {
 
 impl Uint128 {
     /// Returns `self * numerator / denominator`
+    #[must_use]
     pub fn multiply_ratio<A: Into<u128>, B: Into<u128>>(
         &self,
         numerator: A,

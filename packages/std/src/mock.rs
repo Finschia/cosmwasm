@@ -7,7 +7,9 @@ use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
 use crate::coins::Coin;
 use crate::deps::OwnedDeps;
-use crate::errors::{RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError};
+use crate::errors::{
+    HashCalculationError, RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
+};
 #[cfg(feature = "stargate")]
 use crate::ibc::{
     IbcAcknowledgement, IbcChannel, IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg,
@@ -187,6 +189,10 @@ impl Api for MockApi {
             signatures,
             public_keys,
         )?)
+    }
+
+    fn sha1_calculate(&self, inputs: &[&[u8]]) -> Result<[u8; 20], HashCalculationError> {
+        Ok(cosmwasm_crypto::sha1_calculate(inputs)?)
     }
 
     fn debug(&self, message: &str) {
@@ -429,6 +435,7 @@ impl<C: DeserializeOwned> MockQuerier<C> {
         self.staking = StakingQuerier::new(denom, validators, delegations);
     }
 
+    #[must_use]
     pub fn with_custom_handler<CH: 'static>(mut self, handler: CH) -> Self
     where
         CH: Fn(&C) -> MockQuerierCustomHandlerResult,

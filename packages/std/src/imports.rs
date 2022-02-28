@@ -1,8 +1,11 @@
+use std::convert::TryInto;
 use std::vec::Vec;
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
-use crate::errors::{RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError};
+use crate::errors::{
+    HashCalculationError, RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
+};
 use crate::import_helpers::{from_high_half, from_low_half};
 use crate::memory::{alloc, build_region, consume_region, Region};
 use crate::results::SystemResult;
@@ -24,7 +27,7 @@ const HUMAN_ADDRESS_BUFFER_LENGTH: usize = 90;
 
 // This interface will compile into required Wasm imports.
 // A complete documentation those functions is available in the VM that provides them:
-// https://github.com/CosmWasm/cosmwasm/blob/v0.14.1/packages/vm/src/instance.rs#L84-L201
+// https://github.com/line/cosmwasm/blob/0342c82d5e5c588131c28fae1fb941505838f352/packages/vm/src/instance.rs#L84-L201
 extern "C" {
     fn db_read(key: u32) -> u32;
     fn db_write(key: u32, value: u32);
@@ -48,6 +51,7 @@ extern "C" {
     ) -> u64;
     fn ed25519_verify(message_ptr: u32, signature_ptr: u32, public_key_ptr: u32) -> u32;
     fn ed25519_batch_verify(messages_ptr: u32, signatures_ptr: u32, public_keys_ptr: u32) -> u32;
+    fn sha1_calculate(inputs_ptr: u32) -> u64;
 
     fn debug(source_ptr: u32);
 
@@ -84,7 +88,7 @@ impl Storage for ExternalStorage {
 
     fn set(&mut self, key: &[u8], value: &[u8]) {
         if value.is_empty() {
-            panic!("TL;DR: Value must not be empty in Storage::set but in most cases you can use Storage::remove instead. Long story: Getting empty values from storage is not well supported at the moment. Some of our internal interfaces cannot differentiate between a non-existent key and an empty value. Right now, you cannot rely on the behaviour of empty values. To protect you from trouble later on, we stop here. Sorry for the inconvenience! We highly welcome you to contribute to CosmWasm, making this more solid one way or the other.");
+            panic!("TL;DR: Value must not be empty in Storage::set but in most cases you can use Storage::remove instead. Long story: Getting empty values from storage is not well supported at the moment. Some of our internal interfaces cannot differentiate between a non-existent key and an empty value. Right now, you cannot rely on the behaviour of empty values. To protect you from trouble later on, we stop here. Sorry for the inconvenience! We highly welcome you to contribute to us, making this more solid one way or the other.");
         }
 
         // keep the boxes in scope, so we free it at the end (don't cast to pointers same line as build_region)
@@ -333,6 +337,28 @@ impl Api for ExternalApi {
             5 => Err(VerificationError::InvalidPubkeyFormat),
             10 => Err(VerificationError::GenericErr),
             error_code => Err(VerificationError::unknown_err(error_code)),
+        }
+    }
+
+    fn sha1_calculate(&self, inputs: &[&[u8]]) -> Result<[u8; 20], HashCalculationError> {
+        let inputs_encoded = encode_sections(inputs);
+        let inputs_send = build_region(&inputs_encoded);
+        let inputs_send_ptr = &*inputs_send as *const Region as u32;
+
+        let result = unsafe { sha1_calculate(inputs_send_ptr) };
+        let error_code = from_high_half(result);
+        let hash_ptr = from_low_half(result);
+        match error_code {
+            0 => {
+                let hash = unsafe { consume_region(hash_ptr as *mut Region) };
+                let hash_array: [u8; 20] = hash.try_into().unwrap_or_else(|v: Vec<u8>| {
+                    panic!("Expected a Vec of length {} but it was {}", 20, v.len())
+                });
+                Ok(hash_array)
+            }
+            1 => Err(HashCalculationError::InputsTooLarger),
+            2 => panic!("Error code 2 unused since CosmWasm 0.15. This is a bug in the VM."),
+            error_code => Err(HashCalculationError::unknown_err(error_code)),
         }
     }
 

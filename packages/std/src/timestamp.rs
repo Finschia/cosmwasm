@@ -29,28 +29,34 @@ pub struct Timestamp(Uint64);
 
 impl Timestamp {
     /// Creates a timestamp from nanoseconds since epoch
+    #[must_use]
     pub const fn from_nanos(nanos_since_epoch: u64) -> Self {
         Timestamp(Uint64::new(nanos_since_epoch))
     }
 
     /// Creates a timestamp from seconds since epoch
+    #[must_use]
     pub const fn from_seconds(seconds_since_epoch: u64) -> Self {
         Timestamp(Uint64::new(seconds_since_epoch * 1_000_000_000))
     }
 
+    #[must_use]
     pub const fn plus_seconds(&self, addition: u64) -> Timestamp {
         self.plus_nanos(addition * 1_000_000_000)
     }
 
+    #[must_use]
     pub const fn plus_nanos(&self, addition: u64) -> Timestamp {
         let nanos = Uint64::new(self.0.u64() + addition);
         Timestamp(nanos)
     }
 
+    #[must_use]
     pub const fn minus_seconds(&self, subtrahend: u64) -> Timestamp {
         self.minus_nanos(subtrahend * 1_000_000_000)
     }
 
+    #[must_use]
     pub const fn minus_nanos(&self, subtrahend: u64) -> Timestamp {
         let nanos = Uint64::new(self.0.u64() - subtrahend);
         Timestamp(nanos)

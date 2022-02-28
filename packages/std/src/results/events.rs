@@ -25,6 +25,7 @@ pub struct Event {
 
 impl Event {
     /// Create a new event with the given type and an empty list of attributes.
+    #[must_use]
     pub fn new(ty: impl Into<String>) -> Self {
         Event {
             ty: ty.into(),
@@ -33,6 +34,7 @@ impl Event {
     }
 
     /// Add an attribute to the event.
+    #[must_use]
     pub fn add_attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.attributes.push(Attribute {
             key: key.into(),
@@ -45,6 +47,7 @@ impl Event {
     ///
     /// Anything that can be turned into an iterator and yields something
     /// that can be converted into an `Attribute` is accepted.
+    #[must_use]
     pub fn add_attributes<A: Into<Attribute>>(
         mut self,
         attrs: impl IntoIterator<Item = A>,

@@ -7,10 +7,9 @@ example contracts, see
 ## Optimized builds
 
 Those development contracts are used for testing in other repos, e.g. in
-[wasmvm](https://github.com/CosmWasm/wasmvm/tree/master/api/testdata) or
-[cosmjs](https://github.com/cosmos/cosmjs/tree/main/scripts/wasmd/contracts).
+[wasmvm](https://github.com/line/wasmvm/tree/main/api/testdata).
 
-They are [built and deployed](https://github.com/CosmWasm/cosmwasm/releases) by
+They are [built and deployed](https://github.com/line/cosmwasm/releases) by
 the CI for every release tag. In case you need to build them manually for some
 reason, use the following commands:
 

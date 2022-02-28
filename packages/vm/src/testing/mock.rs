@@ -6,8 +6,8 @@ use super::storage::MockStorage;
 use crate::{Backend, BackendApi, BackendError, BackendResult, GasInfo};
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
-const GAS_COST_HUMANIZE: u64 = 44;
-const GAS_COST_CANONICALIZE: u64 = 55;
+const DEFAULT_GAS_COST_HUMANIZE: u64 = 44;
+const DEFAULT_GAS_COST_CANONICALIZE: u64 = 55;
 
 /// All external requirements that can be injected for unit tests.
 /// It sets the given balance for the contract itself, nothing else
@@ -47,14 +47,37 @@ pub struct MockApi {
     /// Length of canonical addresses created with this API. Contracts should not make any assumtions
     /// what this value is.
     canonical_length: usize,
+    /// `canonicalize_cost` is consumed gas value when the contract all api `canonical_address`
+    canonicalize_cost: u64,
+    /// `humanize_cost` is consumed gas value when the contract all api `human_address`
+    humanize_cost: u64,
     /// When set, all calls to the API fail with BackendError::Unknown containing this message
     backend_error: Option<&'static str>,
 }
 
 impl MockApi {
+    /// create a `MockApi` instance with specified gas costs to call api
+    pub fn new_with_gas_cost(canonicalize_cost: u64, humanize_cost: u64) -> Self {
+        MockApi {
+            canonicalize_cost,
+            humanize_cost,
+            ..MockApi::default()
+        }
+    }
+
     /// Read-only getter for `canonical_length`, which must not be changed by the caller.
     pub fn canonical_length(&self) -> usize {
         self.canonical_length
+    }
+
+    /// Read-only getter for `canonical_length`, which must not be changed by the caller.
+    pub fn canonicalize_cost(&self) -> u64 {
+        self.canonicalize_cost
+    }
+
+    /// Read-only getter for `canonical_length`, which must not be changed by the caller.
+    pub fn humanize_cost(&self) -> u64 {
+        self.humanize_cost
     }
 
     pub fn new_failing(backend_error: &'static str) -> Self {
@@ -69,6 +92,8 @@ impl Default for MockApi {
     fn default() -> Self {
         MockApi {
             canonical_length: CANONICAL_LENGTH,
+            canonicalize_cost: DEFAULT_GAS_COST_CANONICALIZE,
+            humanize_cost: DEFAULT_GAS_COST_HUMANIZE,
             backend_error: None,
         }
     }
@@ -76,7 +101,7 @@ impl Default for MockApi {
 
 impl BackendApi for MockApi {
     fn canonical_address(&self, human: &str) -> BackendResult<Vec<u8>> {
-        let gas_info = GasInfo::with_cost(GAS_COST_CANONICALIZE);
+        let gas_info = GasInfo::with_cost(self.canonicalize_cost);
 
         if let Some(backend_error) = self.backend_error {
             return (Err(BackendError::unknown(backend_error)), gas_info);
@@ -114,7 +139,7 @@ impl BackendApi for MockApi {
     }
 
     fn human_address(&self, canonical: &[u8]) -> BackendResult<String> {
-        let gas_info = GasInfo::with_cost(GAS_COST_HUMANIZE);
+        let gas_info = GasInfo::with_cost(self.humanize_cost);
 
         if let Some(backend_error) = self.backend_error {
             return (Err(BackendError::unknown(backend_error)), gas_info);
@@ -166,7 +191,7 @@ pub fn mock_env() -> Env {
     }
 }
 
-/// Just set sender and funds for the message.
+/// Just set sender and sent funds for the message. The essential for
 /// This is intended for use in test code only.
 pub fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
     MessageInfo {
@@ -176,7 +201,7 @@ pub fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
     use crate::BackendError;
     use cosmwasm_std::coins;
@@ -235,5 +260,37 @@ mod tests {
             BackendError::UserErr { .. } => {}
             err => panic!("Unexpected error: {:?}", err),
         }
+    }
+
+    #[test]
+    fn test_default_gas_cost() {
+        let api = MockApi::default();
+
+        let original = "alice";
+        let (canonical_res, gas_cost) = api.canonical_address(original);
+        assert_eq!(gas_cost.cost, DEFAULT_GAS_COST_CANONICALIZE);
+        assert_eq!(gas_cost.externally_used, 0);
+        let canonical = canonical_res.unwrap();
+        let (_recovered, gas_cost) = api.human_address(&canonical);
+        assert_eq!(gas_cost.cost, DEFAULT_GAS_COST_HUMANIZE);
+        assert_eq!(gas_cost.externally_used, 0);
+    }
+
+    #[test]
+    fn test_specified_gas_cost() {
+        let canonicalize_cost: u64 = 42;
+        let humanize_cost: u64 = 101010;
+        assert_ne!(canonicalize_cost, DEFAULT_GAS_COST_CANONICALIZE);
+        assert_ne!(humanize_cost, DEFAULT_GAS_COST_HUMANIZE);
+        let api = MockApi::new_with_gas_cost(canonicalize_cost, humanize_cost);
+
+        let original = "bob";
+        let (canonical_res, gas_cost) = api.canonical_address(original);
+        assert_eq!(gas_cost.cost, canonicalize_cost);
+        assert_eq!(gas_cost.externally_used, 0);
+        let canonical = canonical_res.unwrap();
+        let (_recovered, gas_cost) = api.human_address(&canonical);
+        assert_eq!(gas_cost.cost, humanize_cost);
+        assert_eq!(gas_cost.externally_used, 0);
     }
 }

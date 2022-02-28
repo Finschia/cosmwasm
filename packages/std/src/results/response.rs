@@ -112,6 +112,7 @@ where
     }
 
     /// Add an attribute included in the main `wasm` event.
+    #[must_use]
     pub fn add_attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.attributes.push(Attribute::new(key, value));
         self
@@ -119,6 +120,7 @@ where
 
     /// This creates a "fire and forget" message, by using `SubMsg::new()` to wrap it,
     /// and adds it to the list of messages to process.
+    #[must_use]
     pub fn add_message(mut self, msg: impl Into<CosmosMsg<T>>) -> Self {
         self.messages.push(SubMsg::new(msg));
         self
@@ -126,6 +128,7 @@ where
 
     /// This takes an explicit SubMsg (creates via eg. `reply_on_error`)
     /// and adds it to the list of messages to process.
+    #[must_use]
     pub fn add_submessage(mut self, msg: SubMsg<T>) -> Self {
         self.messages.push(msg);
         self
@@ -136,6 +139,7 @@ where
     ///
     /// The `wasm-` prefix will be appended by the runtime to the provided type
     /// of event.
+    #[must_use]
     pub fn add_event(mut self, event: impl Into<Event>) -> Self {
         self.events.push(event.into());
         self
@@ -159,6 +163,7 @@ where
     /// let res: Response = Response::new().add_attributes(attrs.clone());
     /// assert_eq!(res.attributes, attrs);
     /// ```
+    #[must_use]
     pub fn add_attributes<A: Into<Attribute>>(
         mut self,
         attrs: impl IntoIterator<Item = A>,
@@ -178,6 +183,7 @@ where
     ///     Response::new().add_messages(msgs)
     /// }
     /// ```
+    #[must_use]
     pub fn add_messages<M: Into<CosmosMsg<T>>>(self, msgs: impl IntoIterator<Item = M>) -> Self {
         self.add_submessages(msgs.into_iter().map(SubMsg::new))
     }
@@ -193,6 +199,7 @@ where
     ///     Response::new().add_submessages(msgs)
     /// }
     /// ```
+    #[must_use]
     pub fn add_submessages(mut self, msgs: impl IntoIterator<Item = SubMsg<T>>) -> Self {
         self.messages.extend(msgs.into_iter());
         self
@@ -203,6 +210,7 @@ where
     ///
     /// The `wasm-` prefix will be appended by the runtime to the provided types
     /// of events.
+    #[must_use]
     pub fn add_events<S>(mut self, events: impl IntoIterator<Item = S>) -> Self
     where
         S: Into<Event>,
@@ -212,6 +220,7 @@ where
     }
 
     /// Set the binary data included in the response.
+    #[must_use]
     pub fn set_data(mut self, data: impl Into<Binary>) -> Self {
         self.data = Some(data.into());
         self

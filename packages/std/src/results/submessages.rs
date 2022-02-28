@@ -85,6 +85,7 @@ where
     /// assert_eq!(sub_msg.gas_limit, Some(60_000));
     /// assert_eq!(sub_msg.reply_on, ReplyOn::Always);
     /// ```
+    #[must_use]
     pub fn with_gas_limit(mut self, limit: u64) -> Self {
         self.gas_limit = Some(limit);
         self

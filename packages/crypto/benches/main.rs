@@ -13,6 +13,7 @@ use sha2::Sha256;
 
 use cosmwasm_crypto::{
     ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify,
+    sha1_calculate,
 };
 use std::cmp::min;
 
@@ -73,6 +74,8 @@ fn read_decode_cosmos_sigs() -> (Vec<Vec<u8>>, Vec<Vec<u8>>, Vec<Vec<u8>>) {
 }
 
 fn bench_crypto(c: &mut Criterion) {
+    // same as vm::imports::MAX_LENGTH_SHA1_MESSAGE (=80)
+    const MAX_LENGTH_SHA1_MESSAGE: usize = 80;
     let mut group = c.benchmark_group("Crypto");
 
     group.bench_function("secp256k1_verify", |b| {
@@ -103,6 +106,33 @@ fn bench_crypto(c: &mut Criterion) {
         b.iter(|| {
             let pubkey = secp256k1_recover_pubkey(&message_hash, &r_s, recovery_param).unwrap();
             assert_eq!(pubkey, expected);
+        });
+    });
+
+    group.bench_function("sha1_calculate_one", |b| {
+        let inputs: Vec<&[u8]> = vec![&[0; MAX_LENGTH_SHA1_MESSAGE]];
+        b.iter(|| {
+            let hash = sha1_calculate(&inputs).unwrap();
+            assert_eq!(hash.len(), 20);
+        });
+    });
+    group.bench_function("sha1_calculate_two", |b| {
+        let inputs: Vec<&[u8]> = vec![&[0; MAX_LENGTH_SHA1_MESSAGE], &[1; MAX_LENGTH_SHA1_MESSAGE]];
+        b.iter(|| {
+            let hash = sha1_calculate(&inputs).unwrap();
+            assert_eq!(hash.len(), 20);
+        });
+    });
+    group.bench_function("sha1_calculate_four", |b| {
+        let inputs: Vec<&[u8]> = vec![
+            &[0; MAX_LENGTH_SHA1_MESSAGE],
+            &[1; MAX_LENGTH_SHA1_MESSAGE],
+            &[2; MAX_LENGTH_SHA1_MESSAGE],
+            &[3; MAX_LENGTH_SHA1_MESSAGE],
+        ];
+        b.iter(|| {
+            let hash = sha1_calculate(&inputs).unwrap();
+            assert_eq!(hash.len(), 20);
         });
     });
 

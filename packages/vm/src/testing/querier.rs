@@ -46,6 +46,7 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
         self.querier.update_staking(denom, validators, delegations);
     }
 
+    #[must_use]
     pub fn with_custom_handler<CH: 'static>(mut self, handler: CH) -> Self
     where
         CH: Fn(&C) -> MockQuerierCustomHandlerResult,

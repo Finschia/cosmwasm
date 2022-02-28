@@ -74,6 +74,7 @@ impl Decimal256 {
     /// Returns the approximate square root as a Decimal256.
     ///
     /// This should not overflow or panic.
+    #[must_use]
     pub fn sqrt(&self) -> Self {
         // Algorithm described in https://hackmd.io/@webmaster128/SJThlukj_
         // We start with the highest precision possible and lower it until
