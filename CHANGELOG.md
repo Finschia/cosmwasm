@@ -7,18 +7,11 @@
 
 * Add derive macro "IntoEvent" ([#161](https://github.com/line/cosmwasm/issues/161))
 * merge original version 0.16.3 ([#148](https://github.com/line/cosmwasm/issues/148))
-* pin dependent uint version 0.9.1
-* Merge branch 'cosmwasm-0-16-2' into versionup-work
 * support Uuid type and sha1_calculate API ([#145](https://github.com/line/cosmwasm/issues/145))
 * Add release automation config ([#108](https://github.com/line/cosmwasm/issues/108))
 
 ### Fixes
 
-* fix set_version.sh
-* update github workflow's rust optimizer
-* fix crypt bench
-* update rust version for git workflow
-* update voting-with-uuid
 * export vm::testing::contract::Contract ([#147](https://github.com/line/cosmwasm/issues/147))
 * export DivideByZeroError to pub ([#140](https://github.com/line/cosmwasm/issues/140))
 
