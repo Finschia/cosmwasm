@@ -37,7 +37,7 @@ echo "Updating old version $OLD to new version $NEW ..."
 FILES_MODIFIED=()
 
 for package_dir in packages/*/; do
-  CARGO_TOML="$package_dir/Cargo.toml"
+  CARGO_TOML="${package_dir}Cargo.toml"
   "$gnused" -i -e "s/version[[:space:]]*=[[:space:]]*\"$OLD\"/version = \"$NEW\"/" "$CARGO_TOML"
   FILES_MODIFIED+=("$CARGO_TOML")
 done
@@ -46,11 +46,13 @@ cargo build
 FILES_MODIFIED+=("Cargo.lock")
 
 for contract_dir in contracts/*/; do
-  CARGO_LOCK="$contract_dir/Cargo.lock"
+  if [ "$contract_dir" != "contracts/artifacts/" ]; then
+    CARGO_LOCK="${contract_dir}Cargo.lock"
 
-  (cd "$contract_dir" && cargo build)
+    (cd "$contract_dir" && cargo build)
 
-  FILES_MODIFIED+=("$CARGO_LOCK")
+    FILES_MODIFIED+=("$CARGO_LOCK")
+  fi
 done
 
 echo "Staging ${FILES_MODIFIED[*]} ..."
