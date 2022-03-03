@@ -6,7 +6,7 @@
 ### Fixes
 
 * downgrade wasmer version 2.0.0 ([#166](https://github.com/line/cosmwasm/issues/166))
-
+* copy with cargo.lock in release CD ([#168](https://github.com/line/cosmwasm/pull/168))
 
 ## [[0.16.3-0.5.0](https://github.com/line/cosmwasm/compare/v0.14.0-0.4.0...0.16.3-0.5.0)] - 2022-03-02
 
