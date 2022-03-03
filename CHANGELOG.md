@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [[0.16.3-0.5.1](https://github.com/line/cosmwasm/compare/v0.16.3-0.5.0...0.16.3-0.5.1)] - 2022-03-03
+
+### Fixes
+
+* downgrade wasmer version 2.0.0 ([#166](https://github.com/line/cosmwasm/issues/166))
+
+
 ## [[0.16.3-0.5.0](https://github.com/line/cosmwasm/compare/v0.14.0-0.4.0...0.16.3-0.5.0)] - 2022-03-02
 
 ### Features
