@@ -66,7 +66,7 @@ fn callable_point_pong_works() {
     assert_eq!(call_result.len(), 1);
 
     let serialized_return =
-        read_data_from_mock_env(&instance.env, &call_result[0], usize::MAX).unwrap();
+        read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
     let result: u64 = from_slice(&serialized_return).unwrap();
     assert_eq!(result, 11u64);
 }
