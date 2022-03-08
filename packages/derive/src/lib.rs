@@ -147,7 +147,7 @@ pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream 
 }
 
 fn make_call_origin_and_return(
-    func_name: &String,
+    func_name: &str,
     args_len: usize,
     return_type: &syn::ReturnType,
 ) -> String {
@@ -209,20 +209,16 @@ pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let contract_name = parse_contract_name(&attr_args[0]);
 
-    let new_item = generate_import_contract_declaration(contract_name, item);
-    new_item
+    generate_import_contract_declaration(contract_name, item)
 }
 
 fn parse_contract_name(nested_meta: &syn::NestedMeta) -> String {
     let name_value = match nested_meta {
-        syn::NestedMeta::Meta(meta) => match meta {
-            syn::Meta::NameValue(name_value) => Some(name_value),
-            _ => None,
-        },
-        _ => None,
+        syn::NestedMeta::Meta(syn::Meta::NameValue(name_value)) => Some(name_value),
+        _ => abort!(nested_meta, "contract_name must be a NameValue"),
     };
 
-    let contract_name = match name_value {
+    match name_value {
         Some(name_value) => {
             if name_value.path.is_ident("contract_name") {
                 match &name_value.lit {
@@ -234,8 +230,7 @@ fn parse_contract_name(nested_meta: &syn::NestedMeta) -> String {
             }
         }
         None => abort!(nested_meta, "invliad attribute type"),
-    };
-    contract_name
+    }
 }
 
 fn generate_import_contract_declaration(contract_name: String, item: TokenStream) -> TokenStream {
@@ -263,7 +258,7 @@ fn generate_import_contract_declaration(contract_name: String, item: TokenStream
 
 fn generate_extern_block(
     module_name: String,
-    origin_foreign_func_decls: &Vec<&syn::ForeignItemFn>,
+    origin_foreign_func_decls: &[&syn::ForeignItemFn],
 ) -> TokenStream {
     let redeclared_funcs =
         origin_foreign_func_decls
@@ -343,7 +338,7 @@ fn generate_serialization_func(origin_func_decl: &syn::ForeignItemFn) -> TokenSt
 }
 
 fn make_call_stub_and_return(
-    func_name: &String,
+    func_name: &str,
     args_len: usize,
     return_type: &syn::ReturnType,
 ) -> String {
