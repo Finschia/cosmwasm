@@ -1,9 +1,9 @@
 use cosmwasm_std::{
-    entry_point, to_binary, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, dynamic_link,
-    Uint128,
+    dynamic_link, entry_point, to_binary, to_vec, Binary, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, Uint128,
 };
-use std::fmt;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use crate::error::ContractError;
 use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -16,12 +16,11 @@ pub struct ExampleStruct {
 impl fmt::Display for ExampleStruct {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {}", self.str_field, self.u64_field)
-    }    
+    }
 }
 
-
 #[dynamic_link(contract_name = "dynamic_callee_contract")]
-extern {
+extern "C" {
     fn pong(ping_num: u64) -> u64;
     fn pong_with_struct(example: ExampleStruct) -> ExampleStruct;
 }

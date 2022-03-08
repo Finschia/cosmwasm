@@ -130,19 +130,18 @@ pub trait Storage {
 pub trait BackendApi: Copy + Clone + Send {
     fn canonical_address(&self, human: &str) -> BackendResult<Vec<u8>>;
     fn human_address(&self, canonical: &[u8]) -> BackendResult<String>;
-    fn contract_call<A,S,Q>(
+    fn contract_call<A, S, Q>(
         &self,
-        caller_env: &Environment<A,S,Q>,
+        caller_env: &Environment<A, S, Q>,
         contract_addr: &str,
         target_info: &FunctionMetadata,
         args: &[WasmerVal],
         gas: u64,
     ) -> BackendResult<Box<[WasmerVal]>>
     where
-    A: BackendApi + 'static,
-    S: Storage + 'static,
-    Q: Querier + 'static,
-    ;
+        A: BackendApi + 'static,
+        S: Storage + 'static,
+        Q: Querier + 'static;
 }
 
 pub trait Querier {

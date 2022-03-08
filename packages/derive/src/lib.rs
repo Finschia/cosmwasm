@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate syn;
 
-use proc_macro_error::{proc_macro_error, abort};
 use proc_macro::TokenStream;
+use proc_macro_error::{abort, proc_macro_error};
 use quote::quote;
 use std::str::FromStr;
 
@@ -96,13 +96,12 @@ pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream 
     let function = parse_macro_input!(cloned as syn::ItemFn);
     let name = function.sig.ident.to_string();
 
-
     let args_len = function.sig.inputs.len();
     let arg_types = collect_available_arg_types(&function.sig);
 
     // E.g. "ptr0: u32, ptr1: u32, ptr2: u32, "
     let typed_ptrs = (0..args_len).fold(String::new(), |acc, i| format!("{}ptr{}: u32, ", acc, i));
-  
+
     // E.g. "let vec_arg0: Vec<u8> = unsafe { consume_region(ptr0 as *mut Region) };\n let vec_arg1 ..."
     let vec_args = (0..args_len).fold(String::new(), |acc, i| {
         format!("{}let vec_arg{}: Vec<u8> = unsafe {{ cosmwasm_std::memory::consume_region(ptr{} as *mut cosmwasm_std::memory::Region) }};", acc, i, i)
@@ -111,11 +110,12 @@ pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream 
     // E.g. "let arg0: $ArgType = from_slice(vec_arg0));\n let arg1: ..."
     let converted_args = (0..args_len).fold(String::new(), |acc, i| {
         let arg_type = arg_types[i];
-        format!("{}let arg{}: {} = cosmwasm_std::from_slice(&vec_arg{}).unwrap();",
-        acc,
-        i,
-        quote!{#arg_type}.to_string(),
-        i
+        format!(
+            "{}let arg{}: {} = cosmwasm_std::from_slice(&vec_arg{}).unwrap();",
+            acc,
+            i,
+            quote! {#arg_type}.to_string(),
+            i
         )
     });
 
@@ -140,51 +140,64 @@ pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream 
         vec_args = vec_args,
         converted_args = converted_args,
         call_origin_return = call_origin_return,
-
     );
     let entry = TokenStream::from_str(&new_code).unwrap();
     item.extend(entry);
     item
 }
 
-
-fn make_call_origin_and_return(func_name: &String, args_len: usize, return_type: &syn::ReturnType)  -> String {
+fn make_call_origin_and_return(
+    func_name: &String,
+    args_len: usize,
+    return_type: &syn::ReturnType,
+) -> String {
     let pass_args = (0..args_len).fold(String::new(), |acc, i| format!("{}arg{}, ", acc, i));
     let return_len = get_return_len(return_type);
-    match  return_len {
-        0 => format!("{func_name}({pass_args});", func_name = func_name, pass_args = pass_args),
+    match return_len {
+        0 => format!(
+            "{func_name}({pass_args});",
+            func_name = func_name,
+            pass_args = pass_args
+        ),
         1 => {
-            format!("let result = {func_name}({pass_args});
+            format!(
+                "let result = {func_name}({pass_args});
             let vec_result = cosmwasm_std::to_vec(&result).unwrap();
             cosmwasm_std::memory::release_buffer(vec_result) as u32",
-            func_name = func_name,
-            pass_args = pass_args,
+                func_name = func_name,
+                pass_args = pass_args,
             )
-        },
+        }
         _ => {
-            let tuple_returns = (0..return_len).fold(String::new(), |acc, i| {
-                format!("{}result{}, ", acc, i)
-            });
+            let tuple_returns =
+                (0..return_len).fold(String::new(), |acc, i| format!("{}result{}, ", acc, i));
             let vec_returns = (0..return_len).fold(String::new(), |acc, i| {
-                format!("{}let vec_result{i} = cosmwasm_std::to_vec(&result{i}).unwrap();\n", acc, i=i)
+                format!(
+                    "{}let vec_result{i} = cosmwasm_std::to_vec(&result{i}).unwrap();\n",
+                    acc,
+                    i = i
+                )
             });
             let tuple_from_slice_returns = (0..return_len).fold(String::new(), |acc, i| {
-                format!("{}cosmwasm_std::memory::release_buffer(vec_result{}) as u32, ", acc, i)
+                format!(
+                    "{}cosmwasm_std::memory::release_buffer(vec_result{}) as u32, ",
+                    acc, i
+                )
             });
-            format!("let ({tuple_returns}) = {func_name}({pass_args});
+            format!(
+                "let ({tuple_returns}) = {func_name}({pass_args});
             {vec_returns}
             ({tuple_from_slice_returns})
             ",
-            func_name = func_name,
-            pass_args = pass_args,
-            tuple_returns = tuple_returns,
-            vec_returns = vec_returns,
-            tuple_from_slice_returns = tuple_from_slice_returns,
-            )            
-        },
+                func_name = func_name,
+                pass_args = pass_args,
+                tuple_returns = tuple_returns,
+                vec_returns = vec_returns,
+                tuple_from_slice_returns = tuple_from_slice_returns,
+            )
+        }
     }
 }
-
 
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -202,18 +215,16 @@ pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 fn parse_contract_name(nested_meta: &syn::NestedMeta) -> String {
     let name_value = match nested_meta {
-        syn::NestedMeta::Meta(meta) => {
-            match meta {
-                syn::Meta::NameValue(name_value) => Some(name_value),
-                _ => None,
-            }
-        }, 
+        syn::NestedMeta::Meta(meta) => match meta {
+            syn::Meta::NameValue(name_value) => Some(name_value),
+            _ => None,
+        },
         _ => None,
     };
 
     let contract_name = match name_value {
         Some(name_value) => {
-            if name_value.path.is_ident("contract_name"){
+            if name_value.path.is_ident("contract_name") {
                 match &name_value.lit {
                     syn::Lit::Str(literal) => literal.value(),
                     _ => abort!(name_value.lit, "contract_name value is not string literal"),
@@ -222,22 +233,27 @@ fn parse_contract_name(nested_meta: &syn::NestedMeta) -> String {
                 abort!(name_value.path, "only allowed the \"contract_name\"")
             }
         }
-        None => abort!(nested_meta, "invliad attribute type")
+        None => abort!(nested_meta, "invliad attribute type"),
     };
     contract_name
 }
 
 fn generate_import_contract_declaration(contract_name: String, item: TokenStream) -> TokenStream {
     let extern_block = parse_macro_input!(item as syn::ItemForeignMod);
-    let foreign_function_decls: Vec<&syn::ForeignItemFn> = extern_block.items.iter().map(|foregin_item| {
-        match foregin_item {
+    let foreign_function_decls: Vec<&syn::ForeignItemFn> = extern_block
+        .items
+        .iter()
+        .map(|foregin_item| match foregin_item {
             syn::ForeignItem::Fn(item_fn) => item_fn,
             _ => abort!(foregin_item, "only function type is allowed."),
-        }
-    }).collect();
-    
+        })
+        .collect();
+
     let mut new_item = TokenStream::new();
-    new_item.extend(generate_extern_block(contract_name, &foreign_function_decls));
+    new_item.extend(generate_extern_block(
+        contract_name,
+        &foreign_function_decls,
+    ));
     for func_decl in foreign_function_decls {
         new_item.extend(generate_serialization_func(func_decl));
     }
@@ -245,19 +261,24 @@ fn generate_import_contract_declaration(contract_name: String, item: TokenStream
     new_item
 }
 
-fn generate_extern_block(module_name: String, origin_foreign_func_decls: &Vec<&syn::ForeignItemFn>) -> TokenStream {
-    let redeclared_funcs = origin_foreign_func_decls.iter().fold(String::new(), |acc, func_decl| {
-        let args_len = func_decl.sig.inputs.len();
-        let typed_ptrs = (0..args_len).fold(String::new(), |acc, i| format!("{}ptr{}: u32, ", acc, i));      
-        let typed_return = make_typed_return(&func_decl.sig.output);
+fn generate_extern_block(
+    module_name: String,
+    origin_foreign_func_decls: &Vec<&syn::ForeignItemFn>,
+) -> TokenStream {
+    let redeclared_funcs =
+        origin_foreign_func_decls
+            .iter()
+            .fold(String::new(), |acc, func_decl| {
+                let args_len = func_decl.sig.inputs.len();
+                let typed_ptrs =
+                    (0..args_len).fold(String::new(), |acc, i| format!("{}ptr{}: u32, ", acc, i));
+                let typed_return = make_typed_return(&func_decl.sig.output);
 
-        format!("{}fn stub_{}({}){};\n", 
-        acc,    
-        func_decl.sig.ident, 
-            typed_ptrs, 
-            typed_return
-        )
-    });
+                format!(
+                    "{}fn stub_{}({}){};\n",
+                    acc, func_decl.sig.ident, typed_ptrs, typed_return
+                )
+            });
 
     let new_extern_block = format!(
         r#"
@@ -279,20 +300,26 @@ fn generate_serialization_func(origin_func_decl: &syn::ForeignItemFn) -> TokenSt
 
     let args_len = origin_func_decl.sig.inputs.len();
     let arg_types = collect_available_arg_types(&origin_func_decl.sig);
-    
+
     let renamed_args = (0..args_len).fold(String::new(), |acc, i| {
         let arg_type = arg_types[i];
         format!("{}arg{}: {}, ", acc, i, quote!(#arg_type).to_string())
     });
 
     let vec_args = (0..args_len).fold(String::new(), |acc, i| {
-        format!("{}let vec_arg{} = cosmwasm_std::to_vec(&arg{}).unwrap();", acc, i, i)
+        format!(
+            "{}let vec_arg{} = cosmwasm_std::to_vec(&arg{}).unwrap();",
+            acc, i, i
+        )
     });
     let region_args = (0..args_len).fold(String::new(), |acc, i| {
-        format!("{}let region_arg{} = cosmwasm_std::memory::release_buffer(vec_arg{}) as u32;", acc, i, i)
+        format!(
+            "{}let region_arg{} = cosmwasm_std::memory::release_buffer(vec_arg{}) as u32;",
+            acc, i, i
+        )
     });
 
-    let return_types = &origin_func_decl.sig.output;   
+    let return_types = &origin_func_decl.sig.output;
     let call_stub_and_return = make_call_stub_and_return(&func_name, args_len, return_types);
     let replaced_new_code = format!(
         r##"
@@ -310,19 +337,25 @@ fn generate_serialization_func(origin_func_decl: &syn::ForeignItemFn) -> TokenSt
         origin_return = quote!(#return_types).to_string(),
         vec_args = vec_args,
         region_args = region_args,
-        call_stub_and_return = call_stub_and_return,    
+        call_stub_and_return = call_stub_and_return,
     );
     TokenStream::from_str(&replaced_new_code).unwrap()
 }
 
-fn make_call_stub_and_return(func_name: &String, args_len: usize, return_type: &syn::ReturnType)  -> String {
-    let pass_args = (0..args_len).fold(String::new(), |acc, i| {
-        format!("{}region_arg{}, ", acc, i)
-    });
+fn make_call_stub_and_return(
+    func_name: &String,
+    args_len: usize,
+    return_type: &syn::ReturnType,
+) -> String {
+    let pass_args = (0..args_len).fold(String::new(), |acc, i| format!("{}region_arg{}, ", acc, i));
 
     let return_len = get_return_len(return_type);
-    match  return_len {
-        0 => format!("stub_{func_name}({pass_args});", func_name = func_name, pass_args = pass_args),
+    match return_len {
+        0 => format!(
+            "stub_{func_name}({pass_args});",
+            func_name = func_name,
+            pass_args = pass_args
+        ),
         1 => {
             format!("let result = stub_{func_name}({pass_args});
             let vec_result = cosmwasm_std::memory::consume_region(result as *mut cosmwasm_std::memory::Region);    
@@ -330,43 +363,46 @@ fn make_call_stub_and_return(func_name: &String, args_len: usize, return_type: &
             func_name = func_name,
             pass_args = pass_args,
             )
-        },
+        }
         _ => {
-            let tuple_returns = (0..return_len).fold(String::new(), |acc, i| {
-                format!("{}result{}, ", acc, i)
-            });
+            let tuple_returns =
+                (0..return_len).fold(String::new(), |acc, i| format!("{}result{}, ", acc, i));
             let vec_returns = (0..return_len).fold(String::new(), |acc, i| {
                 format!("{}let vec_result{i} = cosmwasm_std::memory::consume_region(result{i} as *mut cosmwasm_std::memory::Region);\n", acc, i=i)
             });
             let tuple_from_slice_returns = (0..return_len).fold(String::new(), |acc, i| {
-                format!("{}cosmwasm_std::from_slice(&vec_result{}).unwrap(), ", acc, i)
+                format!(
+                    "{}cosmwasm_std::from_slice(&vec_result{}).unwrap(), ",
+                    acc, i
+                )
             });
-            format!("let ({tuple_returns}) = stub_{func_name}({pass_args});
+            format!(
+                "let ({tuple_returns}) = stub_{func_name}({pass_args});
             {vec_returns}
             ({tuple_from_slice_returns})
             ",
-            func_name = func_name,
-            pass_args = pass_args,
-            tuple_returns = tuple_returns,
-            vec_returns = vec_returns,
-            tuple_from_slice_returns = tuple_from_slice_returns,
-            )            
-        },
+                func_name = func_name,
+                pass_args = pass_args,
+                tuple_returns = tuple_returns,
+                vec_returns = vec_returns,
+                tuple_from_slice_returns = tuple_from_slice_returns,
+            )
+        }
     }
 }
 
-fn collect_available_arg_types(func_sig: &syn::Signature) -> Vec<&syn::Type>{
-    func_sig.inputs.iter().map(|arg| {
-        match arg {
+fn collect_available_arg_types(func_sig: &syn::Signature) -> Vec<&syn::Type> {
+    func_sig
+        .inputs
+        .iter()
+        .map(|arg| match arg {
             syn::FnArg::Receiver(_) => abort!(arg, "method type are not allowed."),
-            syn::FnArg::Typed(arg_info) => {
-                match arg_info.ty.as_ref() {
-                    syn::Type::BareFn(_) => abort!(arg, "function type by parameter are not allowed."),
-                    _ => arg_info.ty.as_ref(),
-                }
-            }
-        }
-    }).collect()
+            syn::FnArg::Typed(arg_info) => match arg_info.ty.as_ref() {
+                syn::Type::BareFn(_) => abort!(arg, "function type by parameter are not allowed."),
+                _ => arg_info.ty.as_ref(),
+            },
+        })
+        .collect()
 }
 
 fn make_typed_return(return_type: &syn::ReturnType) -> String {
@@ -375,20 +411,15 @@ fn make_typed_return(return_type: &syn::ReturnType) -> String {
         0 => String::from(""),
         1 => String::from(" -> u32"),
         //TODO: see (https://github.com/line/cosmwasm/issues/156)
-        _ => abort!(return_type, "Cannot support returning tuple type yet")
-        //_ => format!(" -> ({})", (0..return_types_len).fold(String::new(), |acc, _| format!("{}u32, ", acc))),
+        _ => abort!(return_type, "Cannot support returning tuple type yet"), //_ => format!(" -> ({})", (0..return_types_len).fold(String::new(), |acc, _| format!("{}u32, ", acc))),
     }
 }
 fn get_return_len(return_type: &syn::ReturnType) -> usize {
     match return_type {
         syn::ReturnType::Default => 0,
-        syn::ReturnType::Type(_, return_type) => {
-            match return_type.as_ref() {
-                syn::Type::Tuple(tuple) => {
-                    tuple.elems.len()
-                }
-                _ => 1,
-            }
-        } 
+        syn::ReturnType::Type(_, return_type) => match return_type.as_ref() {
+            syn::Type::Tuple(tuple) => tuple.elems.len(),
+            _ => 1,
+        },
     }
 }

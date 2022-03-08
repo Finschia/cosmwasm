@@ -1,5 +1,6 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, callable_point,
+    callable_point, entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult,
 };
 use serde::{Deserialize, Serialize};
 
@@ -22,7 +23,6 @@ pub fn instantiate(
 fn pong(x: u64) -> u64 {
     return x + 1;
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct ExampleStruct {

@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str;
 
-use crate::memory::{read_region, write_region};
-use crate::errors::{VmResult, CommunicationError};
-use crate::conversion::{ref_to_u32, to_u32};
 use crate::backend::{BackendApi, Querier, Storage};
+use crate::conversion::{ref_to_u32, to_u32};
 use crate::environment::{process_gas_info, Environment};
+use crate::errors::{CommunicationError, VmResult};
+use crate::memory::{read_region, write_region};
 use wasmer::{Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val};
 use wasmer_types::ImportIndex;
 
@@ -138,8 +138,8 @@ pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
 }
 
 pub fn copy_region_vals_between_env<A, S, Q, A2, S2, Q2>(
-    src_env: &Environment<A,S,Q>,
-    dst_env: &Environment<A2,S2,Q2>,
+    src_env: &Environment<A, S, Q>,
+    dst_env: &Environment<A2, S2, Q2>,
     vals: &[WasmerVal],
     deallocation: bool,
 ) -> VmResult<Box<[WasmerVal]>>
@@ -150,7 +150,6 @@ where
     A2: BackendApi + 'static,
     S2: Storage + 'static,
     Q2: Querier + 'static,
-
 {
     let mut copied_region_ptrs = Vec::<WasmerVal>::with_capacity(vals.len());
     for val in vals {
@@ -173,9 +172,6 @@ where
     Ok(copied_region_ptrs.into_boxed_slice())
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,10 +179,11 @@ mod tests {
     use wasmer::{imports, Function, Instance as WasmerInstance};
 
     use crate::size::Size;
-    use crate::testing::{MockApi, MockQuerier, MockStorage, write_data_to_mock_env, read_data_from_mock_env};
+    use crate::testing::{
+        read_data_from_mock_env, write_data_to_mock_env, MockApi, MockQuerier, MockStorage,
+    };
     use crate::wasm_backend::compile;
     use crate::VmError;
-
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 
@@ -194,10 +191,8 @@ mod tests {
     const PADDING_DATA: &[u8] = b"deadbeef";
     const PASS_DATA1: &[u8] = b"data";
 
-
     const TESTING_GAS_LIMIT: u64 = 500_000;
     const TESTING_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
-
 
     fn make_instance(
         api: MockApi,
@@ -244,12 +239,19 @@ mod tests {
         let api = MockApi::default();
         let (src_env, _src_instance) = make_instance(api);
         let (dst_env, _dst_instance) = make_instance(api);
-      
+
         let data_wasm_ptr = write_data_to_mock_env(&src_env, PASS_DATA1).unwrap();
-        let copy_result = copy_region_vals_between_env(&src_env, &dst_env, &[WasmerVal::I32(data_wasm_ptr as i32)], true).unwrap();
+        let copy_result = copy_region_vals_between_env(
+            &src_env,
+            &dst_env,
+            &[WasmerVal::I32(data_wasm_ptr as i32)],
+            true,
+        )
+        .unwrap();
         assert_eq!(copy_result.len(), 1);
 
-        let read_result = read_data_from_mock_env(&dst_env, &copy_result[0], PASS_DATA1.len()).unwrap();
+        let read_result =
+            read_data_from_mock_env(&dst_env, &copy_result[0], PASS_DATA1.len()).unwrap();
         assert_eq!(PASS_DATA1, read_result);
 
         // Even after deallocate, wasm region data remains.
@@ -266,15 +268,22 @@ mod tests {
         let api = MockApi::default();
         let (src_env, _src_instance) = make_instance(api);
         let (dst_env, _dst_instance) = make_instance(api);
-        
+
         // If there is no padding data, it is difficult to compare because the same memory index falls apart.
         write_data_to_mock_env(&src_env, PADDING_DATA).unwrap();
-        
+
         let data_wasm_ptr = write_data_to_mock_env(&src_env, PASS_DATA1).unwrap();
-        let copy_result = copy_region_vals_between_env(&src_env, &dst_env, &[WasmerVal::I32(data_wasm_ptr as i32)], true).unwrap();
+        let copy_result = copy_region_vals_between_env(
+            &src_env,
+            &dst_env,
+            &[WasmerVal::I32(data_wasm_ptr as i32)],
+            true,
+        )
+        .unwrap();
         assert_eq!(copy_result.len(), 1);
 
-        let read_from_src_result = read_data_from_mock_env(&src_env, &copy_result[0], PASS_DATA1.len());
+        let read_from_src_result =
+            read_data_from_mock_env(&src_env, &copy_result[0], PASS_DATA1.len());
         assert!(matches!(
             read_from_src_result,
             Err(VmError::CommunicationErr { .. })
