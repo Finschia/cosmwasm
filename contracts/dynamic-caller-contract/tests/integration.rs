@@ -5,11 +5,16 @@ use wasmer_types::{FunctionType, Type};
 static CONTRACT_CALLER: &[u8] =
     include_bytes!("../target/wasm32-unknown-unknown/release/dynamic_caller_contract.wasm");
 
-fn required_imports() -> Vec<(String, FunctionType)> {
+fn required_imports() -> Vec<(String, String, FunctionType)> {
     vec![
-        (String::from("stub_pong"), ([Type::I32], [Type::I32]).into()),
+        (
+            String::from("stub_pong"),
+            String::from("dynamic_callee_contract"),
+            ([Type::I32], [Type::I32]).into(),
+        ),
         (
             String::from("stub_pong_with_struct"),
+            String::from("dynamic_callee_contract"),
             ([Type::I32], [Type::I32]).into(),
         ),
     ]
@@ -25,8 +30,13 @@ fn dynamic_link_import_works() {
         .module
         .imports()
         .functions()
-        .map(|import| (import.name().to_string(), import.ty().clone()))
-        .collect::<Vec<(String, FunctionType)>>()
+        .map(|import| {
+            (
+                import.name().to_string(),
+                (import.module().to_string(), import.ty().clone()),
+            )
+        })
+        .collect::<Vec<(String, (String, FunctionType))>>()
         .into_iter()
         .collect();
 
@@ -34,7 +44,10 @@ fn dynamic_link_import_works() {
     for required_export in required_imports {
         match import_function_map.get(&required_export.0) {
             Some(exported_function) => {
-                assert_eq!(*exported_function, required_export.1);
+                let module_name = &exported_function.0;
+                let function_type = &exported_function.1;
+                assert_eq!(*module_name, required_export.1);
+                assert_eq!(*function_type, required_export.2);
             }
             None => assert!(false),
         }
