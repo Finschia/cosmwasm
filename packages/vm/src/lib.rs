@@ -6,6 +6,7 @@ mod calls;
 mod checksum;
 mod compatibility;
 mod conversion;
+mod dynamic_link;
 mod environment;
 mod errors;
 mod features;
@@ -35,6 +36,7 @@ pub use crate::calls::{
 };
 pub use crate::checksum::Checksum;
 
+pub use crate::dynamic_link::{dynamic_link, FunctionMetadata, WasmerVal};
 pub use crate::errors::{
     CommunicationError, CommunicationResult, RegionValidationError, RegionValidationResult,
     VmError, VmResult,

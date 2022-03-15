@@ -7,6 +7,9 @@ use cosmwasm_std::{Binary, ContractResult, SystemResult};
 #[cfg(feature = "iterator")]
 use cosmwasm_std::{Order, Pair};
 
+use crate::FunctionMetadata;
+use crate::WasmerVal;
+
 #[derive(Copy, Clone, Debug)]
 pub struct GasInfo {
     /// The gas cost of a computation that was executed already but not yet charged
@@ -127,6 +130,13 @@ pub trait Storage {
 pub trait BackendApi: Copy + Clone + Send {
     fn canonical_address(&self, human: &str) -> BackendResult<Vec<u8>>;
     fn human_address(&self, canonical: &[u8]) -> BackendResult<String>;
+    fn contract_call(
+        &self,
+        contract_addr: &str,
+        target_info: &FunctionMetadata,
+        args: &[WasmerVal],
+        gas: u64,
+    ) -> BackendResult<Box<[WasmerVal]>>;
 }
 
 pub trait Querier {

@@ -1,10 +1,13 @@
 use std::collections::HashSet;
 use std::ptr::NonNull;
 
-use wasmer::{Exports, Function, ImportObject, Instance as WasmerInstance, Module, Val};
+use wasmer::{
+    Exports, Function, FunctionType, ImportObject, Instance as WasmerInstance, Module, Val,
+};
 
 use crate::backend::{Backend, BackendApi, Querier, Storage};
 use crate::conversion::{ref_to_u32, to_u32};
+use crate::dynamic_link::dynamic_link;
 use crate::environment::Environment;
 use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::features::required_features_from_wasmer_instance;
@@ -211,6 +214,8 @@ where
 
         import_obj.register("env", env_imports);
 
+        dynamic_link(module, &env, &mut import_obj);
+
         let wasmer_instance = Box::from(WasmerInstance::new(module, &import_obj).map_err(
             |original| {
                 VmError::instantiation_err(format!("Error instantiating module: {:?}", original))
@@ -325,6 +330,16 @@ where
     pub(crate) fn write_memory(&mut self, region_ptr: u32, data: &[u8]) -> VmResult<()> {
         write_region(&self.env.memory(), region_ptr, data)?;
         Ok(())
+    }
+    /// Calls a function exported by the instance.
+    /// The function is expected to return no value. Otherwise this calls errors.
+    pub fn call_function_strict(
+        &self,
+        _type: &FunctionType,
+        name: &str,
+        args: &[Val],
+    ) -> VmResult<Box<[Val]>> {
+        self.env.call_function(name, args)
     }
 
     /// Calls a function exported by the instance.

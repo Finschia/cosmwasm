@@ -7,6 +7,7 @@ use wasmer::{HostEnvInitError, Instance as WasmerInstance, Memory, Val, WasmerEn
 use wasmer_middlewares::metering::{get_remaining_points, set_remaining_points, MeteringPoints};
 
 use crate::backend::{BackendApi, GasInfo, Querier, Storage};
+use crate::dynamic_link::FunctionMetadata;
 use crate::errors::{VmError, VmResult};
 
 /// Never can never be instantiated.
@@ -109,6 +110,7 @@ pub struct Environment<A: BackendApi, S: Storage, Q: Querier> {
     pub print_debug: bool,
     pub gas_config: GasConfig,
     data: Arc<RwLock<ContextData<S, Q>>>,
+    callee_func_metadata: Option<FunctionMetadata>,
 }
 
 unsafe impl<A: BackendApi, S: Storage, Q: Querier> Send for Environment<A, S, Q> {}
@@ -122,6 +124,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Clone for Environment<A, S, Q> {
             print_debug: self.print_debug,
             gas_config: self.gas_config.clone(),
             data: self.data.clone(),
+            callee_func_metadata: self.callee_func_metadata.clone(),
         }
     }
 }
@@ -139,6 +142,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             print_debug,
             gas_config: GasConfig::default(),
             data: Arc::new(RwLock::new(ContextData::new(gas_limit))),
+            callee_func_metadata: None,
         }
     }
 
@@ -191,7 +195,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
     /// The number of return values is variable and controlled by the guest.
     /// Usually we expect 0 or 1 return values. Use [`Self::call_function0`]
     /// or [`Self::call_function1`] to ensure the number of return values is checked.
-    fn call_function(&self, name: &str, args: &[Val]) -> VmResult<Box<[Val]>> {
+    pub fn call_function(&self, name: &str, args: &[Val]) -> VmResult<Box<[Val]>> {
         // Clone function before calling it to avoid dead locks
         let func = self.with_wasmer_instance(|instance| {
             let func = instance.exports.get_function(name)?;
@@ -339,6 +343,20 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         self.with_context_data_mut(|context_data| {
             (context_data.storage.take(), context_data.querier.take())
         })
+    }
+
+    pub fn set_callee_function_metadata(&mut self, func_metadata: Option<FunctionMetadata>) {
+        self.callee_func_metadata = func_metadata;
+    }
+
+    pub fn with_callee_function_metadata<C, R>(&self, callback: C) -> VmResult<R>
+    where
+        C: FnOnce(&FunctionMetadata) -> VmResult<R>,
+    {
+        match &self.callee_func_metadata {
+            Some(func_info) => callback(&func_info),
+            None => Err(VmError::uninitialized_context_data("callee_func_metadata")),
+        }
     }
 }
 
