@@ -1,12 +1,12 @@
 use cosmwasm_std::{
-    dynamic_link, entry_point, to_binary, to_vec, Binary, Deps, DepsMut, Env, MessageInfo,
+    dynamic_link, entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, Uint128,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::error::ContractError;
-use crate::msg::{CountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 #[derive(Serialize, Deserialize)]
 pub struct ExampleStruct {
@@ -31,7 +31,7 @@ extern "C" {
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     deps.storage
@@ -45,7 +45,7 @@ pub fn instantiate(
 pub fn execute(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
@@ -53,7 +53,7 @@ pub fn execute(
     }
 }
 
-pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
+pub fn try_ping(_deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
     let pong_ret = pong(ping_num.u128() as u64);
     let struct_ret = pong_with_struct(ExampleStruct {
         str_field: String::from("hello"),
@@ -67,6 +67,6 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {}
 }

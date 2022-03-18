@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    callable_point, entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    callable_point, entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response,
     StdResult,
 };
 use serde::{Deserialize, Serialize};
@@ -11,10 +11,10 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 // make use of the custom errors
 #[entry_point]
 pub fn instantiate(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
-    msg: InstantiateMsg,
+    _info: MessageInfo,
+    _msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     Ok(Response::default())
 }
@@ -40,15 +40,15 @@ fn pong_with_struct(example: ExampleStruct) -> ExampleStruct {
 // And declare a custom Error variant for the ones where you will want to make use of it
 #[entry_point]
 pub fn execute(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {}
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {}
 }
