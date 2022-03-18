@@ -391,9 +391,9 @@ fn collect_available_arg_types(func_sig: &syn::Signature) -> Vec<&syn::Type> {
         .inputs
         .iter()
         .map(|arg| match arg {
-            syn::FnArg::Receiver(_) => abort!(arg, "method type are not allowed."),
+            syn::FnArg::Receiver(_) => abort!(arg, "method type is not allowed."),
             syn::FnArg::Typed(arg_info) => match arg_info.ty.as_ref() {
-                syn::Type::BareFn(_) => abort!(arg, "function type by parameter are not allowed."),
+                syn::Type::BareFn(_) => abort!(arg, "callable_point: function type by parameter is not allowed."),
                 _ => arg_info.ty.as_ref(),
             },
         })
