@@ -89,6 +89,19 @@ pub fn entry_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
     item
 }
 
+macro_rules! abort_by {
+    ($span:expr, $by:expr, $($tts:tt)*) => {
+        abort!($span, $($tts)*;
+        note = format!("this error originates in the attribute macro `{}`", $by)
+    )
+    };
+}
+macro_rules! abort_by_dynamic_link {
+    ($span:expr, $($tts:tt)*) => {
+        abort_by!($span,"dynamic_link", $($tts)*)
+    };
+}
+
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
@@ -97,7 +110,7 @@ pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream 
     let name = function.sig.ident.to_string();
 
     let args_len = function.sig.inputs.len();
-    let arg_types = collect_available_arg_types(&function.sig);
+    let arg_types = collect_available_arg_types(&function.sig, "callable_point".to_string());
 
     // E.g. "ptr0: u32, ptr1: u32, ptr2: u32, "
     let typed_ptrs = (0..args_len).fold(String::new(), |acc, i| format!("{}ptr{}: u32, ", acc, i));
@@ -119,7 +132,7 @@ pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream 
         )
     });
 
-    let typed_return = make_typed_return(&function.sig.output);
+    let typed_return = make_typed_return(&function.sig.output, "callable_point".to_string());
     let call_origin_return = make_call_origin_and_return(&name, args_len, &function.sig.output);
 
     let new_code = format!(
@@ -215,7 +228,7 @@ pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
 fn parse_contract_name(nested_meta: &syn::NestedMeta) -> String {
     let name_value = match nested_meta {
         syn::NestedMeta::Meta(syn::Meta::NameValue(name_value)) => Some(name_value),
-        _ => abort!(nested_meta, "contract_name must be a NameValue"),
+        _ => abort_by_dynamic_link!(nested_meta, "contract_name must be a NameValue"),
     };
 
     match name_value {
@@ -223,13 +236,16 @@ fn parse_contract_name(nested_meta: &syn::NestedMeta) -> String {
             if name_value.path.is_ident("contract_name") {
                 match &name_value.lit {
                     syn::Lit::Str(literal) => literal.value(),
-                    _ => abort!(name_value.lit, "contract_name value is not string literal"),
+                    _ => abort_by_dynamic_link!(
+                        name_value.lit,
+                        "contract_name value is not string literal"
+                    ),
                 }
             } else {
-                abort!(name_value.path, "only allowed the \"contract_name\"")
+                abort_by_dynamic_link!(name_value.path, "only allowed the \"contract_name\"")
             }
         }
-        None => abort!(nested_meta, "invliad attribute type"),
+        None => abort_by_dynamic_link!(nested_meta, "invliad attribute type"),
     }
 }
 
@@ -240,7 +256,7 @@ fn generate_import_contract_declaration(contract_name: String, item: TokenStream
         .iter()
         .map(|foregin_item| match foregin_item {
             syn::ForeignItem::Fn(item_fn) => item_fn,
-            _ => abort!(foregin_item, "only function type is allowed."),
+            _ => abort_by_dynamic_link!(foregin_item, "only function type is allowed."),
         })
         .collect();
 
@@ -267,7 +283,8 @@ fn generate_extern_block(
                 let args_len = func_decl.sig.inputs.len();
                 let typed_ptrs =
                     (0..args_len).fold(String::new(), |acc, i| format!("{}ptr{}: u32, ", acc, i));
-                let typed_return = make_typed_return(&func_decl.sig.output);
+                let typed_return =
+                    make_typed_return(&func_decl.sig.output, "dynamic_link".to_string());
 
                 format!(
                     "{}fn stub_{}({}){};\n",
@@ -294,7 +311,7 @@ fn generate_serialization_func(origin_func_decl: &syn::ForeignItemFn) -> TokenSt
     let func_name = origin_func_decl.sig.ident.to_string();
 
     let args_len = origin_func_decl.sig.inputs.len();
-    let arg_types = collect_available_arg_types(&origin_func_decl.sig);
+    let arg_types = collect_available_arg_types(&origin_func_decl.sig, "dynamic_link".to_string());
 
     let renamed_args = (0..args_len).fold(String::new(), |acc, i| {
         let arg_type = arg_types[i];
@@ -386,27 +403,30 @@ fn make_call_stub_and_return(
     }
 }
 
-fn collect_available_arg_types(func_sig: &syn::Signature) -> Vec<&syn::Type> {
+fn collect_available_arg_types(func_sig: &syn::Signature, by: String) -> Vec<&syn::Type> {
     func_sig
         .inputs
         .iter()
         .map(|arg| match arg {
-            syn::FnArg::Receiver(_) => abort!(arg, "method type is not allowed."),
+            syn::FnArg::Receiver(_) => abort_by!(arg, by, "method type is not allowed."),
             syn::FnArg::Typed(arg_info) => match arg_info.ty.as_ref() {
-                syn::Type::BareFn(_) => abort!(arg, "function type by parameter is not allowed."),
+                syn::Type::BareFn(_) => {
+                    abort_by!(arg, by, "function type by parameter is not allowed.")
+                }
                 _ => arg_info.ty.as_ref(),
             },
         })
         .collect()
 }
 
-fn make_typed_return(return_type: &syn::ReturnType) -> String {
+fn make_typed_return(return_type: &syn::ReturnType, by: String) -> String {
     let return_types_len = get_return_len(return_type);
     match return_types_len {
         0 => String::from(""),
         1 => String::from(" -> u32"),
         //TODO: see (https://github.com/line/cosmwasm/issues/156)
-        _ => abort!(return_type, "Cannot support returning tuple type yet"), //_ => format!(" -> ({})", (0..return_types_len).fold(String::new(), |acc, _| format!("{}u32, ", acc))),
+        _ => abort_by!(return_type, by, "Cannot support returning tuple type yet"),
+        //_ => format!(" -> ({})", (0..return_types_len).fold(String::new(), |acc, _| format!("{}u32, ", acc))),
     }
 }
 fn get_return_len(return_type: &syn::ReturnType) -> usize {
