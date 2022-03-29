@@ -132,6 +132,7 @@ name = "cosmwasm-derive"
 version = "0.14.0-0.4.0"
 dependencies = [
  "proc-macro-error",
+ "proc-macro2",
  "quote",
  "syn",
 ]
