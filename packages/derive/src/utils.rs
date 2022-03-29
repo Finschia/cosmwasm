@@ -22,6 +22,8 @@ pub fn collect_available_arg_types(func_sig: &syn::Signature, by: String) -> Vec
                 syn::Type::BareFn(_) => {
                     abort_by!(arg, by, "function type by parameter is not allowed.")
                 }
+                syn::Type::Reference(_) => abort_by!(arg, by, "reference type by parameter is not allowed."),
+                syn::Type::Ptr(_) => abort_by!(arg, by, "Ptr type by parameter is not allowed."),
                 _ => arg_info.ty.as_ref(),
             },
         })
