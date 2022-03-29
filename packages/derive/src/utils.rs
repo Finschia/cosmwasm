@@ -8,6 +8,8 @@ macro_rules! abort_by {
     )
     };
 }
+//it's for cannot use #[macro_export] with proc_macro
+#[allow(clippy::single_component_path_imports)]
 pub(crate) use abort_by;
 
 pub fn collect_available_arg_types(func_sig: &syn::Signature, by: String) -> Vec<&syn::Type> {
