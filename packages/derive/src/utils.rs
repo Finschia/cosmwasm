@@ -11,7 +11,7 @@ macro_rules! abort_by {
 // it's for cannot use #[macro_export] with proc_macro
 // but, It occured false-positive by clippy, so avoid it.
 // https://github.com/rust-lang/rust-clippy/issues/1938
-#[cfg_attr(feature = "cargo-clippy", allow(useless_attribute))]
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::useless_attribute))]
 #[allow(clippy::single_component_path_imports)]
 pub(crate) use abort_by;
 
