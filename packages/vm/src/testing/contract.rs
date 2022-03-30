@@ -11,6 +11,8 @@ use super::querier::MockQuerier;
 use super::result::{TestingError, TestingResult};
 use super::storage::MockStorage;
 
+use cosmwasm_std::Coin;
+
 pub struct Contract<'a> {
     module: Module,
     backend: Option<Backend<MockApi, MockStorage, MockQuerier>>,
@@ -19,11 +21,13 @@ pub struct Contract<'a> {
 
 const ERR_GENERATE_INSTANCE_TWICE: &str = "generate_instance is called twice without called recycle. After generate_instance in called, Contract::recycle needs to be called before generate_instance is called the next time.";
 const ERR_RECYCLE_BEFORE_GENERATE_INSTANCE: &str = "recycle_instance is called before generate_instance. The parameter instance of the recycle_instance should be created with Contract::generate_instance of the same Contract.";
+const ERR_UPDATE_BALANCE_OF_INSTANCE: &str = "update_balance is called during this contract is an instance. This can be called when this contract is not an instance.";
 
 /// representing a contract in integration test
 ///
 /// This enables tests instantiate a new instance every time testing call_(instantiate/execute/query/migrate) like actual wasmd's behavior.
 /// This is like Cache but it is for single contract and cannot save data in disk.
+/// Used options' fields are `supported_features`, `gas_limit`, and `print_debug`.
 impl<'a> Contract<'a> {
     pub fn from_code(
         wasm: &[u8],
@@ -95,6 +99,19 @@ impl<'a> Contract<'a> {
     pub fn change_options(&mut self, options: MockInstanceOptions<'a>) {
         self.options = options
     }
+
+    /// update balance in backend querier. it does not change the options
+    pub fn update_balance<T: Into<String>>(&mut self, addr: T, balance: Vec<Coin>) -> TestingResult<Option<Vec<Coin>>> {
+        let mut backend = self
+            .backend
+            .take()
+            .ok_or_else(|| TestingError::ContractError(ERR_UPDATE_BALANCE_OF_INSTANCE.to_string()))?;
+
+        // update balances of querier
+        let res = backend.querier.update_balance(addr, balance);
+        self.backend = Some(backend);
+        Ok(res)
+    }
 }
 
 #[cfg(test)]
@@ -102,8 +119,10 @@ impl<'a> Contract<'a> {
 mod test {
     use super::*;
     use crate::calls::{call_execute, call_instantiate, call_migrate, call_query};
-    use crate::testing::{mock_backend, mock_env, mock_info, mock_instance, MockInstanceOptions};
-    use cosmwasm_std::{QueryResponse, Response};
+    use crate::testing::{mock_backend, mock_backend_with_balances, mock_env, mock_info, mock_instance, MockInstanceOptions};
+    use cosmwasm_std::{QueryResponse, Response, coins, from_binary, AllBalanceResponse, BankQuery, Empty};
+
+    const DEFAULT_QUERY_GAS_LIMIT: u64 = 300_000;
 
     static CONTRACT_WITHOUT_MIGRATE: &[u8] =
         include_bytes!("../../testdata/queue_0.16.2_without_migrate.wasm");
@@ -225,5 +244,59 @@ mod test {
 
         // should panic when call recycle before generate_instance
         contract.recycle_instance(dummy_instance).unwrap();
+    }
+
+    #[test]
+    fn test_update_balance() {
+        let amount = coins(10, "link");
+        let balances = vec![("Alice", amount.as_slice())];
+        let backend = mock_backend_with_balances(balances.as_slice());
+        let options = MockInstanceOptions::default();
+        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
+
+        // update balance
+        let alice_pre_balance = contract.update_balance("Alice", coins(42, "link")).unwrap();
+        let bob_pre_balance = contract.update_balance("Bob", coins(1010, "link")).unwrap();
+
+        // check the balance
+        let backend = contract.backend.unwrap();
+        let alice_all = backend.querier
+            .query::<Empty>(
+                &BankQuery::AllBalances { address: "Alice".to_string() }.into(),
+                DEFAULT_QUERY_GAS_LIMIT,
+            )
+            .0
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let alice_res: AllBalanceResponse = from_binary(&alice_all).unwrap();
+        let bob_all = backend.querier
+            .query::<Empty>(
+                &BankQuery::AllBalances { address: "Bob".to_string() }.into(),
+                DEFAULT_QUERY_GAS_LIMIT,
+            )
+            .0
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        let bob_res: AllBalanceResponse = from_binary(&bob_all).unwrap();
+        assert_eq!(alice_pre_balance, Some(coins(10, "link")));
+        assert_eq!(bob_pre_balance, None);
+        assert_eq!(alice_res.amount, coins(42, "link"));
+        assert_eq!(bob_res.amount, coins(1010, "link"))
+    }
+
+    #[test]
+    #[should_panic(expected = "update_balance is called during this contract is an instance")]
+    fn test_err_call_update_balance_after_instantiate() {
+        let options = MockInstanceOptions::default();
+        let backend = mock_backend(&[]);
+        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
+
+        // generate_instance
+        let _instance = contract.generate_instance().unwrap();
+
+        // should panic when call generate_instance before recycle
+        let _ = contract.update_balance("Alice", coins(42, "link")).unwrap();
     }
 }
