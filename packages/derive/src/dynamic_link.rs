@@ -29,7 +29,7 @@ pub fn parse_contract_name(nested_meta: &syn::NestedMeta) -> String {
                 abort_by_dynamic_link!(name_value.path, "only allowed the \"contract_name\"")
             }
         }
-        None => abort_by_dynamic_link!(nested_meta, "invliad attribute type"),
+        None => abort_by_dynamic_link!(nested_meta, "invalid attribute type"),
     }
 }
 
