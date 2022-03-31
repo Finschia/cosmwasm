@@ -93,8 +93,10 @@ fn build_region_from_components(offset: u32, capacity: u32, length: u32) -> Box<
 /// Returns the address of the optional Region as an offset in linear memory,
 /// or zero if not present
 #[cfg(feature = "iterator")]
+#[allow(clippy::borrowed_box)]
 pub fn get_optional_region_address(region: &Option<&Box<Region>>) -> u32 {
     /// Returns the address of the Region as an offset in linear memory
+    #[allow(clippy::borrowed_box)]
     fn get_region_address(region: &Box<Region>) -> u32 {
         region.as_ref() as *const Region as u32
     }

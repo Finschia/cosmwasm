@@ -12,7 +12,7 @@ use super::result::{TestingError, TestingResult};
 use super::storage::MockStorage;
 
 pub struct Contract<'a> {
-    module: Module,
+    pub module: Module,
     backend: Option<Backend<MockApi, MockStorage, MockQuerier>>,
     options: MockInstanceOptions<'a>,
 }

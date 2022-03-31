@@ -1,6 +1,8 @@
 use cosmwasm_std::{
-    entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    callable_point, entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -17,9 +19,22 @@ pub fn instantiate(
     Ok(Response::default())
 }
 
-#[no_mangle]
-extern "C" fn pong(x: u64) -> u64 {
+#[callable_point]
+fn pong(x: u64) -> u64 {
     return x + 1;
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ExampleStruct {
+    pub str_field: String,
+    pub u64_field: u64,
+}
+#[callable_point]
+fn pong_with_struct(example: ExampleStruct) -> ExampleStruct {
+    ExampleStruct {
+        str_field: example.str_field + " world",
+        u64_field: example.u64_field + 1,
+    }
 }
 
 // And declare a custom Error variant for the ones where you will want to make use of it

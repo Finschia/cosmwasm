@@ -2,8 +2,12 @@
 extern crate syn;
 
 use proc_macro::TokenStream;
+use proc_macro_error::proc_macro_error;
 use std::str::FromStr;
 
+mod callable_point;
+mod dynamic_link;
+mod utils;
 /// This attribute macro generates the boilerplate required to call into the
 /// contract-specific logic from the entry-points to the Wasm module.
 ///
@@ -85,4 +89,31 @@ pub fn entry_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
     let entry = TokenStream::from_str(&new_code).unwrap();
     item.extend(entry);
     item
+}
+
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
+    let cloned = item.clone();
+    let function = parse_macro_input!(cloned as syn::ItemFn);
+
+    let maked = callable_point::make_callable_point(function);
+    item.extend(TokenStream::from(maked));
+    item
+}
+
+#[proc_macro_error]
+#[proc_macro_attribute]
+pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let attr_args = parse_macro_input!(attr as syn::AttributeArgs);
+    if attr_args.len() != 1 {
+        panic!("too many attributes");
+    }
+
+    let contract_name = dynamic_link::parse_contract_name(&attr_args[0]);
+    let exist_extern_block = parse_macro_input!(item as syn::ItemForeignMod);
+    TokenStream::from(dynamic_link::generate_import_contract_declaration(
+        contract_name,
+        exist_extern_block,
+    ))
 }

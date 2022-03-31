@@ -1,14 +1,28 @@
 use cosmwasm_std::{
-    entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128,
+    dynamic_link, entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, Uint128,
 };
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
-#[link(wasm_import_module = "dynamic_callee_contract")]
+#[derive(Serialize, Deserialize)]
+pub struct ExampleStruct {
+    pub str_field: String,
+    pub u64_field: u64,
+}
+impl fmt::Display for ExampleStruct {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.str_field, self.u64_field)
+    }
+}
+
+#[dynamic_link(contract_name = "dynamic_callee_contract")]
 extern "C" {
-    fn pong(int: u64) -> u64;
+    fn pong(ping_num: u64) -> u64;
+    fn pong_with_struct(example: ExampleStruct) -> ExampleStruct;
 }
 
 // Note, you can use StdResult in some functions where you do not
@@ -40,13 +54,15 @@ pub fn execute(
 }
 
 pub fn try_ping(_deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
-    let pong_ret: u64;
-    unsafe {
-        pong_ret = pong(ping_num.u128() as u64);
-    }
+    let pong_ret = pong(ping_num.u128() as u64);
+    let struct_ret = pong_with_struct(ExampleStruct {
+        str_field: String::from("hello"),
+        u64_field: 100u64,
+    });
 
     let mut res = Response::default();
     res.add_attribute("returned_pong", pong_ret.to_string());
+    res.add_attribute("returned_pong_with_struct", struct_ret.to_string());
     Ok(res)
 }
 
