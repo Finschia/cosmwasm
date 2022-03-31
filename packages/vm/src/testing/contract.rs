@@ -101,10 +101,16 @@ impl<'a> Contract<'a> {
     }
 
     /// update balance in backend querier. it does not change the options
-    pub fn update_balance<T: Into<String>>(&mut self, addr: T, balance: Vec<Coin>) -> TestingResult<Option<Vec<Coin>>> {
+    pub fn update_balance<T: Into<String>>(
+        &mut self,
+        addr: T,
+        balance: Vec<Coin>,
+    ) -> TestingResult<Option<Vec<Coin>>> {
         match &mut self.backend {
             Some(backend) => Ok(backend.querier.update_balance(addr, balance)),
-            None => Err(TestingError::ContractError(ERR_UPDATE_BALANCE_OF_INSTANCE.to_string()))
+            None => Err(TestingError::ContractError(
+                ERR_UPDATE_BALANCE_OF_INSTANCE.to_string(),
+            )),
         }
     }
 }
@@ -114,8 +120,13 @@ impl<'a> Contract<'a> {
 mod test {
     use super::*;
     use crate::calls::{call_execute, call_instantiate, call_migrate, call_query};
-    use crate::testing::{mock_backend, mock_backend_with_balances, mock_env, mock_info, mock_instance, MockInstanceOptions};
-    use cosmwasm_std::{QueryResponse, Response, coins, from_binary, AllBalanceResponse, BankQuery, Empty};
+    use crate::testing::{
+        mock_backend, mock_backend_with_balances, mock_env, mock_info, mock_instance,
+        MockInstanceOptions,
+    };
+    use cosmwasm_std::{
+        coins, from_binary, AllBalanceResponse, BankQuery, Empty, QueryResponse, Response,
+    };
 
     const DEFAULT_QUERY_GAS_LIMIT: u64 = 300_000;
 
@@ -255,9 +266,13 @@ mod test {
 
         // check the balance
         let backend = contract.backend.unwrap();
-        let alice_all = backend.querier
+        let alice_all = backend
+            .querier
             .query::<Empty>(
-                &BankQuery::AllBalances { address: "Alice".to_string() }.into(),
+                &BankQuery::AllBalances {
+                    address: "Alice".to_string(),
+                }
+                .into(),
                 DEFAULT_QUERY_GAS_LIMIT,
             )
             .0
@@ -265,9 +280,13 @@ mod test {
             .unwrap()
             .unwrap();
         let alice_res: AllBalanceResponse = from_binary(&alice_all).unwrap();
-        let bob_all = backend.querier
+        let bob_all = backend
+            .querier
             .query::<Empty>(
-                &BankQuery::AllBalances { address: "Bob".to_string() }.into(),
+                &BankQuery::AllBalances {
+                    address: "Bob".to_string(),
+                }
+                .into(),
                 DEFAULT_QUERY_GAS_LIMIT,
             )
             .0
