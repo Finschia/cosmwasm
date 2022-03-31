@@ -102,15 +102,10 @@ impl<'a> Contract<'a> {
 
     /// update balance in backend querier. it does not change the options
     pub fn update_balance<T: Into<String>>(&mut self, addr: T, balance: Vec<Coin>) -> TestingResult<Option<Vec<Coin>>> {
-        let mut backend = self
-            .backend
-            .take()
-            .ok_or_else(|| TestingError::ContractError(ERR_UPDATE_BALANCE_OF_INSTANCE.to_string()))?;
-
-        // update balances of querier
-        let res = backend.querier.update_balance(addr, balance);
-        self.backend = Some(backend);
-        Ok(res)
+        match &mut self.backend {
+            Some(backend) => Ok(backend.querier.update_balance(addr, balance)),
+            None => Err(TestingError::ContractError(ERR_UPDATE_BALANCE_OF_INSTANCE.to_string()))
+        }
     }
 }
 
