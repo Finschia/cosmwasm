@@ -131,6 +131,17 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[error("A contract can only be called once per message.")]
+    ReEntrancyErr {
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("The depth limitation of dynamic calls has been exceeded.")]
+    DynamicCallDepthOverLimitationErr {
+        //TODO: how about print the existing callstack?
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
 }
 
 impl VmError {
@@ -276,6 +287,19 @@ impl VmError {
 
     pub(crate) fn write_access_denied() -> Self {
         VmError::WriteAccessDenied {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub(crate) fn re_entrancy_err() -> Self {
+        VmError::ReEntrancyErr {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+    pub(crate) fn dynamic_call_depth_over_limitation_err() -> Self {
+        VmError::DynamicCallDepthOverLimitationErr {
             #[cfg(feature = "backtraces")]
             backtrace: Backtrace::capture(),
         }

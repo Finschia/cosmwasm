@@ -10,6 +10,8 @@ use crate::backend::{BackendApi, GasInfo, Querier, Storage};
 use crate::dynamic_link::FunctionMetadata;
 use crate::errors::{VmError, VmResult};
 
+pub const DYNAMIC_CALL_DEPTH_LIMIT_CNT: usize = 5;
+
 /// Never can never be instantiated.
 /// Replace this with the [never primitive type](https://doc.rust-lang.org/std/primitive.never.html) when stable.
 #[derive(Debug)]
@@ -372,6 +374,53 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             None => Err(VmError::uninitialized_context_data("callee_func_metadata")),
         }
     }
+
+    pub fn try_record_dynamic_call_trace(&self) -> VmResult<()> {
+        self.with_context_data_mut(|ctx| {
+            if ctx.dynamic_callstack.len() >= DYNAMIC_CALL_DEPTH_LIMIT_CNT {
+                return Err(VmError::dynamic_call_depth_over_limitation_err());
+            }
+
+            match ctx.wasmer_instance {
+                Some(instance_ptr) => unsafe {
+                    let wasmer_instance_raw_addr =
+                        instance_ptr.as_ref() as *const WasmerInstance as u64;
+                    match ctx
+                        .dynamic_callstack
+                        .iter()
+                        .find(|&&x| x == wasmer_instance_raw_addr)
+                    {
+                        Some(_) => Err(VmError::re_entrancy_err()),
+                        None => {
+                            ctx.dynamic_callstack.push(wasmer_instance_raw_addr);
+                            Ok(())
+                        }
+                    }
+                },
+                None => panic!("cannot found caller wasmer instance"),
+            }
+        })
+    }
+
+    pub fn remove_latest_dynamic_call_trace(&self) {
+        self.with_context_data_mut(|ctx| {
+            ctx.dynamic_callstack.pop();
+        })
+    }
+    //pass_callstack will be called through wasmvm.
+    pub fn pass_callstack<A2, S2, Q2>(&self, target: &mut Environment<A2, S2, Q2>)
+    where
+        A2: BackendApi + 'static,
+        S2: Storage + 'static,
+        Q2: Querier + 'static,
+    {
+        //TODO::need check the race condition when calling the contract oneself(recursive).
+        self.with_context_data_mut(|self_ctx| {
+            target.with_context_data_mut(|target_ctx| {
+                target_ctx.dynamic_callstack = self_ctx.dynamic_callstack.clone();
+            })
+        })
+    }
 }
 
 pub struct ContextData<S: Storage, Q: Querier> {
@@ -382,6 +431,7 @@ pub struct ContextData<S: Storage, Q: Querier> {
     /// A non-owning link to the wasmer instance
     wasmer_instance: Option<NonNull<WasmerInstance>>,
     serialized_env: Option<Vec<u8>>,
+    dynamic_callstack: Vec<u64>,
 }
 
 impl<S: Storage, Q: Querier> ContextData<S, Q> {
@@ -393,6 +443,7 @@ impl<S: Storage, Q: Querier> ContextData<S, Q> {
             querier: None,
             wasmer_instance: None,
             serialized_env: None,
+            dynamic_callstack: Vec::new(),
         }
     }
 }
@@ -878,5 +929,65 @@ mod tests {
             panic!("A panic occurred in the callback.")
         })
         .unwrap();
+    }
+
+    #[test]
+    fn record_dynamic_call_trace_works() {
+        let (env, instance) = make_instance(TESTING_GAS_LIMIT);
+        assert!(env.try_record_dynamic_call_trace().is_ok());
+        env.with_context_data(|ctx| {
+            let wasmer_instance_raw_addr = instance.as_ref() as *const WasmerInstance as u64;
+
+            assert_eq!(ctx.dynamic_callstack.len(), 1);
+            assert_eq!(ctx.dynamic_callstack[0], wasmer_instance_raw_addr);
+        });
+
+        env.remove_latest_dynamic_call_trace();
+        env.with_context_data(|ctx| {
+            assert!(ctx.dynamic_callstack.is_empty());
+        })
+    }
+
+    #[test]
+    fn try_record_re_entrancy_failure() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        assert!(env.try_record_dynamic_call_trace().is_ok());
+        assert!(matches!(
+            env.try_record_dynamic_call_trace(),
+            Err(VmError::ReEntrancyErr { .. })
+        ));
+    }
+
+    #[test]
+    fn dynamic_call_depth_limitation_over_failure() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+
+        env.with_context_data_mut(|ctx| {
+            //insert dummy into stack
+            ctx.dynamic_callstack = (0u64..DYNAMIC_CALL_DEPTH_LIMIT_CNT as u64).collect();
+        });
+
+        assert!(matches!(
+            env.try_record_dynamic_call_trace(),
+            Err(VmError::DynamicCallDepthOverLimitationErr { .. })
+        ));
+    }
+
+    #[test]
+    fn pass_callstack_works() {
+        let (env, instance1) = make_instance(TESTING_GAS_LIMIT);
+        let (mut env2, instance2) = make_instance(TESTING_GAS_LIMIT);
+        assert!(env.try_record_dynamic_call_trace().is_ok());
+        env.pass_callstack(&mut env2);
+        assert!(env2.try_record_dynamic_call_trace().is_ok());
+
+        env2.with_context_data(|ctx| {
+            let wasmer_instance1_raw_addr = instance1.as_ref() as *const WasmerInstance as u64;
+            let wasmer_instance2_raw_addr = instance2.as_ref() as *const WasmerInstance as u64;
+
+            assert_eq!(ctx.dynamic_callstack.len(), 2);
+            assert_eq!(ctx.dynamic_callstack[0], wasmer_instance1_raw_addr);
+            assert_eq!(ctx.dynamic_callstack[1], wasmer_instance2_raw_addr);
+        })
     }
 }
