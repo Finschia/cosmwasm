@@ -517,7 +517,6 @@ impl Default for WasmQuerier {
             let addr = match request {
                 WasmQuery::Smart { contract_addr, .. } => contract_addr,
                 WasmQuery::Raw { contract_addr, .. } => contract_addr,
-                WasmQuery::ContractInfo { contract_addr, .. } => contract_addr,
             }
             .clone();
             SystemResult::Err(SystemError::NoSuchContract { addr })
@@ -719,7 +718,7 @@ pub fn mock_wasmd_attr(key: impl Into<String>, value: impl Into<String>) -> Attr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{coin, coins, from_binary, to_binary, ContractInfoResponse, Response};
+    use crate::{coin, coins, from_binary, to_binary, Response};
     #[cfg(feature = "staking")]
     use crate::{Decimal, Delegation};
     use hex_literal::hex;
@@ -1297,17 +1296,6 @@ mod tests {
             err => panic!("Unexpected error: {:?}", err),
         }
 
-        // Query WasmQuery::ContractInfo
-        let system_err = querier
-            .query(&WasmQuery::ContractInfo {
-                contract_addr: any_addr.clone(),
-            })
-            .unwrap_err();
-        match system_err {
-            SystemError::NoSuchContract { addr } => assert_eq!(addr, any_addr),
-            err => panic!("Unexpected error: {:?}", err),
-        }
-
         querier.update_handler(|request| {
             let constract1 = Addr::unchecked("contract1");
             let mut storage1 = HashMap::<Binary, Binary>::default();
@@ -1338,22 +1326,6 @@ mod tests {
                             }
                         };
                         let response: Response = Response::new().set_data(b"good");
-                        SystemResult::Ok(ContractResult::Ok(to_binary(&response).unwrap()))
-                    } else {
-                        SystemResult::Err(SystemError::NoSuchContract {
-                            addr: contract_addr.clone(),
-                        })
-                    }
-                }
-                WasmQuery::ContractInfo { contract_addr } => {
-                    if *contract_addr == constract1 {
-                        let response = ContractInfoResponse {
-                            code_id: 4,
-                            creator: "lalala".into(),
-                            admin: None,
-                            pinned: false,
-                            ibc_port: None,
-                        };
                         SystemResult::Ok(ContractResult::Ok(to_binary(&response).unwrap()))
                     } else {
                         SystemResult::Err(SystemError::NoSuchContract {
@@ -1402,19 +1374,6 @@ mod tests {
             SystemResult::Ok(ContractResult::Err(err)) => {
                 assert_eq!(err, "Error parsing into type cosmwasm_std::mock::tests::wasm_querier_works::{{closure}}::MyMsg: Invalid type")
             }
-            res => panic!("Unexpected result: {:?}", res),
-        }
-
-        // WasmQuery::ContractInfo
-        let result = querier.query(&WasmQuery::ContractInfo {
-            contract_addr: "contract1".into(),
-        });
-        match result {
-            SystemResult::Ok(ContractResult::Ok(value)) => assert_eq!(
-                value,
-                br#"{"code_id":4,"creator":"lalala","admin":null,"pinned":false,"ibc_port":null}"#
-                    as &[u8]
-            ),
             res => panic!("Unexpected result: {:?}", res),
         }
     }
