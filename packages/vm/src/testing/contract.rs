@@ -4,6 +4,7 @@ use crate::backend::Backend;
 use crate::compatibility::check_wasm;
 use crate::instance::Instance;
 use crate::wasm_backend::compile;
+use crate::size::Size;
 
 use super::instance::MockInstanceOptions;
 use super::mock::MockApi;
@@ -29,9 +30,10 @@ impl<'a> Contract<'a> {
         wasm: &[u8],
         backend: Backend<MockApi, MockStorage, MockQuerier>,
         options: MockInstanceOptions<'a>,
+        memory_limit: Option<Size>
     ) -> TestingResult<Self> {
         check_wasm(wasm, &options.supported_features)?;
-        let module = compile(wasm, None)?;
+        let module = compile(wasm, memory_limit)?;
         let backend = Some(backend);
         let contract = Self {
             module,
@@ -44,9 +46,9 @@ impl<'a> Contract<'a> {
     /// change the wasm code for testing migrate
     ///
     /// call this before `generate_instance` for testing `call_migrate`.
-    pub fn change_wasm(&mut self, wasm: &[u8]) -> TestingResult<()> {
+    pub fn change_wasm(&mut self, wasm: &[u8], memory_limit: Option<Size>) -> TestingResult<()> {
         check_wasm(wasm, &self.options.supported_features)?;
-        let module = compile(wasm, None)?;
+        let module = compile(wasm, memory_limit)?;
         self.module = module;
         Ok(())
     }
@@ -114,7 +116,7 @@ mod test {
     fn test_sanity_integration_test_flow() {
         let options = MockInstanceOptions::default();
         let backend = mock_backend(&[]);
-        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
+        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options, None).unwrap();
 
         // common env/info
         let env = mock_env();
@@ -169,7 +171,7 @@ mod test {
         let _ = contract.recycle_instance(instance).unwrap();
 
         // change the code and migrate
-        contract.change_wasm(CONTRACT_WITH_MIGRATE).unwrap();
+        contract.change_wasm(CONTRACT_WITH_MIGRATE, None).unwrap();
         let mut instance = contract.generate_instance().unwrap();
         let msg = "{}".as_bytes();
         let _: Response = call_migrate(&mut instance, &env, msg)
@@ -204,7 +206,7 @@ mod test {
     fn test_err_call_generate_instance_twice() {
         let options = MockInstanceOptions::default();
         let backend = mock_backend(&[]);
-        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
+        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options, None).unwrap();
 
         // generate_instance
         let _instance = contract.generate_instance().unwrap();
@@ -218,7 +220,7 @@ mod test {
     fn test_err_call_recycle_before_generate_instance() {
         let options = MockInstanceOptions::default();
         let backend = mock_backend(&[]);
-        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options).unwrap();
+        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, backend, options, None).unwrap();
 
         // make a dummy instance
         let dummy_instance = mock_instance(CONTRACT_WITHOUT_MIGRATE, &[]);
