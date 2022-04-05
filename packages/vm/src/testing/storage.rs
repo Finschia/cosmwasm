@@ -20,13 +20,13 @@ const GAS_COST_LAST_ITERATION: u64 = 37;
 const GAS_COST_RANGE: u64 = 11;
 
 #[cfg(feature = "iterator")]
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 struct Iter {
     data: Vec<Pair>,
     position: usize,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct MockStorage {
     data: BTreeMap<Vec<u8>, Vec<u8>>,
     #[cfg(feature = "iterator")]
