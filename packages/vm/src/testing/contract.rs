@@ -1,6 +1,6 @@
 use wasmer::Module;
 
-use crate::backend::Backend;
+use crate::backend::{Backend, Storage};
 use crate::compatibility::check_wasm;
 use crate::instance::Instance;
 use crate::wasm_backend::compile;
@@ -80,6 +80,14 @@ impl Contract {
         })?;
         self.storage = backend.storage;
         Ok(())
+    }
+
+    /// get value from storage
+    pub fn raw_get(
+        &self,
+        key: &[u8],
+    ) -> Option<Vec<u8>> {
+        self.storage.get(key).0.unwrap()
     }
 }
 
