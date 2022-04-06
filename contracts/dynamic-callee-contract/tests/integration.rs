@@ -1,6 +1,7 @@
-use cosmwasm_std::{from_slice, to_vec};
+use cosmwasm_std::{from_slice, to_vec, Addr, Env};
 use cosmwasm_vm::testing::{
-    mock_backend, read_data_from_mock_env, write_data_to_mock_env, Contract, MockInstanceOptions,
+    mock_backend, mock_env, read_data_from_mock_env, write_data_to_mock_env, Contract,
+    MockInstanceOptions, MOCK_CONTRACT_ADDR,
 };
 use dynamic_callee_contract::contract::ExampleStruct;
 use std::collections::HashMap;
@@ -16,6 +17,7 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             String::from("stub_pong_with_struct"),
             ([Type::I32], [Type::I32]).into(),
         ),
+        (String::from("stub_pong_env"), ([], [Type::I32]).into()),
     ]
 }
 
@@ -100,4 +102,26 @@ fn callable_point_pong_with_struct_works() {
     let result: ExampleStruct = from_slice(&serialized_return).unwrap();
     assert_eq!(result.str_field, String::from("hello world"));
     assert_eq!(result.u64_field, 101);
+}
+
+#[test]
+fn callable_point_pong_env_works() {
+    let options = MockInstanceOptions::default();
+    let backend = mock_backend(&[]);
+    let mut contract = Contract::from_code(CONTRACT_CALLEE, backend, options).unwrap();
+    let instance = contract.generate_instance().unwrap();
+
+    let required_exports = required_exports();
+    instance
+        .env
+        .set_serialized_env(&to_vec(&mock_env()).unwrap());
+    let call_result = instance
+        .call_function_strict(&required_exports[2].1, "stub_pong_env", &[])
+        .unwrap();
+    assert_eq!(call_result.len(), 1);
+
+    let serialized_return =
+        read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
+    let result: Env = from_slice(&serialized_return).unwrap();
+    assert_eq!(result.contract.address, Addr::unchecked(MOCK_CONTRACT_ADDR));
 }
