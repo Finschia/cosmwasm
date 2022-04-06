@@ -133,6 +133,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(
         instance,
@@ -152,6 +153,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(
         instance,
@@ -171,6 +173,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(
         instance,
@@ -190,6 +193,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(
         instance,
@@ -209,6 +213,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(instance, "ibc_packet_ack", &[env, ack], MAX_LENGTH_IBC)
 }
@@ -223,6 +228,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(
         instance,

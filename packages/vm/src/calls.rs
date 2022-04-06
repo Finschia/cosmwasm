@@ -144,6 +144,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(instance, "instantiate", &[env, info, msg], MAX_LENGTH_INIT)
 }
@@ -161,6 +162,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(instance, "execute", &[env, info, msg], MAX_LENGTH_EXECUTE)
 }
@@ -177,6 +179,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(instance, "migrate", &[env, msg], MAX_LENGTH_MIGRATE)
 }
@@ -193,6 +196,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(instance, "sudo", &[env, msg], MAX_LENGTH_SUDO)
 }
@@ -209,6 +213,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(false);
     call_raw(instance, "reply", &[env, msg], MAX_LENGTH_SUBCALL_RESPONSE)
 }
@@ -225,6 +230,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    instance.env.set_serialized_env(env);
     instance.set_storage_readonly(true);
     call_raw(instance, "query", &[env, msg], MAX_LENGTH_QUERY)
 }

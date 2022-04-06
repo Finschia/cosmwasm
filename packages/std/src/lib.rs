@@ -23,6 +23,7 @@ mod timestamp;
 mod traits;
 mod types;
 mod uuid;
+mod global_api;
 
 #[allow(deprecated)]
 pub use crate::addresses::{Addr, CanonicalAddr, HumanAddr};
@@ -66,6 +67,7 @@ pub use crate::timestamp::Timestamp;
 pub use crate::traits::{Api, Querier, QuerierResult, QuerierWrapper, Storage};
 pub use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo};
 pub use crate::uuid::{new_uuid, Uuid};
+pub use crate::global_api::GlobalApi;
 
 // Exposed in wasm build only
 
