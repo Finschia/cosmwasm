@@ -11,6 +11,7 @@ use super::querier::MockQuerier;
 use super::result::{TestingError, TestingResult};
 use super::storage::MockStorage;
 
+#[derive(Clone)]
 pub struct Contract {
     module: Module,
     storage: MockStorage,
