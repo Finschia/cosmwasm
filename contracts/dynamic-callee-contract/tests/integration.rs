@@ -129,3 +129,26 @@ fn callable_point_pong_env_works() {
     let result: Env = from_slice(&serialized_return).unwrap();
     assert_eq!(result.contract.address, Addr::unchecked(MOCK_CONTRACT_ADDR));
 }
+
+
+
+
+#[test]
+fn callable_point_pong_deps_works() {
+    let instance = make_callee_instance();
+
+    let required_exports = required_exports();
+    let call_result = instance
+        .call_function_strict(
+            &required_exports[1].1,
+            "stub_pong_env",
+            &[],
+        )
+        .unwrap();
+    assert_eq!(call_result.len(), 1);
+
+    let serialized_return =
+        read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
+    let result: Env = from_slice(&serialized_return).unwrap();
+    assert_eq!(result.contract.address, Addr::unchecked("cosmos2contract"));
+}
