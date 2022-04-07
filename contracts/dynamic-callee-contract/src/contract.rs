@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_point, entry_point, Binary, Deps, DepsMut, Env, GlobalApi, MessageInfo, Response,
-    StdResult,
+    callable_point, dynamic_link, entry_point, Binary, Deps, DepsMut, Env, GlobalApi, MessageInfo, Response,
+    StdResult, Addr, to_vec,
 };
 use serde::{Deserialize, Serialize};
 
@@ -41,6 +41,18 @@ fn pong_with_struct(example: ExampleStruct) -> ExampleStruct {
 #[callable_point]
 fn pong_env() -> Env {
     GlobalApi::env()
+}
+
+#[dynamic_link(contract_name = "dynamic_caller_contract")]
+extern "C" {
+    fn should_never_be_called();
+}
+
+#[callable_point]
+fn reentrancy(addr: Addr) {
+    deps.storage
+        .set(b"dynamic_caller_contract", &to_vec(&GlobalApi::env().contract.address));
+    should_never_be_called()
 }
 
 // And declare a custom Error variant for the ones where you will want to make use of it
