@@ -17,7 +17,7 @@ struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct RawResponse {
-    pub value: String,
+    pub response: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -101,8 +101,8 @@ fn query_raw(deps: Deps, key: u8) -> StdResult<RawResponse> {
     let response: Option<Vec<u8>> = deps
         .querier
         .query_wasm_raw(address, (vec![key]).as_slice())?;
-    let value = std::str::from_utf8(response.unwrap_or_default().as_slice())?.to_string();
-    Ok(RawResponse { value })
+    let response_string = std::str::from_utf8(response.unwrap_or_default().as_slice())?.to_string();
+    Ok(RawResponse { response: response_string })
 }
 
 fn query_count(deps: Deps, msg: QueryMsg) -> StdResult<CountResponse> {
@@ -138,6 +138,11 @@ mod tests {
     use cosmwasm_std::{ContractResult, OwnedDeps, SystemError, SystemResult, WasmQuery};
 
     static QUEUE_ADDRESS: &str = "queue";
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    struct RawQueryResponse {
+        value: u32
+    }
 
     fn create_contract() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
         let mut deps = mock_dependencies(&[]);
@@ -185,7 +190,7 @@ mod tests {
             WasmQuery::Raw {
                 contract_addr: _,
                 key: _,
-            } => SystemResult::Ok(ContractResult::Ok(to_binary(&42).unwrap())),
+            } => SystemResult::Ok(ContractResult::Ok(to_binary(&RawQueryResponse{value: 42}).unwrap())),
             _ => SystemResult::Err(SystemError::Unknown {}),
         });
         deps
@@ -204,7 +209,7 @@ mod tests {
         assert_eq!(
             query_raw(deps.as_ref(), 42).unwrap(),
             RawResponse {
-                value: "42".to_string()
+                response: r#"{"value":42}"#.to_string()
             }
         );
     }

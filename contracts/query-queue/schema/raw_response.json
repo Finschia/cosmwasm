@@ -3,10 +3,10 @@
   "title": "RawResponse",
   "type": "object",
   "required": [
-    "value"
+    "response"
   ],
   "properties": {
-    "value": {
+    "response": {
       "type": "string"
     }
   }
