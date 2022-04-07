@@ -125,3 +125,53 @@ fn query_list(deps: Deps, msg: QueryMsg) -> StdResult<ListResponse> {
     let response: ListResponse = deps.querier.query_wasm_smart(address, &msg)?;
     Ok(response)
 }
+
+#[cfg(tests)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::{
+        mock_env(), MockApi, MockQuerier, MockStorage, SystemResult, ContractResult,
+    };
+    use crate::testing::{mock_env, mock_info, MockInstanceOptions};
+
+    let queue_address = "queue";
+
+    fn create_contract() -> (OwnedDeps<MockStorage, MockApi, MockQuerier>) {
+        let mut deps = mock_dependencies(&coins(1000, "earth"));
+        let res = instantiate(deps.as_mut(), mock_env(), info.clone(), InstantiateMsg { queue_address }).unwrap();
+        assert_eq!(0, res.messages.len());
+        deps.querier.update_wasm(
+            |query| match query {
+                WasmQuery::Smart { _, msg } => {
+                    let q_msg: QueryMsg = from_slice(msg).unwrap();
+                    SystemResult::Ok(ContractResult::Ok((match q_msg {
+                        QueryMsg::Count {} => CountResponse { count: 1 },
+                        QueryMsg::Sum {} => SumResponse  { sum: 42 },
+                        QueryMsg::Reducer {} => ReducerResponse { counters: vec![(42, 0)]},
+                        QueryMsg::List {} => ListResponse { empty: vec![], early: vec![0], late: vec![] },
+                    }).as_slice()))}
+                WasmQuery::Raw { _, key } => SystemResult::Ok(ContractResult::Ok(b"succeed"))
+            }
+        );
+        deps
+    }
+
+    #[test]
+    fn instantiate() {
+        let deps = create_contract();
+        let config: Configdeps = from_slice(&storage.get(CONFIG_KEY).unwrap());
+        assert_eq!(config.queue_address, queue_address);
+    }
+
+    #[test]
+    fn queue_raw() {
+        let deps = create_contract();
+        assert_eq!(query_raw(deps, 0), 42);
+    }
+
+    #[test]
+    fn queue_smart() {
+        let deps = create_contract();
+        assert_eq!(query_sum(deps), (SumResponse { sum: 42 }).as_slice());
+    }
+}
