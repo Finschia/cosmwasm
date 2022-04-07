@@ -11,13 +11,9 @@
         "raw": {
           "type": "object",
           "required": [
-            "address",
             "key"
           ],
           "properties": {
-            "address": {
-              "type": "string"
-            },
             "key": {
               "type": "integer",
               "format": "uint8",
@@ -31,80 +27,50 @@
     {
       "type": "object",
       "required": [
-        "smart"
+        "count"
       ],
       "properties": {
-        "smart": {
-          "type": "object",
-          "required": [
-            "address",
-            "msg"
-          ],
-          "properties": {
-            "address": {
-              "type": "string"
-            },
-            "msg": {
-              "$ref": "#/definitions/QueueQueryMsg"
-            }
-          }
+        "count": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "sum"
+      ],
+      "properties": {
+        "sum": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "reducer"
+      ],
+      "properties": {
+        "reducer": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "list"
+      ],
+      "properties": {
+        "list": {
+          "type": "object"
         }
       },
       "additionalProperties": false
     }
-  ],
-  "definitions": {
-    "QueueQueryMsg": {
-      "oneOf": [
-        {
-          "type": "object",
-          "required": [
-            "count"
-          ],
-          "properties": {
-            "count": {
-              "type": "object"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "sum"
-          ],
-          "properties": {
-            "sum": {
-              "type": "object"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "reducer"
-          ],
-          "properties": {
-            "reducer": {
-              "type": "object"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "list"
-          ],
-          "properties": {
-            "list": {
-              "type": "object"
-            }
-          },
-          "additionalProperties": false
-        }
-      ]
-    }
-  }
+  ]
 }

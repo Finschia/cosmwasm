@@ -5,11 +5,19 @@
     {
       "type": "object",
       "required": [
-        "do_nothing"
+        "change_address"
       ],
       "properties": {
-        "do_nothing": {
-          "type": "object"
+        "change_address": {
+          "type": "object",
+          "required": [
+            "queue_address"
+          ],
+          "properties": {
+            "queue_address": {
+              "type": "string"
+            }
+          }
         }
       },
       "additionalProperties": false

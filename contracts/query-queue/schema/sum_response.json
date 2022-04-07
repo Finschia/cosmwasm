@@ -1,13 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SmartResponse",
+  "title": "SumResponse",
   "type": "object",
   "required": [
-    "response"
+    "sum"
   ],
   "properties": {
-    "response": {
-      "type": "string"
+    "sum": {
+      "type": "integer",
+      "format": "int32"
     }
   }
 }
