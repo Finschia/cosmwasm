@@ -3,7 +3,9 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use query_queue::contract::{RawResponse, SmartResponse};
+use query_queue::contract::{
+    CountResponse, ListResponse, RawResponse, ReducerResponse, SumResponse,
+};
 use query_queue::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 fn main() {
@@ -16,5 +18,8 @@ fn main() {
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(RawResponse), &out_dir);
-    export_schema(&schema_for!(SmartResponse), &out_dir);
+    export_schema(&schema_for!(CountResponse), &out_dir);
+    export_schema(&schema_for!(SumResponse), &out_dir);
+    export_schema(&schema_for!(ReducerResponse), &out_dir);
+    export_schema(&schema_for!(ListResponse), &out_dir);
 }

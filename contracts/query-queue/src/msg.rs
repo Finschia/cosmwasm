@@ -5,21 +5,21 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub struct InstantiateMsg {
     // address to query
-    pub queue_address: String
+    pub queue_address: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     // change address to query
-    ChangeAddress { queue_address: String }
+    ChangeAddress { queue_address: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Raw { key: u8 },
-    Count { },
+    Count {},
     Sum {},
     Reducer {},
     List {},

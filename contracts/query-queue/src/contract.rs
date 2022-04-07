@@ -2,7 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    from_slice, to_binary, to_vec, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdResult, Storage,
+    from_slice, to_binary, to_vec, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    StdResult, Storage,
 };
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -20,24 +21,24 @@ pub struct RawResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-struct CountResponse {
+pub struct CountResponse {
     pub count: u32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-struct SumResponse {
+pub struct SumResponse {
     pub sum: i32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 // the Vec contains pairs for every element in the queue
 // (value of item i, sum of all elements where value > value[i])
-struct ReducerResponse {
+pub struct ReducerResponse {
     pub counters: Vec<(i32, i32)>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-struct ListResponse {
+pub struct ListResponse {
     /// List an empty range, both bounded
     pub empty: Vec<u32>,
     /// List all IDs lower than 0x20
@@ -47,7 +48,9 @@ struct ListResponse {
 }
 
 fn write_queue_address(storage: &mut dyn Storage, addr: String) {
-    let config = Config { queue_address: addr };
+    let config = Config {
+        queue_address: addr,
+    };
     storage.set(CONFIG_KEY, &to_vec(&config).unwrap());
 }
 
@@ -74,7 +77,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::ChangeAddress { queue_address } => handle_change_address(deps, queue_address)
+        ExecuteMsg::ChangeAddress { queue_address } => handle_change_address(deps, queue_address),
     }
 }
 
@@ -86,10 +89,10 @@ fn handle_change_address(deps: DepsMut, address: String) -> StdResult<Response> 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
     match msg {
         QueryMsg::Raw { key } => to_binary(&query_raw(deps, key)?),
-        QueryMsg::Count { } => to_binary(&query_count(deps, msg)?),
-        QueryMsg::Sum { } => to_binary(&query_sum(deps, msg)?),
-        QueryMsg::Reducer { } => to_binary(&query_reducer(deps, msg)?),
-        QueryMsg::List { } => to_binary(&query_list(deps, msg)?),
+        QueryMsg::Count {} => to_binary(&query_count(deps, msg)?),
+        QueryMsg::Sum {} => to_binary(&query_sum(deps, msg)?),
+        QueryMsg::Reducer {} => to_binary(&query_reducer(deps, msg)?),
+        QueryMsg::List {} => to_binary(&query_list(deps, msg)?),
     }
 }
 
@@ -126,52 +129,92 @@ fn query_list(deps: Deps, msg: QueryMsg) -> StdResult<ListResponse> {
     Ok(response)
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
     use super::*;
     use cosmwasm_std::testing::{
-        mock_env(), MockApi, MockQuerier, MockStorage, SystemResult, ContractResult,
+        mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage,
     };
-    use crate::testing::{mock_env, mock_info, MockInstanceOptions};
+    use cosmwasm_std::{ContractResult, OwnedDeps, SystemError, SystemResult, WasmQuery};
 
-    let queue_address = "queue";
+    static QUEUE_ADDRESS: &str = "queue";
 
-    fn create_contract() -> (OwnedDeps<MockStorage, MockApi, MockQuerier>) {
-        let mut deps = mock_dependencies(&coins(1000, "earth"));
-        let res = instantiate(deps.as_mut(), mock_env(), info.clone(), InstantiateMsg { queue_address }).unwrap();
+    fn create_contract() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
+        let mut deps = mock_dependencies(&[]);
+        let info = mock_info("creator", &[]);
+        let res = instantiate(
+            deps.as_mut(),
+            mock_env(),
+            info.clone(),
+            InstantiateMsg {
+                queue_address: QUEUE_ADDRESS.to_string(),
+            },
+        )
+        .unwrap();
         assert_eq!(0, res.messages.len());
-        deps.querier.update_wasm(
-            |query| match query {
-                WasmQuery::Smart { _, msg } => {
-                    let q_msg: QueryMsg = from_slice(msg).unwrap();
-                    SystemResult::Ok(ContractResult::Ok((match q_msg {
-                        QueryMsg::Count {} => CountResponse { count: 1 },
-                        QueryMsg::Sum {} => SumResponse  { sum: 42 },
-                        QueryMsg::Reducer {} => ReducerResponse { counters: vec![(42, 0)]},
-                        QueryMsg::List {} => ListResponse { empty: vec![], early: vec![0], late: vec![] },
-                    }).as_slice()))}
-                WasmQuery::Raw { _, key } => SystemResult::Ok(ContractResult::Ok(b"succeed"))
+        deps.querier.update_wasm(|query| match query {
+            WasmQuery::Smart {
+                contract_addr: _,
+                msg,
+            } => {
+                let q_msg: QueryMsg = from_slice(msg).unwrap();
+                match q_msg {
+                    QueryMsg::Count {} => SystemResult::Ok(ContractResult::Ok(
+                        to_binary(&CountResponse { count: 1 }).unwrap(),
+                    )),
+                    QueryMsg::Sum {} => SystemResult::Ok(ContractResult::Ok(
+                        to_binary(&SumResponse { sum: 42 }).unwrap(),
+                    )),
+                    QueryMsg::Reducer {} => SystemResult::Ok(ContractResult::Ok(
+                        to_binary(&ReducerResponse {
+                            counters: vec![(42, 0)],
+                        })
+                        .unwrap(),
+                    )),
+                    QueryMsg::List {} => SystemResult::Ok(ContractResult::Ok(
+                        to_binary(&ListResponse {
+                            empty: vec![],
+                            early: vec![0],
+                            late: vec![],
+                        })
+                        .unwrap(),
+                    )),
+                    _ => SystemResult::Err(SystemError::Unknown {}),
+                }
             }
-        );
+            WasmQuery::Raw {
+                contract_addr: _,
+                key: _,
+            } => SystemResult::Ok(ContractResult::Ok(to_binary(&42).unwrap())),
+            _ => SystemResult::Err(SystemError::Unknown {}),
+        });
         deps
     }
 
     #[test]
-    fn instantiate() {
+    fn test_instantiate() {
         let deps = create_contract();
-        let config: Configdeps = from_slice(&storage.get(CONFIG_KEY).unwrap());
-        assert_eq!(config.queue_address, queue_address);
+        let config: Config = from_slice(&deps.storage.get(CONFIG_KEY).unwrap()).unwrap();
+        assert_eq!(config.queue_address, QUEUE_ADDRESS);
     }
 
     #[test]
-    fn queue_raw() {
+    fn test_queue_raw() {
         let deps = create_contract();
-        assert_eq!(query_raw(deps, 0), 42);
+        assert_eq!(
+            query_raw(deps.as_ref(), 42).unwrap(),
+            RawResponse {
+                value: "42".to_string()
+            }
+        );
     }
 
     #[test]
-    fn queue_smart() {
+    fn test_queue_smart() {
         let deps = create_contract();
-        assert_eq!(query_sum(deps), (SumResponse { sum: 42 }).as_slice());
+        assert_eq!(
+            query_sum(deps.as_ref(), QueryMsg::Sum {}).unwrap(),
+            SumResponse { sum: 42 }
+        );
     }
 }
