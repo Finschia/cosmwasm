@@ -2,7 +2,6 @@ use crate::memory::{consume_region, Region};
 use crate::serde::from_slice;
 use crate::Env;
 
-
 extern "C" {
     fn global_env() -> u32;
 }
