@@ -2,29 +2,25 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InstantiateMsg {}
+#[serde(rename_all = "snake_case")]
+pub struct InstantiateMsg {
+    // address to query
+    pub queue_address: String
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    DoNothing {},
+    // change address to query
+    ChangeAddress { queue_address: String }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    Raw { address: String, key: u8 },
-    Smart { address: String, msg: QueueQueryMsg },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum QueueQueryMsg {
-    // how many items are in the queue
-    Count {},
-    // total of all values in the queue
+    Raw { key: u8 },
+    Count { },
     Sum {},
-    // Reducer holds open two iterators at once
     Reducer {},
     List {},
 }
