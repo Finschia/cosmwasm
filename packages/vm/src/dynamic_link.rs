@@ -198,8 +198,10 @@ mod tests {
 
     use crate::size::Size;
     use crate::testing::{
-        read_data_from_mock_env, write_data_to_mock_env, MockApi, MockQuerier, MockStorage,
+        mock_env, read_data_from_mock_env, write_data_to_mock_env, MockApi, MockQuerier,
+        MockStorage,
     };
+    use crate::to_vec;
     use crate::wasm_backend::compile;
     use crate::VmError;
 
@@ -248,6 +250,9 @@ mod tests {
         let instance_ptr = NonNull::from(instance.as_ref());
         env.set_wasmer_instance(Some(instance_ptr));
         env.set_gas_left(gas_limit);
+
+        let serialized_env = to_vec(&mock_env()).unwrap();
+        env.set_serialized_env(&serialized_env);
 
         (env, instance)
     }

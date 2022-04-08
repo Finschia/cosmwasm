@@ -50,8 +50,10 @@ extern "C" {
 
 #[callable_point]
 fn reentrancy(addr: Addr) {
-    deps.storage
-        .set(b"dynamic_caller_contract", &to_vec(&GlobalApi::env().contract.address));
+    GlobalApi::with_deps_mut(|deps|{
+        deps.storage
+        .set(b"dynamic_caller_contract", &to_vec(&addr).unwrap());
+    });
     should_never_be_called()
 }
 

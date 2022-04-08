@@ -130,9 +130,6 @@ fn callable_point_pong_env_works() {
     assert_eq!(result.contract.address, Addr::unchecked(MOCK_CONTRACT_ADDR));
 }
 
-
-
-
 #[test]
 fn callable_point_pong_deps_works() {
     let instance = make_callee_instance();
