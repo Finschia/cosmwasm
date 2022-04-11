@@ -9,6 +9,7 @@ mod conversion;
 mod deps;
 mod entry_points;
 mod errors;
+mod global_api;
 mod ibc;
 mod import_helpers;
 #[cfg(feature = "iterator")]
@@ -33,6 +34,7 @@ pub use crate::errors::{
     DivideByZeroError, OverflowError, OverflowOperation, RecoverPubkeyError, StdError, StdResult,
     SystemError, VerificationError,
 };
+pub use crate::global_api::GlobalApi;
 #[cfg(feature = "stargate")]
 pub use crate::ibc::{
     IbcAcknowledgement, IbcBasicResponse, IbcChannel, IbcEndpoint, IbcMsg, IbcOrder, IbcPacket,

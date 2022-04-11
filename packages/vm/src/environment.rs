@@ -260,6 +260,20 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         });
     }
 
+    pub fn get_serialized_env(&self) -> Vec<u8> {
+        self.with_context_data(|context_data| match &context_data.serialized_env {
+            Some(env) => Ok(env.clone()),
+            None => Err(VmError::uninitialized_context_data("serialized_env")),
+        })
+        .expect("serialized_env is not set. This is a bug in the lifecycle.")
+    }
+
+    pub fn set_serialized_env(&self, serialized_env: &[u8]) {
+        self.with_context_data_mut(|context_data| {
+            context_data.serialized_env = Some(serialized_env.to_vec());
+        });
+    }
+
     /// Returns true iff the storage is set to readonly mode
     pub fn is_storage_readonly(&self) -> bool {
         self.with_context_data(|context_data| context_data.storage_readonly)
@@ -367,6 +381,7 @@ pub struct ContextData<S: Storage, Q: Querier> {
     querier: Option<Q>,
     /// A non-owning link to the wasmer instance
     wasmer_instance: Option<NonNull<WasmerInstance>>,
+    serialized_env: Option<Vec<u8>>,
 }
 
 impl<S: Storage, Q: Querier> ContextData<S, Q> {
@@ -377,6 +392,7 @@ impl<S: Storage, Q: Querier> ContextData<S, Q> {
             storage_readonly: true,
             querier: None,
             wasmer_instance: None,
+            serialized_env: None,
         }
     }
 }

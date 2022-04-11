@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    dynamic_link, entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, Uint128,
+    dynamic_link, entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, Uint128,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -23,6 +23,7 @@ impl fmt::Display for ExampleStruct {
 extern "C" {
     fn pong(ping_num: u64) -> u64;
     fn pong_with_struct(example: ExampleStruct) -> ExampleStruct;
+    fn pong_env() -> Env;
 }
 
 // Note, you can use StdResult in some functions where you do not
@@ -63,6 +64,10 @@ pub fn try_ping(_deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractE
     let mut res = Response::default();
     res.add_attribute("returned_pong", pong_ret.to_string());
     res.add_attribute("returned_pong_with_struct", struct_ret.to_string());
+    res.add_attribute(
+        "returned_contract_address",
+        pong_env().contract.address.to_string(),
+    );
     Ok(res)
 }
 
