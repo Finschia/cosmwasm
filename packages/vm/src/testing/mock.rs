@@ -156,7 +156,6 @@ impl BackendApi for MockApi {
         _: &str,
         _: &FunctionMetadata,
         _: &[WasmerVal],
-        _: u64,
     ) -> BackendResult<Box<[WasmerVal]>>
     where
         A: BackendApi + 'static,

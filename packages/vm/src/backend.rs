@@ -136,7 +136,6 @@ pub trait BackendApi: Copy + Clone + Send {
         contract_addr: &str,
         target_info: &FunctionMetadata,
         args: &[WasmerVal],
-        gas: u64,
     ) -> BackendResult<Box<[WasmerVal]>>
     where
         A: BackendApi + 'static,

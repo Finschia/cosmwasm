@@ -87,7 +87,7 @@ where
 
         let (call_result, gas_info) =
             env.api
-                .contract_call(env, contract_addr, &func_info, args, env.get_gas_left());
+                .contract_call(env, contract_addr, &func_info, args);
         process_gas_info::<A, S, Q>(env, gas_info)?;
         match call_result {
             Ok(ret) => Ok(ret.to_vec()),
