@@ -22,24 +22,18 @@ pub struct Contract {
 /// This enables tests instantiate a new instance every time testing call_(instantiate/execute/query/migrate) like actual wasmd's behavior.
 /// This is like Cache but it is for single contract and cannot save data in disk.
 impl Contract {
-    pub fn from_code(
-        wasm: &[u8],
-        options: &MockInstanceOptions,
-    ) -> TestingResult<Self> {
+    pub fn from_code(wasm: &[u8], options: &MockInstanceOptions) -> TestingResult<Self> {
         check_wasm(wasm, &options.supported_features)?;
         let module = compile(wasm, None)?;
         let storage = MockStorage::new();
-        let contract = Self {
-            module,
-            storage,
-        };
+        let contract = Self { module, storage };
         Ok(contract)
     }
 
     /// change the wasm code for testing migrate
     ///
     /// call this before `generate_instance` for testing `call_migrate`.
-    pub fn change_wasm(&mut self, wasm: &[u8], options:&MockInstanceOptions) -> TestingResult<()> {
+    pub fn change_wasm(&mut self, wasm: &[u8], options: &MockInstanceOptions) -> TestingResult<()> {
         check_wasm(wasm, &options.supported_features)?;
         let module = compile(wasm, None)?;
         self.module = module;
@@ -83,10 +77,7 @@ impl Contract {
     }
 
     /// get value from storage
-    pub fn raw_get(
-        &self,
-        key: &[u8],
-    ) -> Option<Vec<u8>> {
+    pub fn raw_get(&self, key: &[u8]) -> Option<Vec<u8>> {
         self.storage.get(key).0.unwrap()
     }
 }
@@ -172,7 +163,9 @@ mod test {
         let _ = contract.update_storage(instance).unwrap();
 
         // change the code and migrate
-        contract.change_wasm(CONTRACT_WITH_MIGRATE, &options).unwrap();
+        contract
+            .change_wasm(CONTRACT_WITH_MIGRATE, &options)
+            .unwrap();
         let api = MockApi::default();
         let querier = MockQuerier::new(&[]);
         let mut instance = contract.generate_instance(api, querier, &options).unwrap();
