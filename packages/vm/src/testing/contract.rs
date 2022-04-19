@@ -3,6 +3,7 @@ use wasmer::Module;
 use crate::backend::{Backend, Storage};
 use crate::compatibility::check_wasm;
 use crate::instance::Instance;
+use crate::size::Size;
 use crate::wasm_backend::compile;
 
 use super::instance::MockInstanceOptions;
@@ -22,9 +23,13 @@ pub struct Contract {
 /// This enables tests instantiate a new instance every time testing call_(instantiate/execute/query/migrate) like actual wasmd's behavior.
 /// This is like Cache but it is for single contract and cannot save data in disk.
 impl Contract {
-    pub fn from_code(wasm: &[u8], options: &MockInstanceOptions) -> TestingResult<Self> {
+    pub fn from_code(
+        wasm: &[u8],
+        options: &MockInstanceOptions,
+        memory_limit: Option<Size>,
+    ) -> TestingResult<Self> {
         check_wasm(wasm, &options.supported_features)?;
-        let module = compile(wasm, None)?;
+        let module = compile(wasm, memory_limit)?;
         let storage = MockStorage::new();
         let contract = Self { module, storage };
         Ok(contract)
@@ -33,9 +38,14 @@ impl Contract {
     /// change the wasm code for testing migrate
     ///
     /// call this before `generate_instance` for testing `call_migrate`.
-    pub fn change_wasm(&mut self, wasm: &[u8], options: &MockInstanceOptions) -> TestingResult<()> {
+    pub fn change_wasm(
+        &mut self,
+        wasm: &[u8],
+        options: &MockInstanceOptions,
+        memory_limit: Option<Size>,
+    ) -> TestingResult<()> {
         check_wasm(wasm, &options.supported_features)?;
-        let module = compile(wasm, None)?;
+        let module = compile(wasm, memory_limit)?;
         self.module = module;
         Ok(())
     }
@@ -100,7 +110,7 @@ mod test {
         let options = MockInstanceOptions::default();
         let api = MockApi::default();
         let querier = MockQuerier::new(&[]);
-        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, &options).unwrap();
+        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, &options, None).unwrap();
 
         // common env/info
         let env = mock_env();
@@ -164,7 +174,7 @@ mod test {
 
         // change the code and migrate
         contract
-            .change_wasm(CONTRACT_WITH_MIGRATE, &options)
+            .change_wasm(CONTRACT_WITH_MIGRATE, &options, None)
             .unwrap();
         let api = MockApi::default();
         let querier = MockQuerier::new(&[]);
