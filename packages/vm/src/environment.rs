@@ -410,7 +410,10 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
     // try_pass_callstack will be called through wasmvm.
     // checking between the previous callers in the virtual_callstack and target.
     // if it failed, it will be returned ReEntrancyErr.
-    pub fn try_pass_callstack<A2, S2, Q2>(&self, target: &mut Environment<A2, S2, Q2>) -> VmResult<()>
+    pub fn try_pass_callstack<A2, S2, Q2>(
+        &self,
+        target: &mut Environment<A2, S2, Q2>,
+    ) -> VmResult<()>
     where
         A2: BackendApi + 'static,
         S2: Storage + 'static,
