@@ -407,8 +407,10 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         })
     }
 
-    //pass_callstack will be called through wasmvm.
-    pub fn pass_callstack<A2, S2, Q2>(&self, target: &mut Environment<A2, S2, Q2>) -> VmResult<()>
+    // try_pass_callstack will be called through wasmvm.
+    // checking between the previous callers in the virtual_callstack and target.
+    // if it failed, it will be returned ReEntrancyErr.
+    pub fn try_pass_callstack<A2, S2, Q2>(&self, target: &mut Environment<A2, S2, Q2>) -> VmResult<()>
     where
         A2: BackendApi + 'static,
         S2: Storage + 'static,
@@ -1005,13 +1007,13 @@ mod tests {
     }
 
     #[test]
-    fn pass_callstack_works() {
+    fn try_pass_callstack_works() {
         let contract1_addr = Addr::unchecked("contract1");
         let contract2_addr = Addr::unchecked("contract2");
         let (env, _instance1) = make_instance(TESTING_GAS_LIMIT, Some(contract1_addr.clone()));
         let (mut env2, _instance2) = make_instance(TESTING_GAS_LIMIT, Some(contract2_addr.clone()));
         assert!(env.try_record_dynamic_call_trace().is_ok());
-        env.pass_callstack(&mut env2).unwrap();
+        env.try_pass_callstack(&mut env2).unwrap();
         assert!(env2.try_record_dynamic_call_trace().is_ok());
 
         env2.with_context_data(|ctx| {
