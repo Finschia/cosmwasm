@@ -193,16 +193,12 @@ mod tests {
     use super::*;
     use cosmwasm_std::{coins, Empty};
     use std::cell::RefCell;
-    use std::ptr::NonNull;
-    use wasmer::{imports, Function, Instance as WasmerInstance};
 
-    use crate::size::Size;
     use crate::testing::{
         mock_env, mock_instance, read_data_from_mock_env, write_data_to_mock_env, MockApi,
         MockQuerier, MockStorage, INSTANCE_CACHE,
     };
     use crate::to_vec;
-    use crate::wasm_backend::compile;
     use crate::VmError;
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
@@ -211,9 +207,6 @@ mod tests {
     const PADDING_DATA: &[u8] = b"deadbeef";
     const PASS_DATA1: &[u8] = b"data";
 
-    const TESTING_GAS_LIMIT: u64 = 500_000;
-    const TESTING_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
-
     const CALLEE_NAME_ADDR: &str = "callee";
     const CALLER_NAME_ADDR: &str = "caller";
 
@@ -221,46 +214,6 @@ mod tests {
     const INIT_ADDR: &str = "someone";
     const INIT_AMOUNT: u128 = 500;
     const INIT_DENOM: &str = "TOKEN";
-
-    fn make_instance(
-        api: MockApi,
-    ) -> (
-        Environment<MockApi, MockStorage, MockQuerier>,
-        Box<WasmerInstance>,
-    ) {
-        let gas_limit = TESTING_GAS_LIMIT;
-        let env = Environment::new(api, gas_limit, false);
-
-        let module = compile(&CONTRACT, TESTING_MEMORY_LIMIT).unwrap();
-        let store = module.store();
-        // we need stubs for all required imports
-        let import_obj = imports! {
-            "env" => {
-                "db_read" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "db_write" => Function::new_native(&store, |_a: u32, _b: u32| {}),
-                "db_remove" => Function::new_native(&store, |_a: u32| {}),
-                "db_scan" => Function::new_native(&store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
-                "db_next" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "query_chain" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_validate" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_canonicalize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "addr_humanize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "secp256k1_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "secp256k1_recover_pubkey" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
-                "ed25519_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "ed25519_batch_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "sha1_calculate" => Function::new_native(&store, |_a: u32| -> u64 { 0 }),
-                "debug" => Function::new_native(&store, |_a: u32| {}),
-            },
-        };
-        let instance = Box::from(WasmerInstance::new(&module, &import_obj).unwrap());
-
-        let instance_ptr = NonNull::from(instance.as_ref());
-        env.set_wasmer_instance(Some(instance_ptr));
-        env.set_gas_left(gas_limit);
-
-        (env, instance)
-    }
 
     fn leave_dynamic_call_data(
         callee_address: Option<String>,
@@ -290,14 +243,13 @@ mod tests {
 
     #[test]
     fn copy_single_region_works() {
-        let api = MockApi::default();
-        let (src_env, _src_instance) = make_instance(api);
-        let (dst_env, _dst_instance) = make_instance(api);
-
-        let data_wasm_ptr = write_data_to_mock_env(&src_env, PASS_DATA1).unwrap();
+        let src_instance = mock_instance(&CONTRACT, &[]);
+        let dst_instance = mock_instance(&CONTRACT, &[]);
+        
+        let data_wasm_ptr = write_data_to_mock_env(&src_instance.env, PASS_DATA1).unwrap();
         let copy_result = copy_region_vals_between_env(
-            &src_env,
-            &dst_env,
+            &src_instance.env,
+            &dst_instance.env,
             &[WasmerVal::I32(data_wasm_ptr as i32)],
             true,
         )
@@ -305,7 +257,7 @@ mod tests {
         assert_eq!(copy_result.len(), 1);
 
         let read_result =
-            read_data_from_mock_env(&dst_env, &copy_result[0], PASS_DATA1.len()).unwrap();
+            read_data_from_mock_env(&dst_instance.env, &copy_result[0], PASS_DATA1.len()).unwrap();
         assert_eq!(PASS_DATA1, read_result);
 
         // Even after deallocate, wasm region data remains.
@@ -319,17 +271,16 @@ mod tests {
 
     #[test]
     fn wrong_use_copied_region_fails() {
-        let api = MockApi::default();
-        let (src_env, _src_instance) = make_instance(api);
-        let (dst_env, _dst_instance) = make_instance(api);
+        let src_instance = mock_instance(&CONTRACT, &[]);
+        let dst_instance = mock_instance(&CONTRACT, &[]);
 
         // If there is no padding data, it is difficult to compare because the same memory index falls apart.
-        write_data_to_mock_env(&src_env, PADDING_DATA).unwrap();
+        write_data_to_mock_env(&src_instance.env, PADDING_DATA).unwrap();
 
-        let data_wasm_ptr = write_data_to_mock_env(&src_env, PASS_DATA1).unwrap();
+        let data_wasm_ptr = write_data_to_mock_env(&src_instance.env, PASS_DATA1).unwrap();
         let copy_result = copy_region_vals_between_env(
-            &src_env,
-            &dst_env,
+            &src_instance.env,
+            &dst_instance.env,
             &[WasmerVal::I32(data_wasm_ptr as i32)],
             true,
         )
@@ -337,7 +288,7 @@ mod tests {
         assert_eq!(copy_result.len(), 1);
 
         let read_from_src_result =
-            read_data_from_mock_env(&src_env, &copy_result[0], PASS_DATA1.len());
+            read_data_from_mock_env(&src_instance.env, &copy_result[0], PASS_DATA1.len());
         assert!(matches!(
             read_from_src_result,
             Err(VmError::CommunicationErr { .. })
