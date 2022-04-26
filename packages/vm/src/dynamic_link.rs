@@ -85,9 +85,7 @@ where
             Err(_) => return Err(RuntimeError::new("Invalid stored callee contract address")),
         };
 
-        let (call_result, gas_info) =
-            env.api
-                .contract_call(env, contract_addr, &func_info, args);
+        let (call_result, gas_info) = env.api.contract_call(env, contract_addr, &func_info, args);
         process_gas_info::<A, S, Q>(env, gas_info)?;
         match call_result {
             Ok(ret) => Ok(ret.to_vec()),
@@ -193,13 +191,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cosmwasm_std::{coins, Empty};
+    use std::cell::RefCell;
     use std::ptr::NonNull;
     use wasmer::{imports, Function, Instance as WasmerInstance};
 
     use crate::size::Size;
     use crate::testing::{
-        mock_env, read_data_from_mock_env, write_data_to_mock_env, MockApi, MockQuerier,
-        MockStorage,
+        mock_env, mock_instance, read_data_from_mock_env, write_data_to_mock_env, MockApi,
+        MockQuerier, MockStorage, INSTANCE_CACHE,
     };
     use crate::to_vec;
     use crate::wasm_backend::compile;
@@ -213,6 +213,14 @@ mod tests {
 
     const TESTING_GAS_LIMIT: u64 = 500_000;
     const TESTING_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
+
+    const CALLEE_NAME_ADDR: &str = "callee";
+    const CALLER_NAME_ADDR: &str = "caller";
+
+    // this account has some coins
+    const INIT_ADDR: &str = "someone";
+    const INIT_AMOUNT: u128 = 500;
+    const INIT_DENOM: &str = "TOKEN";
 
     fn make_instance(
         api: MockApi,
@@ -251,10 +259,33 @@ mod tests {
         env.set_wasmer_instance(Some(instance_ptr));
         env.set_gas_left(gas_limit);
 
-        let serialized_env = to_vec(&mock_env()).unwrap();
-        env.set_serialized_env(&serialized_env);
-
         (env, instance)
+    }
+
+    fn leave_dynamic_call_data(
+        callee_address: Option<String>,
+        func_info: FunctionMetadata,
+        caller_env: &mut Environment<MockApi, MockStorage, MockQuerier>,
+    ) {
+        let target_module_name = func_info.module_name.clone();
+        caller_env.set_callee_function_metadata(Some(func_info));
+
+        let serialized_env = to_vec(&mock_env()).unwrap();
+        caller_env.set_serialized_env(&serialized_env);
+
+        let mut storage = MockStorage::new();
+        match callee_address{
+            Some(addr) => {
+                storage
+                .set(target_module_name.as_bytes(), addr.as_bytes())
+                .0
+                .expect("error setting value");    
+            },
+            _ => {},
+        }
+        let querier: MockQuerier<Empty> =
+            MockQuerier::new(&[(INIT_ADDR, &coins(INIT_AMOUNT, INIT_DENOM))]);
+        caller_env.move_in(storage, querier);
     }
 
     #[test]
@@ -311,5 +342,134 @@ mod tests {
             read_from_src_result,
             Err(VmError::CommunicationErr { .. })
         ));
+    }
+
+    fn init_cache_with_two_instances() {
+        let callee_wasm = wat::parse_str(
+            r#"(module
+                (memory 3)
+                (export "memory" (memory 0))
+                (export "interface_version_5" (func 0))
+                (export "instantiate" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+            
+                (type (func))
+                (func (type 0) nop)
+                (export "foo" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let caller_wasm = wat::parse_str(
+            r#"(module
+                (memory 3)
+                (export "memory" (memory 0))
+                (export "interface_version_5" (func 0))
+                (export "instantiate" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+                (type (func))
+                (func (type 0) nop)
+            )"#,
+        )
+        .unwrap();
+
+        INSTANCE_CACHE.with(|lock| {
+            let mut cache = lock.write().unwrap();
+            cache.insert(
+                CALLEE_NAME_ADDR.to_string(),
+                RefCell::new(mock_instance(&callee_wasm, &[])),
+            );
+            cache.insert(
+                CALLER_NAME_ADDR.to_string(),
+                RefCell::new(mock_instance(&caller_wasm, &[])),
+            );
+        });
+    }
+
+    #[test]
+    fn native_dynamic_link_trampoline_works() {
+        init_cache_with_two_instances();
+
+        INSTANCE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
+            let mut caller_env = &mut caller_instance.borrow_mut().env;
+            let target_func_info = FunctionMetadata {
+                module_name: CALLER_NAME_ADDR.to_string(),
+                name: "foo".to_string(),
+                signature: ([], []).into(),
+            };
+            leave_dynamic_call_data(
+                Some(CALLEE_NAME_ADDR.to_string()),
+                target_func_info,
+                &mut caller_env,
+            );
+
+            let result = native_dynamic_link_trampoline(&caller_env, &[]).unwrap();
+            assert_eq!(result.len(), 0);
+        });
+    }
+
+    #[test]
+    fn native_dynamic_link_trampoline_do_not_specify_callee_address_fail() {
+        init_cache_with_two_instances();
+
+        INSTANCE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
+            let mut caller_env = &mut caller_instance.borrow_mut().env;
+            let target_func_info = FunctionMetadata {
+                module_name: CALLER_NAME_ADDR.to_string(),
+                name: "foo".to_string(),
+                signature: ([], []).into(),
+            };
+            leave_dynamic_call_data(
+                None,
+                target_func_info,
+                &mut caller_env,
+            );
+
+            let result = native_dynamic_link_trampoline(&caller_env, &[]);
+            assert!(matches!(
+                result,
+                Err(RuntimeError { .. })
+            ));
+
+            assert_eq!(result.err().unwrap().message(),
+            "cannot found the callee contract address in the storage"
+            );
+        });
+    }
+
+    #[test]
+    fn native_dynamic_link_trampoline_not_exist_callee_address_fails() {
+        init_cache_with_two_instances();
+
+        INSTANCE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
+            let mut caller_env = &mut caller_instance.borrow_mut().env;
+            let target_func_info = FunctionMetadata {
+                module_name: CALLER_NAME_ADDR.to_string(),
+                name: "foo".to_string(),
+                signature: ([], []).into(),
+            };
+            leave_dynamic_call_data(
+                Some("invalid_address".to_string()),
+                target_func_info,
+                &mut caller_env,
+            );
+
+            let result = native_dynamic_link_trampoline(&caller_env, &[]);
+            assert!(matches!(
+                result,
+                Err(RuntimeError { .. })
+            ));
+
+            assert_eq!(result.err().unwrap().message(),
+            "func_info:{module_name:caller, name:foo, signature:[] -> []}, error:Unknown error during call into backend: Some(\"cannot found contract\")"
+            );
+        });
     }
 }

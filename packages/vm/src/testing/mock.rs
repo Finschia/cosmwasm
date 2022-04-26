@@ -1,10 +1,18 @@
 use cosmwasm_std::testing::{digit_sum, riffle_shuffle};
 use cosmwasm_std::{Addr, BlockInfo, Coin, ContractInfo, Env, MessageInfo, Timestamp};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::sync::RwLock;
+use std::thread_local;
 
 use super::querier::MockQuerier;
 use super::storage::MockStorage;
 use crate::environment::Environment;
-use crate::{Backend, BackendApi, BackendError, BackendResult, GasInfo, Querier, Storage};
+use crate::instance::Instance;
+use crate::{
+    copy_region_vals_between_env, Backend, BackendApi, BackendError, BackendResult, GasInfo,
+    Querier, Storage,
+};
 use crate::{FunctionMetadata, WasmerVal};
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
@@ -31,6 +39,13 @@ pub fn mock_backend_with_balances(
         storage: MockStorage::default(),
         querier: MockQuerier::new(balances),
     }
+}
+
+type MockInstance = Instance<MockApi, MockStorage, MockQuerier>;
+thread_local! {
+    // INSTANCE_CACHE is intended to replace wasmvm's cache layer in the mock.
+    // Unlike wasmvm, you have to initialize it yourself in the place where you test the dynamic call.
+    pub static INSTANCE_CACHE: RwLock<HashMap<String, RefCell<MockInstance>>> = RwLock::new(HashMap::new());
 }
 
 /// Zero-pads all human addresses to make them fit the canonical_length and
@@ -152,17 +167,49 @@ impl BackendApi for MockApi {
     }
     fn contract_call<A, S, Q>(
         &self,
-        _: &Environment<A, S, Q>,
-        _: &str,
-        _: &FunctionMetadata,
-        _: &[WasmerVal],
+        caller_env: &Environment<A, S, Q>,
+        contract_addr: &str,
+        func_info: &FunctionMetadata,
+        args: &[WasmerVal],
     ) -> BackendResult<Box<[WasmerVal]>>
     where
         A: BackendApi + 'static,
         S: Storage + 'static,
         Q: Querier + 'static,
     {
-        panic!("get_contract_call for the mock will be filled later")
+        let mut gas_info = GasInfo::new(0, 0);
+        INSTANCE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            match cache.get(contract_addr) {
+                Some(callee_instance_cell) => {
+                    let callee_instance = callee_instance_cell.borrow_mut();
+
+                    let arg_region_ptrs =
+                        copy_region_vals_between_env(caller_env, &callee_instance.env, args, false)
+                            .unwrap();
+                    let call_ret = match callee_instance.call_function_strict(
+                        &func_info.signature,
+                        &func_info.name,
+                        &arg_region_ptrs,
+                    ) {
+                        Ok(rets) => Ok(copy_region_vals_between_env(
+                            &callee_instance.env,
+                            caller_env,
+                            &rets,
+                            true,
+                        )
+                        .unwrap()),
+                        Err(e) => Err(BackendError::unknown(e.to_string())),
+                    };
+                    gas_info.cost += callee_instance.create_gas_report().used_internally;
+                    (call_ret, gas_info)
+                }
+                None => (
+                    Err(BackendError::unknown("cannot found contract")),
+                    gas_info,
+                ),
+            }
+        })
     }
 }
 
