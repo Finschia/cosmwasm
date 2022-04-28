@@ -227,14 +227,14 @@ mod tests {
         caller_env.set_serialized_env(&serialized_env);
 
         let mut storage = MockStorage::new();
-        match callee_address{
+        match callee_address {
             Some(addr) => {
                 storage
-                .set(target_module_name.as_bytes(), addr.as_bytes())
-                .0
-                .expect("error setting value");    
-            },
-            _ => {},
+                    .set(target_module_name.as_bytes(), addr.as_bytes())
+                    .0
+                    .expect("error setting value");
+            }
+            _ => {}
         }
         let querier: MockQuerier<Empty> =
             MockQuerier::new(&[(INIT_ADDR, &coins(INIT_AMOUNT, INIT_DENOM))]);
@@ -245,7 +245,7 @@ mod tests {
     fn copy_single_region_works() {
         let src_instance = mock_instance(&CONTRACT, &[]);
         let dst_instance = mock_instance(&CONTRACT, &[]);
-        
+
         let data_wasm_ptr = write_data_to_mock_env(&src_instance.env, PASS_DATA1).unwrap();
         let copy_result = copy_region_vals_between_env(
             &src_instance.env,
@@ -375,20 +375,14 @@ mod tests {
                 name: "foo".to_string(),
                 signature: ([], []).into(),
             };
-            leave_dynamic_call_data(
-                None,
-                target_func_info,
-                &mut caller_env,
-            );
+            leave_dynamic_call_data(None, target_func_info, &mut caller_env);
 
             let result = native_dynamic_link_trampoline(&caller_env, &[]);
-            assert!(matches!(
-                result,
-                Err(RuntimeError { .. })
-            ));
+            assert!(matches!(result, Err(RuntimeError { .. })));
 
-            assert_eq!(result.err().unwrap().message(),
-            "cannot found the callee contract address in the storage"
+            assert_eq!(
+                result.err().unwrap().message(),
+                "cannot found the callee contract address in the storage"
             );
         });
     }
