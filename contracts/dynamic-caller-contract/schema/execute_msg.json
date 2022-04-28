@@ -21,6 +21,18 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "try_re_entrancy"
+      ],
+      "properties": {
+        "try_re_entrancy": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {

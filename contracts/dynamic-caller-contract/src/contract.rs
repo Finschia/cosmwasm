@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    dynamic_link, entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128,
+    dynamic_link, callable_point, entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, Uint128, Addr,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -24,6 +24,7 @@ extern "C" {
     fn pong(ping_num: u64) -> u64;
     fn pong_with_struct(example: ExampleStruct) -> ExampleStruct;
     fn pong_env() -> Env;
+    fn reentrancy(addr: Addr);
 }
 
 // Note, you can use StdResult in some functions where you do not
@@ -45,12 +46,13 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Ping { ping_num } => try_ping(deps, ping_num),
+        ExecuteMsg::TryReEntrancy {} => try_re_entrancy(env),
     }
 }
 
@@ -69,6 +71,17 @@ pub fn try_ping(_deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractE
         pong_env().contract.address.to_string(),
     );
     Ok(res)
+}
+
+pub fn try_re_entrancy(env: Env) -> Result<Response, ContractError> {
+    // It will be tried to call the should_never_be_called function below.
+    // But, should be blocked by VM host side normally because it's reentrancy case. 
+    reentrancy(env.contract.address);
+    Ok(Response::default())
+}
+
+#[callable_point]
+fn should_never_be_called() {
 }
 
 #[entry_point]

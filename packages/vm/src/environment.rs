@@ -3,12 +3,16 @@ use std::borrow::{Borrow, BorrowMut};
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
+use cosmwasm_std::{Addr, Env};
 use wasmer::{HostEnvInitError, Instance as WasmerInstance, Memory, Val, WasmerEnv};
 use wasmer_middlewares::metering::{get_remaining_points, set_remaining_points, MeteringPoints};
 
 use crate::backend::{BackendApi, GasInfo, Querier, Storage};
 use crate::dynamic_link::FunctionMetadata;
 use crate::errors::{VmError, VmResult};
+use crate::serde::from_slice;
+
+pub const DYNAMIC_CALL_DEPTH_LIMIT_CNT: usize = 5;
 
 /// Never can never be instantiated.
 /// Replace this with the [never primitive type](https://doc.rust-lang.org/std/primitive.never.html) when stable.
@@ -372,6 +376,71 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             None => Err(VmError::uninitialized_context_data("callee_func_metadata")),
         }
     }
+
+    pub fn try_record_dynamic_call_trace(&self) -> VmResult<()> {
+        self.with_context_data_mut(|ctx| {
+            if ctx.dynamic_callstack.len() >= DYNAMIC_CALL_DEPTH_LIMIT_CNT {
+                return Err(VmError::dynamic_call_depth_over_limitation_err());
+            }
+
+            let contract_env: Env = match &ctx.serialized_env {
+                Some(env) => from_slice(&env),
+                None => Err(VmError::uninitialized_context_data("serialized_env")),
+            }?;
+            match ctx
+                .dynamic_callstack
+                .iter()
+                .find(|x| **x == contract_env.contract.address)
+            {
+                Some(_) => Err(VmError::re_entrancy_err()),
+                None => {
+                    ctx.dynamic_callstack.push(contract_env.contract.address);
+                    Ok(())
+                }
+            }
+        })
+    }
+
+    pub fn remove_latest_dynamic_call_trace(&self) {
+        self.with_context_data_mut(|ctx| {
+            ctx.dynamic_callstack.pop();
+        })
+    }
+
+    // try_pass_callstack will be called through wasmvm.
+    // checking between the previous callers in the virtual_callstack and target.
+    // if it failed, it will be returned ReEntrancyErr.
+    pub fn try_pass_callstack<A2, S2, Q2>(
+        &self,
+        target: &mut Environment<A2, S2, Q2>,
+    ) -> VmResult<()>
+    where
+        A2: BackendApi + 'static,
+        S2: Storage + 'static,
+        Q2: Querier + 'static,
+    {
+        //TODO::need check the race condition when calling the contract oneself(recursive).
+        self.with_context_data_mut(|self_ctx| {
+            target.with_context_data_mut(|target_ctx| {
+                let target_contract_env: Env = match &target_ctx.serialized_env {
+                    Some(env) => from_slice(&env),
+                    None => Err(VmError::uninitialized_context_data("serialized_env")),
+                }?;
+
+                match self_ctx
+                    .dynamic_callstack
+                    .iter()
+                    .find(|x| **x == target_contract_env.contract.address)
+                {
+                    Some(_) => Err(VmError::re_entrancy_err()),
+                    None => {
+                        target_ctx.dynamic_callstack = self_ctx.dynamic_callstack.clone();
+                        Ok(())
+                    }
+                }
+            })
+        })
+    }
 }
 
 pub struct ContextData<S: Storage, Q: Querier> {
@@ -382,6 +451,7 @@ pub struct ContextData<S: Storage, Q: Querier> {
     /// A non-owning link to the wasmer instance
     wasmer_instance: Option<NonNull<WasmerInstance>>,
     serialized_env: Option<Vec<u8>>,
+    dynamic_callstack: Vec<Addr>,
 }
 
 impl<S: Storage, Q: Querier> ContextData<S, Q> {
@@ -393,6 +463,7 @@ impl<S: Storage, Q: Querier> ContextData<S, Q> {
             querier: None,
             wasmer_instance: None,
             serialized_env: None,
+            dynamic_callstack: Vec::new(),
         }
     }
 }
@@ -429,8 +500,9 @@ mod tests {
     use crate::conversion::ref_to_u32;
     use crate::errors::VmError;
     use crate::size::Size;
-    use crate::testing::{MockApi, MockQuerier, MockStorage};
+    use crate::testing::{mock_env, MockApi, MockQuerier, MockStorage};
     use crate::wasm_backend::compile;
+
     use cosmwasm_std::{
         coins, from_binary, to_vec, AllBalanceResponse, BankQuery, Empty, QueryRequest,
     };
@@ -452,6 +524,7 @@ mod tests {
 
     fn make_instance(
         gas_limit: u64,
+        contract_addr: Option<Addr>,
     ) -> (
         Environment<MockApi, MockStorage, MockQuerier>,
         Box<WasmerInstance>,
@@ -486,6 +559,14 @@ mod tests {
         env.set_wasmer_instance(Some(instance_ptr));
         env.set_gas_left(gas_limit);
 
+        let mut contract_env = mock_env();
+        match contract_addr {
+            Some(addr) => contract_env.contract.address = addr,
+            _ => {}
+        }
+        let serialized_env = to_vec(&contract_env).unwrap();
+        env.set_serialized_env(&serialized_env);
+
         (env, instance)
     }
 
@@ -503,7 +584,7 @@ mod tests {
 
     #[test]
     fn move_out_works() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
 
         // empty data on start
         let (inits, initq) = env.move_out();
@@ -528,7 +609,7 @@ mod tests {
 
     #[test]
     fn process_gas_info_works_for_cost() {
-        let (env, _instance) = make_instance(100);
+        let (env, _instance) = make_instance(100, None);
         assert_eq!(env.get_gas_left(), 100);
 
         // Consume all the Gas that we allocated
@@ -550,7 +631,7 @@ mod tests {
 
     #[test]
     fn process_gas_info_works_for_externally_used() {
-        let (env, _instance) = make_instance(100);
+        let (env, _instance) = make_instance(100, None);
         assert_eq!(env.get_gas_left(), 100);
 
         // Consume all the Gas that we allocated
@@ -572,7 +653,7 @@ mod tests {
 
     #[test]
     fn process_gas_info_works_for_cost_and_externally_used() {
-        let (env, _instance) = make_instance(100);
+        let (env, _instance) = make_instance(100, None);
         assert_eq!(env.get_gas_left(), 100);
         let gas_state = env.with_gas_state(|gas_state| gas_state.clone());
         assert_eq!(gas_state.gas_limit, 100);
@@ -621,7 +702,7 @@ mod tests {
     fn process_gas_info_zeros_gas_left_when_exceeded() {
         // with_externally_used
         {
-            let (env, _instance) = make_instance(100);
+            let (env, _instance) = make_instance(100, None);
             let result = process_gas_info(&env, GasInfo::with_externally_used(120));
             match result.unwrap_err() {
                 VmError::GasDepletion { .. } => {}
@@ -635,7 +716,7 @@ mod tests {
 
         // with_cost
         {
-            let (env, _instance) = make_instance(100);
+            let (env, _instance) = make_instance(100, None);
             let result = process_gas_info(&env, GasInfo::with_cost(120));
             match result.unwrap_err() {
                 VmError::GasDepletion { .. } => {}
@@ -650,7 +731,7 @@ mod tests {
 
     #[test]
     fn process_gas_info_works_correctly_with_gas_consumption_in_wasmer() {
-        let (env, _instance) = make_instance(100);
+        let (env, _instance) = make_instance(100, None);
         assert_eq!(env.get_gas_left(), 100);
 
         // Some gas was consumed externally
@@ -677,7 +758,7 @@ mod tests {
 
     #[test]
     fn is_storage_readonly_defaults_to_true() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         assert_eq!(env.is_storage_readonly(), true);
@@ -685,7 +766,7 @@ mod tests {
 
     #[test]
     fn set_storage_readonly_can_change_flag() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         // change
@@ -703,7 +784,7 @@ mod tests {
 
     #[test]
     fn call_function_works() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let result = env.call_function("allocate", &[10u32.into()]).unwrap();
@@ -713,7 +794,7 @@ mod tests {
 
     #[test]
     fn call_function_fails_for_missing_instance() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         // Clear context's wasmer_instance
@@ -728,7 +809,7 @@ mod tests {
 
     #[test]
     fn call_function_fails_for_missing_function() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let res = env.call_function("doesnt_exist", &[]);
@@ -742,7 +823,7 @@ mod tests {
 
     #[test]
     fn call_function0_works() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         env.call_function0("interface_version_5", &[]).unwrap();
@@ -750,7 +831,7 @@ mod tests {
 
     #[test]
     fn call_function0_errors_for_wrong_result_count() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let result = env.call_function0("allocate", &[10u32.into()]);
@@ -770,7 +851,7 @@ mod tests {
 
     #[test]
     fn call_function1_works() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let result = env.call_function1("allocate", &[10u32.into()]).unwrap();
@@ -780,7 +861,7 @@ mod tests {
 
     #[test]
     fn call_function1_errors_for_wrong_result_count() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let result = env.call_function1("allocate", &[10u32.into()]).unwrap();
@@ -804,7 +885,7 @@ mod tests {
 
     #[test]
     fn with_storage_from_context_set_get() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let val = env
@@ -837,7 +918,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "A panic occurred in the callback.")]
     fn with_storage_from_context_handles_panics() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         env.with_storage_from_context::<_, ()>(|_store| {
@@ -848,7 +929,7 @@ mod tests {
 
     #[test]
     fn with_querier_from_context_works() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let res = env
@@ -871,12 +952,77 @@ mod tests {
     #[test]
     #[should_panic(expected = "A panic occurred in the callback.")]
     fn with_querier_from_context_handles_panics() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         env.with_querier_from_context::<_, ()>(|_querier| {
             panic!("A panic occurred in the callback.")
         })
         .unwrap();
+    }
+
+    #[test]
+    fn record_dynamic_call_trace_works() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+        assert!(env.try_record_dynamic_call_trace().is_ok());
+        env.with_context_data(|ctx| {
+            let contract_env: Env = match &ctx.serialized_env {
+                Some(env) => from_slice(&env),
+                None => Err(VmError::uninitialized_context_data("serialized_env")),
+            }
+            .unwrap();
+
+            assert_eq!(ctx.dynamic_callstack.len(), 1);
+            assert_eq!(ctx.dynamic_callstack[0], contract_env.contract.address);
+        });
+
+        env.remove_latest_dynamic_call_trace();
+        env.with_context_data(|ctx| {
+            assert!(ctx.dynamic_callstack.is_empty());
+        })
+    }
+
+    #[test]
+    fn try_record_re_entrancy_failure() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+        assert!(env.try_record_dynamic_call_trace().is_ok());
+        assert!(matches!(
+            env.try_record_dynamic_call_trace(),
+            Err(VmError::ReEntrancyErr { .. })
+        ));
+    }
+
+    #[test]
+    fn dynamic_call_depth_limitation_over_failure() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+
+        env.with_context_data_mut(|ctx| {
+            //insert dummy into stack
+            ctx.dynamic_callstack = (0..DYNAMIC_CALL_DEPTH_LIMIT_CNT)
+                .map(|x| Addr::unchecked(x.to_string()))
+                .collect();
+        });
+
+        assert!(matches!(
+            env.try_record_dynamic_call_trace(),
+            Err(VmError::DynamicCallDepthOverLimitationErr { .. })
+        ));
+    }
+
+    #[test]
+    fn try_pass_callstack_works() {
+        let contract1_addr = Addr::unchecked("contract1");
+        let contract2_addr = Addr::unchecked("contract2");
+        let (env, _instance1) = make_instance(TESTING_GAS_LIMIT, Some(contract1_addr.clone()));
+        let (mut env2, _instance2) = make_instance(TESTING_GAS_LIMIT, Some(contract2_addr.clone()));
+        assert!(env.try_record_dynamic_call_trace().is_ok());
+        env.try_pass_callstack(&mut env2).unwrap();
+        assert!(env2.try_record_dynamic_call_trace().is_ok());
+
+        env2.with_context_data(|ctx| {
+            assert_eq!(ctx.dynamic_callstack.len(), 2);
+            assert_eq!(ctx.dynamic_callstack[0], contract1_addr);
+            assert_eq!(ctx.dynamic_callstack[1], contract2_addr);
+        })
     }
 }

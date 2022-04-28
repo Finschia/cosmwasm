@@ -37,6 +37,22 @@ impl fmt::Display for FunctionMetadata {
         )
     }
 }
+fn with_trace_dynamic_call<A, S, Q, C, R>(
+    env: &Environment<A, S, Q>,
+    callback: C,
+) -> Result<R, RuntimeError>
+where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+    C: FnOnce() -> Result<R, RuntimeError>,
+{
+    env.try_record_dynamic_call_trace()
+        .map_err(|e| RuntimeError::new(e.to_string()))?;
+    let res = callback();
+    env.remove_latest_dynamic_call_trace();
+    res
+}
 
 fn native_dynamic_link_trampoline<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
@@ -47,38 +63,40 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
-    let func_info = env
-        .with_callee_function_metadata(|func_info| Ok(func_info.clone()))
-        .unwrap();
+    with_trace_dynamic_call(env, || {
+        let func_info = env
+            .with_callee_function_metadata(|func_info| Ok(func_info.clone()))
+            .unwrap();
 
-    let (store_result, gas_info) = env.with_storage_from_context::<_, _>(|store| {
-        Ok(store.get(func_info.module_name.as_bytes()))
-    })?;
-    process_gas_info::<A, S, Q>(env, gas_info)?;
-    let raw_contract_addr = match store_result.unwrap() {
-        Some(raw_contract_addr) => raw_contract_addr,
-        None => {
-            return Err(RuntimeError::new(
-                "cannot found the callee contract address in the storage",
-            ))
+        let (store_result, gas_info) = env.with_storage_from_context::<_, _>(|store| {
+            Ok(store.get(func_info.module_name.as_bytes()))
+        })?;
+        process_gas_info::<A, S, Q>(env, gas_info)?;
+        let raw_contract_addr = match store_result.unwrap() {
+            Some(raw_contract_addr) => raw_contract_addr,
+            None => {
+                return Err(RuntimeError::new(
+                    "cannot found the callee contract address in the storage",
+                ))
+            }
+        };
+        let contract_addr = match str::from_utf8(&raw_contract_addr) {
+            Ok(contract_addr) => contract_addr.trim_matches('"'),
+            Err(_) => return Err(RuntimeError::new("Invalid stored callee contract address")),
+        };
+
+        let (call_result, gas_info) =
+            env.api
+                .contract_call(env, contract_addr, &func_info, args, env.get_gas_left());
+        process_gas_info::<A, S, Q>(env, gas_info)?;
+        match call_result {
+            Ok(ret) => Ok(ret.to_vec()),
+            Err(e) => Err(RuntimeError::new(format!(
+                "func_info:{{{}}}, error:{}",
+                func_info, e
+            ))),
         }
-    };
-    let contract_addr = match str::from_utf8(&raw_contract_addr) {
-        Ok(contract_addr) => contract_addr.trim_matches('"'),
-        Err(_) => return Err(RuntimeError::new("Invalid stored callee contract address")),
-    };
-
-    let (call_result, gas_info) =
-        env.api
-            .contract_call(env, contract_addr, &func_info, args, env.get_gas_left());
-    process_gas_info::<A, S, Q>(env, gas_info)?;
-    match call_result {
-        Ok(ret) => Ok(ret.to_vec()),
-        Err(e) => Err(RuntimeError::new(format!(
-            "func_info:{{{}}}, error:{}",
-            func_info, e
-        ))),
-    }
+    })
 }
 
 pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
@@ -180,8 +198,10 @@ mod tests {
 
     use crate::size::Size;
     use crate::testing::{
-        read_data_from_mock_env, write_data_to_mock_env, MockApi, MockQuerier, MockStorage,
+        mock_env, read_data_from_mock_env, write_data_to_mock_env, MockApi, MockQuerier,
+        MockStorage,
     };
+    use crate::to_vec;
     use crate::wasm_backend::compile;
     use crate::VmError;
 
@@ -230,6 +250,9 @@ mod tests {
         let instance_ptr = NonNull::from(instance.as_ref());
         env.set_wasmer_instance(Some(instance_ptr));
         env.set_gas_left(gas_limit);
+
+        let serialized_env = to_vec(&mock_env()).unwrap();
+        env.set_serialized_env(&serialized_env);
 
         (env, instance)
     }
