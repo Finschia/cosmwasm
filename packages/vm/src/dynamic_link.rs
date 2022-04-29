@@ -215,7 +215,7 @@ mod tests {
     const INIT_AMOUNT: u128 = 500;
     const INIT_DENOM: &str = "TOKEN";
 
-    fn leave_dynamic_call_data(
+    fn prepare_dynamic_call_data(
         callee_address: Option<String>,
         func_info: FunctionMetadata,
         caller_env: &mut Environment<MockApi, MockStorage, MockQuerier>,
@@ -351,7 +351,7 @@ mod tests {
                 name: "foo".to_string(),
                 signature: ([], []).into(),
             };
-            leave_dynamic_call_data(
+            prepare_dynamic_call_data(
                 Some(CALLEE_NAME_ADDR.to_string()),
                 target_func_info,
                 &mut caller_env,
@@ -375,7 +375,7 @@ mod tests {
                 name: "foo".to_string(),
                 signature: ([], []).into(),
             };
-            leave_dynamic_call_data(None, target_func_info, &mut caller_env);
+            prepare_dynamic_call_data(None, target_func_info, &mut caller_env);
 
             let result = native_dynamic_link_trampoline(&caller_env, &[]);
             assert!(matches!(result, Err(RuntimeError { .. })));
@@ -400,7 +400,7 @@ mod tests {
                 name: "foo".to_string(),
                 signature: ([], []).into(),
             };
-            leave_dynamic_call_data(
+            prepare_dynamic_call_data(
                 Some("invalid_address".to_string()),
                 target_func_info,
                 &mut caller_env,
