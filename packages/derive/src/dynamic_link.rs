@@ -177,7 +177,7 @@ mod tests {
         {
             let function_foo_ret0: ItemFn = parse_quote! {
                 fn foo() {
-                    
+
                 }
             };
 
@@ -188,12 +188,13 @@ mod tests {
                 &function_foo_ret0.sig.ident.to_string(),
                 0,
                 &function_foo_ret0.sig.output,
-            ).to_string();
+            )
+            .to_string();
             assert_eq!(result_code.matches(PART_CALL_TO_STUB_ARG0).count(), 1);
             assert_eq!(result_code.matches(PART_CALL_TO_CONSUME_REGION).count(), 0);
             assert_eq!(result_code.matches(PART_CALL_TO_FROM_SLICE).count(), 0);
             assert_eq!(result_code.matches(PART_RETURN_TUPLE_BEGIN).count(), 0);
-            assert_eq!(result_code.matches(PART_RETURN_TUPLE_END).count(), 0);   
+            assert_eq!(result_code.matches(PART_RETURN_TUPLE_END).count(), 0);
         }
         {
             let function_foo_ret1: ItemFn = parse_quote! {
@@ -211,12 +212,13 @@ mod tests {
                 &function_foo_ret1.sig.ident.to_string(),
                 0,
                 &function_foo_ret1.sig.output,
-            ).to_string();
+            )
+            .to_string();
             assert_eq!(result_code.matches(PART_CALL_TO_STUB_ARG0).count(), 1);
             assert_eq!(result_code.matches(PART_CALL_TO_CONSUME_REGION).count(), 1);
             assert_eq!(result_code.matches(PART_CALL_TO_FROM_SLICE).count(), 1);
             assert_eq!(result_code.matches(PART_RETURN_TUPLE_BEGIN).count(), 0);
-            assert_eq!(result_code.matches(PART_RETURN_TUPLE_END).count(), 0);   
+            assert_eq!(result_code.matches(PART_RETURN_TUPLE_END).count(), 0);
         }
         {
             let function_foo_ret2: ItemFn = parse_quote! {
@@ -241,10 +243,9 @@ mod tests {
             assert_eq!(result_code.matches(PART_CALL_TO_CONSUME_REGION).count(), 2);
             assert_eq!(result_code.matches(PART_CALL_TO_FROM_SLICE).count(), 2);
             assert_eq!(result_code.matches(PART_RETURN_TUPLE_BEGIN).count(), 1);
-            assert_eq!(result_code.matches(PART_RETURN_TUPLE_END).count(), 1);   
+            assert_eq!(result_code.matches(PART_RETURN_TUPLE_END).count(), 1);
         }
     }
-
 
     const PART_CALL_TO_VEC: &str = "cosmwasm_std :: to_vec (";
     const PART_CALL_TO_RELEASE_BUFFER: &str = "cosmwasm_std :: memory :: release_buffer (";
@@ -259,17 +260,19 @@ mod tests {
         };
 
         let foreign_function_decls: Vec<&syn::ForeignItemFn> = test_extern
-        .items
-        .iter()
-        .map(|foregin_item| match foregin_item {
-            syn::ForeignItem::Fn(item_fn) => item_fn,
-            _ => {panic!()},
-        })
-        .collect();
+            .items
+            .iter()
+            .map(|foregin_item| match foregin_item {
+                syn::ForeignItem::Fn(item_fn) => item_fn,
+                _ => {
+                    panic!()
+                }
+            })
+            .collect();
 
         /* generated :
         fn foo () -> u64 {
-             unsafe { 
+             unsafe {
                  let result = stub_foo () ;
                  let vec_result = cosmwasm_std :: memory :: consume_region (result as * mut cosmwasm_std :: memory :: Region) ;
                  cosmwasm_std :: from_slice (& vec_result) . unwrap ()
@@ -287,25 +290,30 @@ mod tests {
         /* generated :
         fn foo (arg0 : u64 , arg1 : String) -> u64 {
              let vec_arg0 = cosmwasm_std :: to_vec (& arg0) . unwrap () ;
-             let vec_arg1 = cosmwasm_std :: to_vec (& arg1) . unwrap () ; 
+             let vec_arg1 = cosmwasm_std :: to_vec (& arg1) . unwrap () ;
              let region_arg0 = cosmwasm_std :: memory :: release_buffer (vec_arg0) as u32 ;
              let region_arg1 = cosmwasm_std :: memory :: release_buffer (vec_arg1) as u32 ;
-             unsafe { 
+             unsafe {
                  let result = stub_foo (region_arg0 , region_arg1) ;
                  let vec_result = cosmwasm_std :: memory :: consume_region (result as * mut cosmwasm_std :: memory :: Region) ;
                  cosmwasm_std :: from_slice (& vec_result) . unwrap ()
              }
         }
         */
-        const PART_FUNC_DECL_WITH_RENAMED_ARGS: &str = "fn foo (arg0 : u64 , arg1 : String) -> u64 {";
+        const PART_FUNC_DECL_WITH_RENAMED_ARGS: &str =
+            "fn foo (arg0 : u64 , arg1 : String) -> u64 {";
 
         let result_code = generate_serialization_func(foreign_function_decls[1]).to_string();
-        assert_eq!(result_code.matches(PART_FUNC_DECL_WITH_RENAMED_ARGS).count(), 1);
+        assert_eq!(
+            result_code
+                .matches(PART_FUNC_DECL_WITH_RENAMED_ARGS)
+                .count(),
+            1
+        );
         assert_eq!(result_code.matches(PART_CALL_TO_VEC).count(), 2);
         assert_eq!(result_code.matches(PART_CALL_TO_RELEASE_BUFFER).count(), 2);
         assert_eq!(result_code.matches(PART_UNSAFE_BEGIN).count(), 1);
     }
-
 
     const PART_DECL_WASM_IMPORT_MODULE: &str = "# [link (wasm_import_module = \"test_contract\")]";
     const PART_DECL_EXTERN_BLOCK_ABI_C: &str = "extern \"C\" {";
@@ -321,25 +329,34 @@ mod tests {
         };
 
         let foreign_function_decls: Vec<&syn::ForeignItemFn> = test_extern
-        .items
-        .iter()
-        .map(|foregin_item| match foregin_item {
-            syn::ForeignItem::Fn(item_fn) => item_fn,
-            _ => {panic!()},
-        })
-        .collect();
+            .items
+            .iter()
+            .map(|foregin_item| match foregin_item {
+                syn::ForeignItem::Fn(item_fn) => item_fn,
+                _ => {
+                    panic!()
+                }
+            })
+            .collect();
 
         /* generated :
-        # [link (wasm_import_module = "test_contract")] 
+        # [link (wasm_import_module = "test_contract")]
         extern "C" {
             fn stub_foo (ptr0 : u32 , ptr1 : u32) -> u32 ;
             fn stub_bar () ;
         }
         */
-        let result_code = generate_extern_block("test_contract".to_string(), &foreign_function_decls).to_string();
+        let result_code =
+            generate_extern_block("test_contract".to_string(), &foreign_function_decls).to_string();
         assert_eq!(result_code.matches(PART_DECL_WASM_IMPORT_MODULE).count(), 1);
         assert_eq!(result_code.matches(PART_DECL_EXTERN_BLOCK_ABI_C).count(), 1);
-        assert_eq!(result_code.matches(PART_DECL_STUB_FUNC_ARG2_RET1).count(), 1);
-        assert_eq!(result_code.matches(PART_DECL_STUB_FUNC_ARG0_RET0).count(), 1);
+        assert_eq!(
+            result_code.matches(PART_DECL_STUB_FUNC_ARG2_RET1).count(),
+            1
+        );
+        assert_eq!(
+            result_code.matches(PART_DECL_STUB_FUNC_ARG0_RET0).count(),
+            1
+        );
     }
 }

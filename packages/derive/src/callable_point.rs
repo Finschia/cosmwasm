@@ -123,7 +123,7 @@ mod tests {
             .to_string();
             assert_eq!(result_code.matches(PART_CALL_TO_ORIGIN_ARG0).count(), 1);
             assert_eq!(result_code.matches(PART_CALL_TO_VEC).count(), 2);
-            assert_eq!(result_code.matches(PART_CALL_TO_RELEASE_BUFFER).count(), 2);   
+            assert_eq!(result_code.matches(PART_CALL_TO_RELEASE_BUFFER).count(), 2);
         }
     }
 }
