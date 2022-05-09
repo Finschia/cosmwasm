@@ -85,9 +85,7 @@ where
             Err(_) => return Err(RuntimeError::new("Invalid stored callee contract address")),
         };
 
-        let (call_result, gas_info) =
-            env.api
-                .contract_call(env, contract_addr, &func_info, args, env.get_gas_left());
+        let (call_result, gas_info) = env.api.contract_call(env, contract_addr, &func_info, args);
         process_gas_info::<A, S, Q>(env, gas_info)?;
         match call_result {
             Ok(ret) => Ok(ret.to_vec()),
@@ -193,16 +191,14 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ptr::NonNull;
-    use wasmer::{imports, Function, Instance as WasmerInstance};
+    use cosmwasm_std::{coins, Empty};
+    use std::cell::RefCell;
 
-    use crate::size::Size;
     use crate::testing::{
-        mock_env, read_data_from_mock_env, write_data_to_mock_env, MockApi, MockQuerier,
-        MockStorage,
+        mock_env, mock_instance, read_data_from_mock_env, write_data_to_mock_env, MockApi,
+        MockQuerier, MockStorage, INSTANCE_CACHE,
     };
     use crate::to_vec;
-    use crate::wasm_backend::compile;
     use crate::VmError;
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
@@ -211,62 +207,49 @@ mod tests {
     const PADDING_DATA: &[u8] = b"deadbeef";
     const PASS_DATA1: &[u8] = b"data";
 
-    const TESTING_GAS_LIMIT: u64 = 500_000;
-    const TESTING_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
+    const CALLEE_NAME_ADDR: &str = "callee";
+    const CALLER_NAME_ADDR: &str = "caller";
 
-    fn make_instance(
-        api: MockApi,
-    ) -> (
-        Environment<MockApi, MockStorage, MockQuerier>,
-        Box<WasmerInstance>,
+    // this account has some coins
+    const INIT_ADDR: &str = "someone";
+    const INIT_AMOUNT: u128 = 500;
+    const INIT_DENOM: &str = "TOKEN";
+
+    fn prepare_dynamic_call_data(
+        callee_address: Option<String>,
+        func_info: FunctionMetadata,
+        caller_env: &mut Environment<MockApi, MockStorage, MockQuerier>,
     ) {
-        let gas_limit = TESTING_GAS_LIMIT;
-        let env = Environment::new(api, gas_limit, false);
-
-        let module = compile(&CONTRACT, TESTING_MEMORY_LIMIT).unwrap();
-        let store = module.store();
-        // we need stubs for all required imports
-        let import_obj = imports! {
-            "env" => {
-                "db_read" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "db_write" => Function::new_native(&store, |_a: u32, _b: u32| {}),
-                "db_remove" => Function::new_native(&store, |_a: u32| {}),
-                "db_scan" => Function::new_native(&store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
-                "db_next" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "query_chain" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_validate" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_canonicalize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "addr_humanize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "secp256k1_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "secp256k1_recover_pubkey" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
-                "ed25519_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "ed25519_batch_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "sha1_calculate" => Function::new_native(&store, |_a: u32| -> u64 { 0 }),
-                "debug" => Function::new_native(&store, |_a: u32| {}),
-            },
-        };
-        let instance = Box::from(WasmerInstance::new(&module, &import_obj).unwrap());
-
-        let instance_ptr = NonNull::from(instance.as_ref());
-        env.set_wasmer_instance(Some(instance_ptr));
-        env.set_gas_left(gas_limit);
+        let target_module_name = func_info.module_name.clone();
+        caller_env.set_callee_function_metadata(Some(func_info));
 
         let serialized_env = to_vec(&mock_env()).unwrap();
-        env.set_serialized_env(&serialized_env);
+        caller_env.set_serialized_env(&serialized_env);
 
-        (env, instance)
+        let mut storage = MockStorage::new();
+        match callee_address {
+            Some(addr) => {
+                storage
+                    .set(target_module_name.as_bytes(), addr.as_bytes())
+                    .0
+                    .expect("error setting value");
+            }
+            _ => {}
+        }
+        let querier: MockQuerier<Empty> =
+            MockQuerier::new(&[(INIT_ADDR, &coins(INIT_AMOUNT, INIT_DENOM))]);
+        caller_env.move_in(storage, querier);
     }
 
     #[test]
     fn copy_single_region_works() {
-        let api = MockApi::default();
-        let (src_env, _src_instance) = make_instance(api);
-        let (dst_env, _dst_instance) = make_instance(api);
+        let src_instance = mock_instance(&CONTRACT, &[]);
+        let dst_instance = mock_instance(&CONTRACT, &[]);
 
-        let data_wasm_ptr = write_data_to_mock_env(&src_env, PASS_DATA1).unwrap();
+        let data_wasm_ptr = write_data_to_mock_env(&src_instance.env, PASS_DATA1).unwrap();
         let copy_result = copy_region_vals_between_env(
-            &src_env,
-            &dst_env,
+            &src_instance.env,
+            &dst_instance.env,
             &[WasmerVal::I32(data_wasm_ptr as i32)],
             true,
         )
@@ -274,7 +257,7 @@ mod tests {
         assert_eq!(copy_result.len(), 1);
 
         let read_result =
-            read_data_from_mock_env(&dst_env, &copy_result[0], PASS_DATA1.len()).unwrap();
+            read_data_from_mock_env(&dst_instance.env, &copy_result[0], PASS_DATA1.len()).unwrap();
         assert_eq!(PASS_DATA1, read_result);
 
         // Even after deallocate, wasm region data remains.
@@ -288,17 +271,16 @@ mod tests {
 
     #[test]
     fn wrong_use_copied_region_fails() {
-        let api = MockApi::default();
-        let (src_env, _src_instance) = make_instance(api);
-        let (dst_env, _dst_instance) = make_instance(api);
+        let src_instance = mock_instance(&CONTRACT, &[]);
+        let dst_instance = mock_instance(&CONTRACT, &[]);
 
         // If there is no padding data, it is difficult to compare because the same memory index falls apart.
-        write_data_to_mock_env(&src_env, PADDING_DATA).unwrap();
+        write_data_to_mock_env(&src_instance.env, PADDING_DATA).unwrap();
 
-        let data_wasm_ptr = write_data_to_mock_env(&src_env, PASS_DATA1).unwrap();
+        let data_wasm_ptr = write_data_to_mock_env(&src_instance.env, PASS_DATA1).unwrap();
         let copy_result = copy_region_vals_between_env(
-            &src_env,
-            &dst_env,
+            &src_instance.env,
+            &dst_instance.env,
             &[WasmerVal::I32(data_wasm_ptr as i32)],
             true,
         )
@@ -306,10 +288,133 @@ mod tests {
         assert_eq!(copy_result.len(), 1);
 
         let read_from_src_result =
-            read_data_from_mock_env(&src_env, &copy_result[0], PASS_DATA1.len());
+            read_data_from_mock_env(&src_instance.env, &copy_result[0], PASS_DATA1.len());
         assert!(matches!(
             read_from_src_result,
             Err(VmError::CommunicationErr { .. })
         ));
+    }
+
+    fn init_cache_with_two_instances() {
+        let callee_wasm = wat::parse_str(
+            r#"(module
+                (memory 3)
+                (export "memory" (memory 0))
+                (export "interface_version_5" (func 0))
+                (export "instantiate" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+            
+                (type (func))
+                (func (type 0) nop)
+                (export "foo" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let caller_wasm = wat::parse_str(
+            r#"(module
+                (memory 3)
+                (export "memory" (memory 0))
+                (export "interface_version_5" (func 0))
+                (export "instantiate" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+                (type (func))
+                (func (type 0) nop)
+            )"#,
+        )
+        .unwrap();
+
+        INSTANCE_CACHE.with(|lock| {
+            let mut cache = lock.write().unwrap();
+            cache.insert(
+                CALLEE_NAME_ADDR.to_string(),
+                RefCell::new(mock_instance(&callee_wasm, &[])),
+            );
+            cache.insert(
+                CALLER_NAME_ADDR.to_string(),
+                RefCell::new(mock_instance(&caller_wasm, &[])),
+            );
+        });
+    }
+
+    #[test]
+    fn native_dynamic_link_trampoline_works() {
+        init_cache_with_two_instances();
+
+        INSTANCE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
+            let mut caller_env = &mut caller_instance.borrow_mut().env;
+            let target_func_info = FunctionMetadata {
+                module_name: CALLER_NAME_ADDR.to_string(),
+                name: "foo".to_string(),
+                signature: ([], []).into(),
+            };
+            prepare_dynamic_call_data(
+                Some(CALLEE_NAME_ADDR.to_string()),
+                target_func_info,
+                &mut caller_env,
+            );
+
+            let result = native_dynamic_link_trampoline(&caller_env, &[]).unwrap();
+            assert_eq!(result.len(), 0);
+        });
+    }
+
+    #[test]
+    fn native_dynamic_link_trampoline_do_not_specify_callee_address_fail() {
+        init_cache_with_two_instances();
+
+        INSTANCE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
+            let mut caller_env = &mut caller_instance.borrow_mut().env;
+            let target_func_info = FunctionMetadata {
+                module_name: CALLER_NAME_ADDR.to_string(),
+                name: "foo".to_string(),
+                signature: ([], []).into(),
+            };
+            prepare_dynamic_call_data(None, target_func_info, &mut caller_env);
+
+            let result = native_dynamic_link_trampoline(&caller_env, &[]);
+            assert!(matches!(result, Err(RuntimeError { .. })));
+
+            assert_eq!(
+                result.err().unwrap().message(),
+                "cannot found the callee contract address in the storage"
+            );
+        });
+    }
+
+    #[test]
+    fn native_dynamic_link_trampoline_not_exist_callee_address_fails() {
+        init_cache_with_two_instances();
+
+        INSTANCE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
+            let mut caller_env = &mut caller_instance.borrow_mut().env;
+            let target_func_info = FunctionMetadata {
+                module_name: CALLER_NAME_ADDR.to_string(),
+                name: "foo".to_string(),
+                signature: ([], []).into(),
+            };
+            prepare_dynamic_call_data(
+                Some("invalid_address".to_string()),
+                target_func_info,
+                &mut caller_env,
+            );
+
+            let result = native_dynamic_link_trampoline(&caller_env, &[]);
+            assert!(matches!(
+                result,
+                Err(RuntimeError { .. })
+            ));
+
+            assert_eq!(result.err().unwrap().message(),
+            "func_info:{module_name:caller, name:foo, signature:[] -> []}, error:Unknown error during call into backend: Some(\"cannot found contract\")"
+            );
+        });
     }
 }
