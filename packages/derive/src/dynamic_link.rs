@@ -37,6 +37,16 @@ pub fn generate_import_contract_declaration(
     contract_name: String,
     exist_extern_block: syn::ItemForeignMod,
 ) -> TokenStream {
+    //if not specified the ABI(None), the default value of extern ABI is C.
+    if let Some(ref extern_abi) = exist_extern_block.abi.name {
+        if extern_abi.value() != "C" {
+            abort_by_dynamic_link!(
+                extern_abi,
+                "ABI only supports the C. not recommended to specify the ABI yourself."
+            );
+        }
+    }
+
     let foreign_function_decls: Vec<&syn::ForeignItemFn> = exist_extern_block
         .items
         .iter()
