@@ -170,3 +170,158 @@ fn make_call_stub_and_return(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use syn::{parse_quote, ItemFn};
+
+    #[test]
+    fn make_call_stub_and_return_works() {
+        {
+            let function_foo_ret0: ItemFn = parse_quote! {
+                fn foo() {
+                }
+            };
+
+            let result_code = make_call_stub_and_return(
+                &function_foo_ret0.sig.ident.to_string(),
+                0,
+                &function_foo_ret0.sig.output,
+            )
+            .to_string();
+
+            let expected: TokenStream = parse_quote! {
+                stub_foo();
+            };
+            assert_eq!(expected.to_string(), result_code);
+        }
+        {
+            let function_foo_ret1: ItemFn = parse_quote! {
+                fn foo() -> u64 {
+                    1
+                }
+            };
+
+            let result_code = make_call_stub_and_return(
+                &function_foo_ret1.sig.ident.to_string(),
+                0,
+                &function_foo_ret1.sig.output,
+            )
+            .to_string();
+
+            let expected: TokenStream = parse_quote! {
+                let result = stub_foo();
+                let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
+                cosmwasm_std::from_slice(&vec_result).unwrap()
+            };
+            assert_eq!(expected.to_string(), result_code);
+        }
+        {
+            let function_foo_ret2: ItemFn = parse_quote! {
+                fn foo() -> (u64, u64) {
+                    (1, 2)
+                }
+            };
+
+            let result_code = make_call_stub_and_return(
+                &function_foo_ret2.sig.ident.to_string(),
+                0,
+                &function_foo_ret2.sig.output,
+            )
+            .to_string();
+
+            let expected: TokenStream = parse_quote! {
+                let (result0, result1) = stub_foo();
+                let vec_result0 = cosmwasm_std::memory::consume_region(result0 as * mut cosmwasm_std::memory::Region);
+                let vec_result1 = cosmwasm_std::memory::consume_region(result1 as * mut cosmwasm_std::memory::Region);
+                (cosmwasm_std::from_slice(&vec_result0).unwrap(), cosmwasm_std::from_slice(&vec_result1).unwrap())
+            };
+            assert_eq!(expected.to_string(), result_code);
+        }
+    }
+
+    #[test]
+    fn generate_serialization_func_works() {
+        let test_extern: syn::ItemForeignMod = parse_quote! {
+            extern {
+                fn foo() -> u64;
+                fn foo(a: u64, b: String) -> u64;
+            }
+        };
+
+        let foreign_function_decls: Vec<&syn::ForeignItemFn> = test_extern
+            .items
+            .iter()
+            .map(|foregin_item| match foregin_item {
+                syn::ForeignItem::Fn(item_fn) => item_fn,
+                _ => {
+                    panic!()
+                }
+            })
+            .collect();
+
+        {
+            let result_code = generate_serialization_func(foreign_function_decls[0]).to_string();
+            let expected: TokenStream = parse_quote! {
+                fn foo () -> u64 {
+                    unsafe {
+                        let result = stub_foo();
+                        let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
+                        cosmwasm_std::from_slice(&vec_result).unwrap()
+                    }
+               }
+            };
+            assert_eq!(expected.to_string(), result_code);
+        }
+        {
+            let result_code = generate_serialization_func(foreign_function_decls[1]).to_string();
+            let expected: TokenStream = parse_quote! {
+                fn foo (arg0 : u64 , arg1 : String) -> u64 {
+                    let vec_arg0 = cosmwasm_std::to_vec(&arg0).unwrap();
+                    let vec_arg1 = cosmwasm_std::to_vec(&arg1).unwrap();
+                    let region_arg0 = cosmwasm_std::memory::release_buffer(vec_arg0) as u32;
+                    let region_arg1 = cosmwasm_std::memory::release_buffer(vec_arg1) as u32;
+                    unsafe {
+                        let result = stub_foo(region_arg0, region_arg1);
+                        let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
+                        cosmwasm_std::from_slice(&vec_result).unwrap()
+                    }
+               }
+            };
+            assert_eq!(expected.to_string(), result_code);
+        }
+    }
+
+    #[test]
+    fn generate_extern_block_works() {
+        let test_extern: syn::ItemForeignMod = parse_quote! {
+            extern {
+                fn foo(a: u64, b: String) -> u64;
+                fn bar();
+            }
+        };
+
+        let foreign_function_decls: Vec<&syn::ForeignItemFn> = test_extern
+            .items
+            .iter()
+            .map(|foregin_item| match foregin_item {
+                syn::ForeignItem::Fn(item_fn) => item_fn,
+                _ => {
+                    panic!()
+                }
+            })
+            .collect();
+
+        let result_code =
+            generate_extern_block("test_contract".to_string(), &foreign_function_decls).to_string();
+        let expected: TokenStream = parse_quote! {
+            #[link(wasm_import_module = "test_contract")]
+            extern "C" {
+                fn stub_foo(ptr0: u32, ptr1: u32) -> u32;
+                fn stub_bar();
+            }
+        };
+        assert_eq!(expected.to_string(), result_code);
+    }
+}

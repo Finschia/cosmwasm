@@ -69,3 +69,55 @@ fn make_call_origin_and_return(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use syn::{parse_quote, ItemFn};
+
+    #[test]
+    fn make_call_origin_and_return_works() {
+        {
+            let function_foo_ret1: ItemFn = parse_quote! {
+                fn foo() -> u64 {
+                    1
+                }
+            };
+            let result_code = make_call_origin_and_return(
+                &function_foo_ret1.sig.ident,
+                0,
+                &function_foo_ret1.sig.output,
+            )
+            .to_string();
+
+            let expected: TokenStream = parse_quote! {
+                let result = foo();
+                let vec_result = cosmwasm_std::to_vec(&result).unwrap();
+                cosmwasm_std::memory::release_buffer(vec_result) as u32
+            };
+            assert_eq!(expected.to_string(), result_code);
+        }
+
+        {
+            let function_foo_ret2: ItemFn = parse_quote! {
+                fn foo() -> (u64, u64) {
+                    (1, 2)
+                }
+            };
+            let result_code = make_call_origin_and_return(
+                &function_foo_ret2.sig.ident,
+                0,
+                &function_foo_ret2.sig.output,
+            )
+            .to_string();
+
+            let expected: TokenStream = parse_quote! {
+                let (result0, result1) = foo();
+                let vec_result0 = cosmwasm_std::to_vec(&result0).unwrap();
+                let vec_result1 = cosmwasm_std::to_vec(&result1).unwrap();
+                (cosmwasm_std::memory::release_buffer(vec_result0) as u32 , cosmwasm_std::memory::release_buffer(vec_result1) as u32)
+            };
+            assert_eq!(expected.to_string(), result_code);
+        }
+    }
+}
