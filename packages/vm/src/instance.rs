@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ptr::NonNull;
+use std::sync::Mutex;
 
 use wasmer::{Exports, Function, ImportObject, Instance as WasmerInstance, Module, Val};
 
@@ -9,7 +10,7 @@ use crate::environment::Environment;
 use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::features::required_features_from_module;
 use crate::imports::{
-    do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
+    do_abort, do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
     do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_query_chain,
     do_secp256k1_recover_pubkey, do_secp256k1_verify, do_sha1_calculate,
 };
@@ -62,8 +63,15 @@ where
         options: InstanceOptions,
         memory_limit: Option<Size>,
     ) -> VmResult<Self> {
-        let module = compile(code, memory_limit)?;
-        Instance::from_module(&module, backend, options.gas_limit, options.print_debug)
+        let module = compile(code, memory_limit, &[])?;
+        Instance::from_module(
+            &module,
+            backend,
+            options.gas_limit,
+            options.print_debug,
+            None,
+            None,
+        )
     }
 
     pub(crate) fn from_module(
@@ -71,6 +79,8 @@ where
         backend: Backend<A, S, Q>,
         gas_limit: u64,
         print_debug: bool,
+        extra_imports: Option<HashMap<&str, Exports>>,
+        instantiation_lock: Option<&Mutex<()>>,
     ) -> VmResult<Self> {
         let store = module.store();
 
@@ -179,6 +189,14 @@ where
             Function::new_native_with_env(store, env.clone(), do_debug),
         );
 
+        // Aborts the contract execution with an error message provided by the contract.
+        // Takes a pointer argument of a memory region that must contain an UTF-8 encoded string.
+        // Ownership of both input and output pointer is not transferred to the host.
+        env_imports.insert(
+            "abort",
+            Function::new_native_with_env(store, env.clone(), do_abort),
+        );
+
         env_imports.insert(
             "query_chain",
             Function::new_native_with_env(store, env.clone(), do_query_chain),
@@ -209,11 +227,21 @@ where
 
         import_obj.register("env", env_imports);
 
-        let wasmer_instance = Box::from(WasmerInstance::new(module, &import_obj).map_err(
-            |original| {
+        if let Some(extra_imports) = extra_imports {
+            for (namespace, exports_obj) in extra_imports {
+                import_obj.register(namespace, exports_obj);
+            }
+        }
+
+        let wasmer_instance = Box::from(
+            {
+                let _lock = instantiation_lock.map(|l| l.lock().unwrap());
+                WasmerInstance::new(module, &import_obj)
+            }
+            .map_err(|original| {
                 VmError::instantiation_err(format!("Error instantiating module: {:?}", original))
-            },
-        )?);
+            })?,
+        );
 
         let instance_ptr = NonNull::from(wasmer_instance.as_ref());
         env.set_wasmer_instance(Some(instance_ptr));
@@ -345,11 +373,31 @@ where
     }
 }
 
+/// This exists only to be exported through `internals` for use by crates that are
+/// part of Cosmwasm.
+pub fn instance_from_module<A, S, Q>(
+    module: &Module,
+    backend: Backend<A, S, Q>,
+    gas_limit: u64,
+    print_debug: bool,
+    extra_imports: Option<HashMap<&str, Exports>>,
+) -> VmResult<Instance<A, S, Q>>
+where
+    A: BackendApi + 'static, // 'static is needed here to allow copying API instances into closures
+    S: Storage + 'static, // 'static is needed here to allow using this in an Environment that is cloned into closures
+    Q: Querier + 'static,
+{
+    Instance::from_module(module, backend, gas_limit, print_debug, extra_imports, None)
+}
+
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
     use super::*;
     use crate::backend::Storage;
-    use crate::call_instantiate;
+    use crate::calls::{call_execute, call_instantiate, call_query};
     use crate::errors::VmError;
     use crate::testing::{
         mock_backend, mock_env, mock_info, mock_instance, mock_instance_options,
@@ -401,11 +449,59 @@ mod tests {
     }
 
     #[test]
+    fn extra_imports_get_added() {
+        let wasm = wat::parse_str(
+            r#"(module
+            (import "foo" "bar" (func $bar))
+            (func (export "main") (call $bar))
+            )"#,
+        )
+        .unwrap();
+
+        let backend = mock_backend(&[]);
+        let (instance_options, memory_limit) = mock_instance_options();
+        let module = compile(&wasm, memory_limit, &[]).unwrap();
+
+        #[derive(wasmer::WasmerEnv, Clone)]
+        struct MyEnv {
+            // This can be mutated across threads safely. We initialize it as `false`
+            // and let our imported fn switch it to `true` to confirm it works.
+            called: Arc<AtomicBool>,
+        }
+
+        let my_env = MyEnv {
+            called: Arc::new(AtomicBool::new(false)),
+        };
+
+        let fun = Function::new_native_with_env(module.store(), my_env.clone(), |env: &MyEnv| {
+            env.called.store(true, Ordering::Relaxed);
+        });
+        let mut exports = Exports::new();
+        exports.insert("bar", fun);
+        let mut extra_imports = HashMap::new();
+        extra_imports.insert("foo", exports);
+        let instance = Instance::from_module(
+            &module,
+            backend,
+            instance_options.gas_limit,
+            false,
+            Some(extra_imports),
+            None,
+        )
+        .unwrap();
+
+        let main = instance._inner.exports.get_function("main").unwrap();
+        main.call(&[]).unwrap();
+
+        assert!(my_env.called.load(Ordering::Relaxed));
+    }
+
+    #[test]
     fn call_function0_works() {
         let instance = mock_instance(CONTRACT, &[]);
 
         instance
-            .call_function0("interface_version_7", &[])
+            .call_function0("interface_version_8", &[])
             .expect("error calling function");
     }
 
@@ -494,7 +590,7 @@ mod tests {
         // set up an instance that will experience an error in an import
         let error_message = "Api failed intentionally";
         let mut instance = mock_instance_with_failing_api(CONTRACT, &[], error_message);
-        let init_result = call_instantiate::<_, _, _, serde_json::Value>(
+        let init_result = call_instantiate::<_, _, _, Empty>(
             &mut instance,
             &mock_env(),
             &mock_info("someone", &[]),
@@ -548,7 +644,7 @@ mod tests {
 
                 (type (func))
                 (func (type 0) nop)
-                (export "interface_version_7" (func 0))
+                (export "interface_version_8" (func 0))
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
@@ -566,7 +662,7 @@ mod tests {
 
                 (type (func))
                 (func (type 0) nop)
-                (export "interface_version_7" (func 0))
+                (export "interface_version_8" (func 0))
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
@@ -602,7 +698,7 @@ mod tests {
 
     #[test]
     fn create_gas_report_works() {
-        const LIMIT: u64 = 7_000_000;
+        const LIMIT: u64 = 700_000_000_000;
         let mut instance = mock_instance_with_gas_limit(CONTRACT, LIMIT);
 
         let report1 = instance.create_gas_report();
@@ -620,7 +716,7 @@ mod tests {
 
         let report2 = instance.create_gas_report();
         assert_eq!(report2.used_externally, 73);
-        assert_eq!(report2.used_internally, 36378);
+        assert_eq!(report2.used_internally, 5775750198);
         assert_eq!(report2.limit, LIMIT);
         assert_eq!(
             report2.remaining,
@@ -795,16 +891,6 @@ mod tests {
             })
             .unwrap();
     }
-}
-
-#[cfg(test)]
-mod singlepass_tests {
-    use cosmwasm_std::{coins, Empty};
-
-    use crate::calls::{call_execute, call_instantiate, call_query};
-    use crate::testing::{mock_env, mock_info, mock_instance, mock_instance_with_gas_limit};
-
-    static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 
     #[test]
     fn contract_deducts_gas_init() {
@@ -819,7 +905,7 @@ mod singlepass_tests {
             .unwrap();
 
         let init_used = orig_gas - instance.get_gas_left();
-        assert_eq!(init_used, 36451);
+        assert_eq!(init_used, 5775750271);
     }
 
     #[test]
@@ -842,7 +928,7 @@ mod singlepass_tests {
             .unwrap();
 
         let execute_used = gas_before_execute - instance.get_gas_left();
-        assert_eq!(execute_used, 159020);
+        assert_eq!(execute_used, 8627053606);
     }
 
     #[test]
@@ -876,6 +962,6 @@ mod singlepass_tests {
         assert_eq!(answer.as_slice(), b"{\"verifier\":\"verifies\"}");
 
         let query_used = gas_before_query - instance.get_gas_left();
-        assert_eq!(query_used, 27629);
+        assert_eq!(query_used, 4438350006);
     }
 }

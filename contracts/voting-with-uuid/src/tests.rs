@@ -4,7 +4,9 @@ mod tests {
     use crate::error::ContractError;
     use crate::msg::{ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg};
     use crate::state::{config_read, PollStatus, State};
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::testing::{
+        mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
+    };
     use cosmwasm_std::{
         attr, coins, from_binary, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo,
         Response, StdError, Timestamp, Uint128, Uuid,
@@ -42,7 +44,7 @@ mod tests {
 
     #[test]
     fn proper_initialization() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = init_msg();
         let info = mock_info(TEST_CREATOR, &coins(2, VOTING_TOKEN));
@@ -63,7 +65,7 @@ mod tests {
     #[test]
     fn poll_not_found() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
         let res = query(
             deps.as_ref(),
@@ -80,7 +82,7 @@ mod tests {
 
     #[test]
     fn fails_create_poll_invalid_quorum_percentage() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let info = mock_info("voter", &coins(11, VOTING_TOKEN));
 
         let qp = 101;
@@ -99,7 +101,7 @@ mod tests {
 
     #[test]
     fn fails_create_poll_invalid_description() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let info = mock_info(TEST_VOTER, &coins(11, VOTING_TOKEN));
 
         let msg = create_poll_msg(30, "a".to_string(), None, None);
@@ -142,7 +144,7 @@ mod tests {
     #[test]
     fn happy_days_create_poll() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
         let (env, info) = mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 10000);
 
@@ -164,7 +166,7 @@ mod tests {
     #[test]
     fn create_poll_no_quorum() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
         let (env, info) = mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 10000);
 
@@ -186,7 +188,7 @@ mod tests {
     #[test]
     fn fails_end_poll_before_end_height() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
         let (env, info) = mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 10000);
 
@@ -234,7 +236,7 @@ mod tests {
         let poll_id = Uuid::from_str("ad9daf0b-b439-5a5e-b79e-d0b8bbf04879").unwrap();
         let stake_amount = 1000;
 
-        let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+        let mut deps = mock_dependencies_with_balance(&coins(1000, VOTING_TOKEN));
         mock_instantiate(deps.as_mut());
         let (mut creator_env, creator_info) = mock_info_height(
             TEST_CREATOR,
@@ -326,7 +328,7 @@ mod tests {
     #[test]
     fn end_poll_zero_quorum() {
         let poll_id = Uuid::from_str("ad9daf0b-b439-5a5e-b79e-d0b8bbf04879").unwrap();
-        let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+        let mut deps = mock_dependencies_with_balance(&coins(1000, VOTING_TOKEN));
         mock_instantiate(deps.as_mut());
         let (mut env, info) = mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 1000, 10000);
 
@@ -370,7 +372,7 @@ mod tests {
     #[test]
     fn end_poll_quorum_rejected() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let mut deps = mock_dependencies(&coins(100, VOTING_TOKEN));
+        let mut deps = mock_dependencies_with_balance(&coins(100, VOTING_TOKEN));
         mock_instantiate(deps.as_mut());
         let (mut creator_env, creator_info) =
             mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 0);
@@ -462,7 +464,7 @@ mod tests {
 
         let voter1_stake = 100;
         let voter2_stake = 1000;
-        let mut deps = mock_dependencies(&coins(voter1_stake, VOTING_TOKEN));
+        let mut deps = mock_dependencies_with_balance(&coins(voter1_stake, VOTING_TOKEN));
         mock_instantiate(deps.as_mut());
         let (mut creator_env, creator_info) =
             mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 0);
@@ -548,7 +550,7 @@ mod tests {
     fn fails_end_poll_before_start_height() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
 
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
         let (env, info) = mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 10000);
 
@@ -588,7 +590,7 @@ mod tests {
     fn fails_cast_vote_not_enough_staked() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
 
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
         let (env, info) = mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 10000);
 
@@ -624,7 +626,7 @@ mod tests {
     #[test]
     fn happy_days_cast_vote() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
 
         let (env, info) = mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 10000);
@@ -664,7 +666,7 @@ mod tests {
 
     #[test]
     fn happy_days_withdraw_voting_tokens() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
 
         let msg = ExecuteMsg::StakeVotingTokens {};
@@ -712,7 +714,7 @@ mod tests {
 
     #[test]
     fn fails_withdraw_voting_tokens_no_stake() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
 
         let info = mock_info(TEST_VOTER, &coins(11, VOTING_TOKEN));
@@ -731,7 +733,7 @@ mod tests {
 
     #[test]
     fn fails_withdraw_too_many_tokens() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
 
         let msg = ExecuteMsg::StakeVotingTokens {};
@@ -759,7 +761,7 @@ mod tests {
     #[test]
     fn fails_cast_vote_twice() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
 
         let (env, info) = mock_info_height(TEST_CREATOR, &coins(2, VOTING_TOKEN), 0, 10000);
@@ -810,7 +812,7 @@ mod tests {
     #[test]
     fn fails_cast_vote_without_poll() {
         let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
 
         let msg = ExecuteMsg::CastVote {
@@ -831,7 +833,7 @@ mod tests {
 
     #[test]
     fn happy_days_stake_voting_tokens() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         mock_instantiate(deps.as_mut());
 
         let msg = ExecuteMsg::StakeVotingTokens {};
@@ -844,7 +846,7 @@ mod tests {
 
     #[test]
     fn fails_insufficient_funds() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         // initialize the store
         let msg = init_msg();
@@ -867,7 +869,7 @@ mod tests {
 
     #[test]
     fn fails_staking_wrong_token() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         // initialize the store
         let msg = init_msg();

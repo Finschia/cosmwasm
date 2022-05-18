@@ -1,6 +1,5 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 use crate::Binary;
 
@@ -62,10 +61,7 @@ use super::{Attribute, CosmosMsg, Empty, Event, SubMsg};
 /// ```
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[non_exhaustive]
-pub struct Response<T = Empty>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+pub struct Response<T = Empty> {
     /// Optional list of messages to pass. These will be executed in order.
     /// If the ReplyOn variant matches the result (Always, Success on Ok, Error on Err),
     /// the runtime will invoke this contract's `reply` entry point
@@ -76,23 +72,20 @@ where
     ///
     /// More info about events (and their attributes) can be found in [*Cosmos SDK* docs].
     ///
-    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/v0.42/core/events.html
+    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/master/core/events.html
     pub attributes: Vec<Attribute>,
     /// Extra, custom events separate from the main `wasm` one. These will have
     /// `wasm-` prepended to the type.
     ///
     /// More info about events can be found in [*Cosmos SDK* docs].
     ///
-    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/v0.42/core/events.html
+    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/master/core/events.html
     pub events: Vec<Event>,
     /// The binary payload to include in the response.
     pub data: Option<Binary>,
 }
 
-impl<T> Default for Response<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> Default for Response<T> {
     fn default() -> Self {
         Response {
             messages: vec![],
@@ -103,15 +96,13 @@ where
     }
 }
 
-impl<T> Response<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> Response<T> {
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Add an attribute included in the main `wasm` event.
+    /// For working with optional values or optional attributes, see [`add_attributes`][Self::add_attributes].
     #[must_use]
     pub fn add_attribute(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.attributes.push(Attribute::new(key, value));
@@ -152,8 +143,10 @@ where
     ///
     /// ## Examples
     ///
+    /// Adding a list of attributes using the pair notation for key and value:
+    ///
     /// ```
-    /// use cosmwasm_std::{attr, Response};
+    /// use cosmwasm_std::Response;
     ///
     /// let attrs = vec![
     ///     ("action", "reaction"),
@@ -162,6 +155,27 @@ where
     /// ];
     /// let res: Response = Response::new().add_attributes(attrs.clone());
     /// assert_eq!(res.attributes, attrs);
+    /// ```
+    ///
+    /// Adding an optional value as an optional attribute by turning it into a list of 0 or 1 elements:
+    ///
+    /// ```
+    /// use cosmwasm_std::{Attribute, Response};
+    ///
+    /// // Some value
+    /// let value: Option<String> = Some("sarah".to_string());
+    /// let attribute: Option<Attribute> = value.map(|v| Attribute::new("winner", v));
+    /// let res: Response = Response::new().add_attributes(attribute);
+    /// assert_eq!(res.attributes, [Attribute {
+    ///     key: "winner".to_string(),
+    ///     value: "sarah".to_string(),
+    /// }]);
+    ///
+    /// // No value
+    /// let value: Option<String> = None;
+    /// let attribute: Option<Attribute> = value.map(|v| Attribute::new("winner", v));
+    /// let res: Response = Response::new().add_attributes(attribute);
+    /// assert_eq!(res.attributes.len(), 0);
     /// ```
     #[must_use]
     pub fn add_attributes<A: Into<Attribute>>(
@@ -232,7 +246,51 @@ mod tests {
     use super::super::BankMsg;
     use super::*;
     use crate::results::submessages::{ReplyOn, UNUSED_MSG_ID};
-    use crate::{attr, coins, from_slice, to_vec, Addr, Coin, Event, IntoEvent};
+    //<<<<<<< HEAD
+    //    use crate::{attr, coins, from_slice, to_vec, Addr, Coin, Event, IntoEvent};
+    //=======
+    //    use crate::{coins, from_slice, to_vec, ContractResult};
+    use crate::{attr, coins, from_slice, to_vec, Addr, Coin, ContractResult, Event, IntoEvent};
+
+    #[test]
+    fn response_add_attributes_works() {
+        let res = Response::<Empty>::new().add_attributes(std::iter::empty::<Attribute>());
+        assert_eq!(res.attributes.len(), 0);
+
+        let res = Response::<Empty>::new().add_attributes([Attribute::new("test", "ing")]);
+        assert_eq!(res.attributes.len(), 1);
+        assert_eq!(
+            res.attributes[0],
+            Attribute {
+                key: "test".to_string(),
+                value: "ing".to_string(),
+            }
+        );
+
+        let attrs = vec![
+            ("action", "reaction"),
+            ("answer", "42"),
+            ("another", "attribute"),
+        ];
+        let res: Response = Response::new().add_attributes(attrs.clone());
+        assert_eq!(res.attributes, attrs);
+
+        let optional = Option::<Attribute>::None;
+        let res: Response = Response::new().add_attributes(optional.into_iter());
+        assert_eq!(res.attributes.len(), 0);
+
+        let optional = Option::<Attribute>::Some(Attribute::new("test", "ing"));
+        let res: Response = Response::new().add_attributes(optional.into_iter());
+        assert_eq!(res.attributes.len(), 1);
+        assert_eq!(
+            res.attributes[0],
+            Attribute {
+                key: "test".to_string(),
+                value: "ing".to_string(),
+            }
+        );
+    }
+    //>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
 
     #[test]
     fn can_serialize_and_deserialize_init_response() {
@@ -271,6 +329,7 @@ mod tests {
         assert_eq!(deserialized, original);
     }
 
+    //<<<<<<< HEAD
     #[test]
     fn using_into_event() {
         // IntoEvent can be used only when cosmwasm_std is imported as `cosmwasm_std`
@@ -340,5 +399,23 @@ mod tests {
         let expected = Response::<Empty>::new().add_events(vec![event1, event2]);
         let actual = Response::<Empty>::new().add_events(vec![act1, act2]);
         assert_eq!(actual, expected);
+    }
+    //=======
+
+    #[test]
+    fn contract_result_is_ok_works() {
+        let success = ContractResult::<()>::Ok(());
+        let failure = ContractResult::<()>::Err("broken".to_string());
+        assert!(success.is_ok());
+        assert!(!failure.is_ok());
+    }
+
+    #[test]
+    fn contract_result_is_err_works() {
+        let success = ContractResult::<()>::Ok(());
+        let failure = ContractResult::<()>::Err("broken".to_string());
+        assert!(failure.is_err());
+        assert!(!success.is_err());
+        //>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
     }
 }

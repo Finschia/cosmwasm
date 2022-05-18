@@ -11,14 +11,17 @@ use crate::serde::to_binary;
 
 use super::Empty;
 
+/// Like CustomQuery for better type clarity.
+/// Also makes it shorter to use as a trait bound.
+pub trait CustomMsg: Serialize + Clone + fmt::Debug + PartialEq + JsonSchema {}
+
+impl CustomMsg for Empty {}
+
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 // See https://github.com/serde-rs/serde/issues/1296 why we cannot add De-Serialize trait bounds to T
-pub enum CosmosMsg<T = Empty>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+pub enum CosmosMsg<T = Empty> {
     Bank(BankMsg),
     // by default we use RawMsg, but a contract can override that
     // to call into more app-specific code (whatever they define)
@@ -213,59 +216,41 @@ pub fn wasm_execute(
     })
 }
 
-impl<T> From<BankMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<BankMsg> for CosmosMsg<T> {
     fn from(msg: BankMsg) -> Self {
         CosmosMsg::Bank(msg)
     }
 }
 
 #[cfg(feature = "staking")]
-impl<T> From<StakingMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<StakingMsg> for CosmosMsg<T> {
     fn from(msg: StakingMsg) -> Self {
         CosmosMsg::Staking(msg)
     }
 }
 
 #[cfg(feature = "staking")]
-impl<T> From<DistributionMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<DistributionMsg> for CosmosMsg<T> {
     fn from(msg: DistributionMsg) -> Self {
         CosmosMsg::Distribution(msg)
     }
 }
 
-impl<T> From<WasmMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<WasmMsg> for CosmosMsg<T> {
     fn from(msg: WasmMsg) -> Self {
         CosmosMsg::Wasm(msg)
     }
 }
 
 #[cfg(feature = "stargate")]
-impl<T> From<IbcMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<IbcMsg> for CosmosMsg<T> {
     fn from(msg: IbcMsg) -> Self {
         CosmosMsg::Ibc(msg)
     }
 }
 
 #[cfg(feature = "stargate")]
-impl<T> From<GovMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<GovMsg> for CosmosMsg<T> {
     fn from(msg: GovMsg) -> Self {
         CosmosMsg::Gov(msg)
     }

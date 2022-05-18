@@ -33,6 +33,7 @@ pub struct GasConfig {
     pub sha1_calculate_cost: u64,
 }
 
+//<<<<<<< HEAD
 impl GasConfig {
     // Base crypto-verify gas cost: 1000 lbf-sdk * 100 CosmWasm factor
     const BASE_CRYPTO_COST: u64 = 100_000;
@@ -63,9 +64,14 @@ impl GasConfig {
     }
 }
 
+//=======
+//>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
 impl Default for GasConfig {
     fn default() -> Self {
+        // Target is 10^12 per millisecond (see GAS.md), i.e. 10^9 gas per µ second.
+        // const GAS_PER_US: u64 = 1_000_000_000;
         Self {
+            //<<<<<<< HEAD
             secp256k1_verify_cost: GasConfig::calc_crypto_cost(GasConfig::SECP256K1_VERIFY_FACTOR),
             secp256k1_recover_pubkey_cost: GasConfig::calc_crypto_cost(
                 GasConfig::SECP256K1_RECOVER_PUBKEY_FACTOR,
@@ -78,6 +84,18 @@ impl Default for GasConfig {
                 GasConfig::ED255219_BATCH_VERIFY_ONE_PUBKEY_FACTOR,
             ),
             sha1_calculate_cost: GasConfig::calc_crypto_cost(GasConfig::SHA1_CALCULATE_FACTOR),
+            /*=======
+                        // ~154 us in crypto benchmarks
+                        secp256k1_verify_cost: 154 * GAS_PER_US,
+                        // ~162 us in crypto benchmarks
+                        secp256k1_recover_pubkey_cost: 162 * GAS_PER_US,
+                        // ~63 us in crypto benchmarks
+                        ed25519_verify_cost: 63 * GAS_PER_US,
+                        // Gas cost factors, relative to ed25519_verify cost
+                        // From https://docs.rs/ed25519-zebra/2.2.0/ed25519_zebra/batch/index.html
+                        ed25519_batch_verify_cost: 63 * GAS_PER_US / 2,
+                        ed25519_batch_verify_one_pubkey_cost: 63 * GAS_PER_US / 4,
+            >>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7*/
         }
     }
 }
@@ -412,7 +430,7 @@ mod tests {
     const INIT_AMOUNT: u128 = 500;
     const INIT_DENOM: &str = "TOKEN";
 
-    const TESTING_GAS_LIMIT: u64 = 500_000;
+    const TESTING_GAS_LIMIT: u64 = 500_000_000_000; // ~0.5ms
     const DEFAULT_QUERY_GAS_LIMIT: u64 = 300_000;
     const TESTING_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
 
@@ -424,7 +442,7 @@ mod tests {
     ) {
         let env = Environment::new(MockApi::default(), gas_limit, false);
 
-        let module = compile(CONTRACT, TESTING_MEMORY_LIMIT).unwrap();
+        let module = compile(CONTRACT, TESTING_MEMORY_LIMIT, &[]).unwrap();
         let store = module.store();
         // we need stubs for all required imports
         let import_obj = imports! {
@@ -711,7 +729,7 @@ mod tests {
         let (env, _instance) = make_instance(TESTING_GAS_LIMIT);
         leave_default_data(&env);
 
-        env.call_function0("interface_version_7", &[]).unwrap();
+        env.call_function0("interface_version_8", &[]).unwrap();
     }
 
     #[test]

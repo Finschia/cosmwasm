@@ -23,7 +23,7 @@ use cosmwasm_std::testing::{
 };
 use cosmwasm_std::{
     attr, coins, BankMsg, ContractResult, CosmosMsg, Event, IbcBasicResponse, IbcOrder,
-    IbcReceiveResponse, Reply, Response, SubMsgExecutionResponse, WasmMsg,
+    IbcReceiveResponse, Reply, Response, SubMsgResponse, SubMsgResult, WasmMsg,
 };
 use cosmwasm_vm::testing::{
     ibc_channel_connect, ibc_channel_open, ibc_packet_receive, instantiate, mock_env, mock_info,
@@ -31,7 +31,7 @@ use cosmwasm_vm::testing::{
 };
 use cosmwasm_vm::{from_slice, Instance};
 
-use ibc_reflect::contract::{IBC_VERSION, RECEIVE_DISPATCH_ID};
+use ibc_reflect::contract::{IBC_APP_VERSION, RECEIVE_DISPATCH_ID};
 use ibc_reflect::msg::{
     AccountInfo, AccountResponse, AcknowledgementMsg, DispatchResponse, InstantiateMsg,
     ListAccountsResponse, PacketMsg, QueryMsg, ReflectExecuteMsg,
@@ -77,12 +77,12 @@ fn connect(
 ) {
     let account: String = account.into();
     // first we try to open with a valid handshake
-    let handshake_open = mock_ibc_channel_open_init(channel_id, IbcOrder::Ordered, IBC_VERSION);
+    let handshake_open = mock_ibc_channel_open_init(channel_id, IbcOrder::Ordered, IBC_APP_VERSION);
     ibc_channel_open(deps, mock_env(), handshake_open).unwrap();
 
     // then we connect (with counter-party version set)
     let handshake_connect =
-        mock_ibc_channel_connect_ack(channel_id, IbcOrder::Ordered, IBC_VERSION);
+        mock_ibc_channel_connect_ack(channel_id, IbcOrder::Ordered, IBC_APP_VERSION);
     let res: IbcBasicResponse = ibc_channel_connect(deps, mock_env(), handshake_connect).unwrap();
     assert_eq!(1, res.messages.len());
     assert_eq!(1, res.events.len());
@@ -95,7 +95,7 @@ fn connect(
     // fake a reply and ensure this works
     let response = Reply {
         id,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: fake_events(&account),
             data: None,
         }),
@@ -120,13 +120,15 @@ fn instantiate_works() {
 fn enforce_version_in_handshake() {
     let mut deps = setup();
 
-    let wrong_order = mock_ibc_channel_open_try("channel-1234", IbcOrder::Unordered, IBC_VERSION);
+    let wrong_order =
+        mock_ibc_channel_open_try("channel-1234", IbcOrder::Unordered, IBC_APP_VERSION);
     ibc_channel_open(&mut deps, mock_env(), wrong_order).unwrap_err();
 
     let wrong_version = mock_ibc_channel_open_try("channel-1234", IbcOrder::Ordered, "reflect");
     ibc_channel_open(&mut deps, mock_env(), wrong_version).unwrap_err();
 
-    let valid_handshake = mock_ibc_channel_open_try("channel-1234", IbcOrder::Ordered, IBC_VERSION);
+    let valid_handshake =
+        mock_ibc_channel_open_try("channel-1234", IbcOrder::Ordered, IBC_APP_VERSION);
     ibc_channel_open(&mut deps, mock_env(), valid_handshake).unwrap();
 }
 
@@ -136,12 +138,12 @@ fn proper_handshake_flow() {
     let channel_id = "channel-432";
 
     // first we try to open with a valid handshake
-    let handshake_open = mock_ibc_channel_open_init(channel_id, IbcOrder::Ordered, IBC_VERSION);
+    let handshake_open = mock_ibc_channel_open_init(channel_id, IbcOrder::Ordered, IBC_APP_VERSION);
     ibc_channel_open(&mut deps, mock_env(), handshake_open).unwrap();
 
     // then we connect (with counter-party version set)
     let handshake_connect =
-        mock_ibc_channel_connect_ack(channel_id, IbcOrder::Ordered, IBC_VERSION);
+        mock_ibc_channel_connect_ack(channel_id, IbcOrder::Ordered, IBC_APP_VERSION);
     let res: IbcBasicResponse =
         ibc_channel_connect(&mut deps, mock_env(), handshake_connect).unwrap();
     // and set up a reflect account
@@ -171,7 +173,7 @@ fn proper_handshake_flow() {
     // we get the callback from reflect
     let response = Reply {
         id,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: fake_events(REFLECT_ADDR),
             data: None,
         }),

@@ -16,7 +16,7 @@ use crate::serde::from_slice;
 use crate::traits::{Api, Querier, QuerierResult, Storage};
 #[cfg(feature = "iterator")]
 use crate::{
-    iterator::{Order, Pair},
+    iterator::{Order, Record},
     memory::get_optional_region_address,
 };
 
@@ -27,8 +27,11 @@ const HUMAN_ADDRESS_BUFFER_LENGTH: usize = 90;
 
 // This interface will compile into required Wasm imports.
 // A complete documentation those functions is available in the VM that provides them:
-// https://github.com/line/cosmwasm/blob/0342c82d5e5c588131c28fae1fb941505838f352/packages/vm/src/instance.rs#L84-L201
+// https://github.com/CosmWasm/cosmwasm/blob/v1.0.0-beta/packages/vm/src/instance.rs#L89-L206
 extern "C" {
+    #[cfg(feature = "abort")]
+    fn abort(source_ptr: u32);
+
     fn db_read(key: u32) -> u32;
     fn db_write(key: u32, value: u32);
     fn db_remove(key: u32);
@@ -43,16 +46,34 @@ extern "C" {
     fn addr_canonicalize(source_ptr: u32, destination_ptr: u32) -> u32;
     fn addr_humanize(source_ptr: u32, destination_ptr: u32) -> u32;
 
+    /// Verifies message hashes against a signature with a public key, using the
+    /// secp256k1 ECDSA parametrization.
+    /// Returns 0 on verification success, 1 on verification failure, and values
+    /// greater than 1 in case of error.
     fn secp256k1_verify(message_hash_ptr: u32, signature_ptr: u32, public_key_ptr: u32) -> u32;
+
     fn secp256k1_recover_pubkey(
         message_hash_ptr: u32,
         signature_ptr: u32,
         recovery_param: u32,
     ) -> u64;
+
+    /// Verifies a message against a signature with a public key, using the
+    /// ed25519 EdDSA scheme.
+    /// Returns 0 on verification success, 1 on verification failure, and values
+    /// greater than 1 in case of error.
     fn ed25519_verify(message_ptr: u32, signature_ptr: u32, public_key_ptr: u32) -> u32;
+
+    /// Verifies a batch of messages against a batch of signatures and public keys, using the
+    /// ed25519 EdDSA scheme.
+    /// Returns 0 on verification success, 1 on verification failure, and values
+    /// greater than 1 in case of error.
     fn ed25519_batch_verify(messages_ptr: u32, signatures_ptr: u32, public_keys_ptr: u32) -> u32;
     fn sha1_calculate(inputs_ptr: u32) -> u64;
 
+    /// Writes a debug message (UFT-8 encoded) to the host for debugging purposes.
+    /// The host is free to log or process this in any way it considers appropriate.
+    /// In production environments it is expected that those messages are discarded.
     fn debug(source_ptr: u32);
 
     /// Executes a query on the chain (import). Not to be confused with the
@@ -112,7 +133,7 @@ impl Storage for ExternalStorage {
         start: Option<&[u8]>,
         end: Option<&[u8]>,
         order: Order,
-    ) -> Box<dyn Iterator<Item = Pair>> {
+    ) -> Box<dyn Iterator<Item = Record>> {
         // There is lots of gotchas on turning options into regions for FFI, thus this design
         // See: https://github.com/CosmWasm/cosmwasm/pull/509
         let start_region = start.map(build_region);
@@ -134,7 +155,7 @@ struct ExternalIterator {
 
 #[cfg(feature = "iterator")]
 impl Iterator for ExternalIterator {
-    type Item = Pair;
+    type Item = Record;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next_result = unsafe { db_next(self.iterator_id) };
@@ -162,7 +183,7 @@ impl ExternalApi {
 impl Api for ExternalApi {
     fn addr_validate(&self, input: &str) -> StdResult<Addr> {
         let input_bytes = input.as_bytes();
-        if input_bytes.len() > 90 {
+        if input_bytes.len() > 256 {
             // See MAX_LENGTH_HUMAN_ADDRESS in the VM.
             // In this case, the VM will refuse to read the input from the contract.
             // Stop here to allow handling the error in the contract.
@@ -185,7 +206,7 @@ impl Api for ExternalApi {
 
     fn addr_canonicalize(&self, input: &str) -> StdResult<CanonicalAddr> {
         let input_bytes = input.as_bytes();
-        if input_bytes.len() > 90 {
+        if input_bytes.len() > 256 {
             // See MAX_LENGTH_HUMAN_ADDRESS in the VM.
             // In this case, the VM will refuse to read the input from the contract.
             // Stop here to allow handling the error in the contract.
@@ -402,4 +423,12 @@ impl Querier for ExternalQuerier {
             })
         })
     }
+}
+
+#[cfg(feature = "abort")]
+pub fn handle_panic(message: &str) {
+    // keep the boxes in scope, so we free it at the end (don't cast to pointers same line as build_region)
+    let region = build_region(message.as_bytes());
+    let region_ptr = region.as_ref() as *const Region as u32;
+    unsafe { abort(region_ptr) };
 }

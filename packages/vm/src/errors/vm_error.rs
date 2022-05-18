@@ -11,6 +11,12 @@ use crate::backend::BackendError;
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum VmError {
+    #[error("Aborted: {}", msg)]
+    Aborted {
+        msg: String,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
     #[error("Error calling into the VM's backend: {}", source)]
     BackendErr {
         source: BackendError,
@@ -142,6 +148,14 @@ pub enum VmError {
 }
 
 impl VmError {
+    pub(crate) fn aborted(msg: impl Into<String>) -> Self {
+        VmError::Aborted {
+            msg: msg.into(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
     pub(crate) fn backend_err(original: BackendError) -> Self {
         VmError::BackendErr {
             source: original,
@@ -267,7 +281,10 @@ impl VmError {
         }
     }
 
-    pub(crate) fn runtime_err(msg: impl Into<String>) -> Self {
+    // Creates a runtime error with the given message.
+    // This is private since it is only needed when converting wasmer::RuntimeError
+    // to VmError.
+    fn runtime_err(msg: impl Into<String>) -> Self {
         VmError::RuntimeErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -334,7 +351,19 @@ impl From<wasmer::DeserializeError> for VmError {
 
 impl From<wasmer::RuntimeError> for VmError {
     fn from(original: wasmer::RuntimeError) -> Self {
-        VmError::runtime_err(format!("Wasmer runtime error: {}", original))
+        // Do not use the Display implementation or to_string() of `RuntimeError`
+        // because it can contain a system specific stack trace, which can
+        // lead to non-deterministic execution.
+        //
+        // Implementation follows https://github.com/wasmerio/wasmer/blob/2.0.0/lib/engine/src/trap/error.rs#L215
+        let message = format!("RuntimeError: {}", original.message());
+        debug_assert!(
+            original.to_string().starts_with(&message),
+            "The error message we created is not a prefix of the error message from Wasmer. Our message: '{}'. Wasmer messsage: '{}'",
+            &message,
+            original.to_string()
+        );
+        VmError::runtime_err(format!("Wasmer runtime error: {}", &message))
     }
 }
 
@@ -370,7 +399,7 @@ mod tests {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg },
                 ..
-            } => assert_eq!(msg.unwrap(), "something went wrong"),
+            } => assert_eq!(msg, "something went wrong"),
             e => panic!("Unexpected error: {:?}", e),
         }
     }

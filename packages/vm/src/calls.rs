@@ -1,13 +1,12 @@
-use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
-use std::fmt;
 use wasmer::Val;
 
-use cosmwasm_std::{ContractResult, Env, MessageInfo, QueryResponse, Reply, Response};
+use cosmwasm_std::{ContractResult, CustomMsg, Env, MessageInfo, QueryResponse, Reply, Response};
 #[cfg(feature = "stargate")]
 use cosmwasm_std::{
-    IbcBasicResponse, IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg, IbcPacketAckMsg,
-    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse,
+    Ibc3ChannelOpenResponse, IbcBasicResponse, IbcChannelCloseMsg, IbcChannelConnectMsg,
+    IbcChannelOpenMsg, IbcPacketAckMsg, IbcPacketReceiveMsg, IbcPacketTimeoutMsg,
+    IbcReceiveResponse,
 };
 
 use crate::backend::{BackendApi, Querier, Storage};
@@ -106,7 +105,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let info = to_vec(info)?;
@@ -126,7 +125,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let info = to_vec(info)?;
@@ -145,7 +144,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let data = call_migrate_raw(instance, &env, msg)?;
@@ -163,7 +162,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let data = call_sudo_raw(instance, &env, msg)?;
@@ -181,7 +180,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let msg = to_vec(msg)?;
@@ -220,7 +219,7 @@ pub fn call_ibc_channel_open<A, S, Q>(
     instance: &mut Instance<A, S, Q>,
     env: &Env,
     msg: &IbcChannelOpenMsg,
-) -> VmResult<ContractResult<()>>
+) -> VmResult<ContractResult<Option<Ibc3ChannelOpenResponse>>>
 where
     A: BackendApi + 'static,
     S: Storage + 'static,
@@ -229,7 +228,7 @@ where
     let env = to_vec(env)?;
     let msg = to_vec(msg)?;
     let data = call_ibc_channel_open_raw(instance, &env, &msg)?;
-    let result: ContractResult<()> =
+    let result: ContractResult<Option<Ibc3ChannelOpenResponse>> =
         from_slice(&data, deserialization_limits::RESULT_IBC_CHANNEL_OPEN)?;
     Ok(result)
 }
@@ -244,7 +243,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let msg = to_vec(msg)?;
@@ -263,7 +262,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let msg = to_vec(msg)?;
@@ -282,7 +281,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let msg = to_vec(msg)?;
@@ -301,7 +300,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let msg = to_vec(msg)?;
@@ -320,7 +319,7 @@ where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    U: DeserializeOwned + Clone + fmt::Debug + JsonSchema + PartialEq,
+    U: DeserializeOwned + CustomMsg,
 {
     let env = to_vec(env)?;
     let msg = to_vec(msg)?;
@@ -683,7 +682,8 @@ mod tests {
             mock_ibc_packet_ack, mock_ibc_packet_recv, mock_ibc_packet_timeout, mock_wasmd_attr,
         };
         use cosmwasm_std::{
-            Empty, Event, IbcAcknowledgement, IbcOrder, Reply, ReplyOn, SubMsgExecutionResponse,
+            Empty, Event, IbcAcknowledgement, IbcOrder, Reply, ReplyOn, SubMsgResponse,
+            SubMsgResult,
         };
         static CONTRACT: &[u8] = include_bytes!("../testdata/ibc_reflect.wasm");
         const IBC_VERSION: &str = "ibc-reflect-v1";
@@ -728,7 +728,7 @@ mod tests {
             // which creates a reflect account. here we get the callback
             let response = Reply {
                 id,
-                result: ContractResult::Ok(SubMsgExecutionResponse {
+                result: SubMsgResult::Ok(SubMsgResponse {
                     events: vec![event],
                     data: None,
                 }),

@@ -1,7 +1,6 @@
 //! Import implementations
 
 use std::cmp::max;
-use std::convert::TryInto;
 
 use cosmwasm_crypto::{
     ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify,
@@ -31,17 +30,16 @@ use crate::GasInfo;
 const KI: usize = 1024;
 /// A mibi (mega binary)
 const MI: usize = 1024 * 1024;
-/// Max key length for db_write (i.e. when VM reads from Wasm memory)
+/// Max key length for db_write/db_read/db_remove/db_scan (when VM reads the key argument from Wasm memory)
 const MAX_LENGTH_DB_KEY: usize = 64 * KI;
-/// Max key length for db_write (i.e. when VM reads from Wasm memory)
+/// Max value length for db_write (when VM reads the value argument from Wasm memory)
 const MAX_LENGTH_DB_VALUE: usize = 128 * KI;
 /// Typically 20 (Cosmos SDK, Ethereum), 32 (Nano, Substrate) or 54 (MockApi)
 const MAX_LENGTH_CANONICAL_ADDRESS: usize = 64;
 /// The max length of human address inputs (in bytes).
 /// The maximum allowed size for [bech32](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32)
-/// is 90 characters.
-/// This value will increase with https://github.com/CosmWasm/cosmwasm/issues/1056.
-const MAX_LENGTH_HUMAN_ADDRESS: usize = 90;
+/// is 90 characters and we're adding some safety margin around that for other formats.
+const MAX_LENGTH_HUMAN_ADDRESS: usize = 256;
 const MAX_LENGTH_QUERY_CHAIN_REQUEST: usize = 64 * KI;
 /// Length of a serialized Ed25519  signature
 const MAX_LENGTH_ED25519_SIGNATURE: usize = 64;
@@ -65,6 +63,9 @@ pub const MAX_LENGTH_SHA1_MESSAGE: usize = 80;
 
 /// Max length for a debug message
 const MAX_LENGTH_DEBUG: usize = 2 * MI;
+
+/// Max length for an abort message
+const MAX_LENGTH_ABORT: usize = 2 * MI;
 
 // Import implementations
 //
@@ -146,13 +147,29 @@ pub fn do_addr_validate<A: BackendApi, S: Storage, Q: Querier>(
 
     let (result, gas_info) = env.api.canonical_address(&source_string);
     process_gas_info::<A, S, Q>(env, gas_info)?;
-    match result {
-        Ok(_canonical) => Ok(0),
+    let canonical = match result {
+        Ok(data) => data,
         Err(BackendError::UserErr { msg, .. }) => {
-            Ok(write_to_contract::<A, S, Q>(env, msg.as_bytes())?)
+            return write_to_contract::<A, S, Q>(env, msg.as_bytes())
         }
-        Err(err) => Err(VmError::from(err)),
+        Err(err) => return Err(VmError::from(err)),
+    };
+
+    let (result, gas_info) = env.api.human_address(&canonical);
+    process_gas_info::<A, S, Q>(env, gas_info)?;
+    let normalized = match result {
+        Ok(addr) => addr,
+        Err(BackendError::UserErr { msg, .. }) => {
+            return write_to_contract::<A, S, Q>(env, msg.as_bytes())
+        }
+        Err(err) => return Err(VmError::from(err)),
+    };
+
+    if normalized != source_string {
+        return write_to_contract::<A, S, Q>(env, b"Address is not normalized");
     }
+
+    Ok(0)
 }
 
 pub fn do_addr_canonicalize<A: BackendApi, S: Storage, Q: Querier>(
@@ -398,6 +415,16 @@ pub fn do_debug<A: BackendApi, S: Storage, Q: Querier>(
     Ok(())
 }
 
+/// Aborts the contract and shows the given error message
+pub fn do_abort<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    message_ptr: u32,
+) -> VmResult<()> {
+    let message_data = read_region(&env.memory(), message_ptr, MAX_LENGTH_ABORT)?;
+    let msg = String::from_utf8_lossy(&message_data);
+    Err(VmError::aborted(msg))
+}
+
 /// Creates a Region in the contract, writes the given data to it and returns the memory location
 fn write_to_contract<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
@@ -514,7 +541,7 @@ mod tests {
     const INIT_AMOUNT: u128 = 500;
     const INIT_DENOM: &str = "TOKEN";
 
-    const TESTING_GAS_LIMIT: u64 = 500_000;
+    const TESTING_GAS_LIMIT: u64 = 500_000_000_000; // ~0.5ms
     const TESTING_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
 
     const ECDSA_HASH_HEX: &str = "5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0";
@@ -535,7 +562,7 @@ mod tests {
         let gas_limit = TESTING_GAS_LIMIT;
         let env = Environment::new(api, gas_limit, false);
 
-        let module = compile(CONTRACT, TESTING_MEMORY_LIMIT).unwrap();
+        let module = compile(CONTRACT, TESTING_MEMORY_LIMIT, &[]).unwrap();
         let store = module.store();
         // we need stubs for all required imports
         let import_obj = imports! {
@@ -882,11 +909,12 @@ mod tests {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, b"foo");
+        let source_ptr1 = write_data(&env, b"foo");
+        let source_ptr2 = write_data(&env, b"eth1n48g2mjh9ezz7zjtya37wtgg5r5emr0drkwlgw");
 
-        leave_default_data(&env);
-
-        let res = do_addr_validate(&env, source_ptr).unwrap();
+        let res = do_addr_validate(&env, source_ptr1).unwrap();
+        assert_eq!(res, 0);
+        let res = do_addr_validate(&env, source_ptr2).unwrap();
         assert_eq!(res, 0);
     }
 
@@ -898,8 +926,7 @@ mod tests {
         let source_ptr1 = write_data(&env, b"fo\x80o"); // invalid UTF-8 (fo�o)
         let source_ptr2 = write_data(&env, b""); // empty
         let source_ptr3 = write_data(&env, b"addressexceedingaddressspacesuperlongreallylongiamensuringthatitislongerthaneverything"); // too long
-
-        leave_default_data(&env);
+        let source_ptr4 = write_data(&env, b"fooBar"); // Not normalized. The definition of normalized is chain-dependent but the MockApi requires lower case.
 
         let res = do_addr_validate(&env, source_ptr1).unwrap();
         assert_ne!(res, 0);
@@ -915,6 +942,11 @@ mod tests {
         assert_ne!(res, 0);
         let err = String::from_utf8(force_read(&env, res)).unwrap();
         assert_eq!(err, "Invalid input: human address too long");
+
+        let res = do_addr_validate(&env, source_ptr4).unwrap();
+        assert_ne!(res, 0);
+        let err = String::from_utf8(force_read(&env, res)).unwrap();
+        assert_eq!(err, "Address is not normalized");
     }
 
     #[test]
@@ -931,9 +963,7 @@ mod tests {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg, .. },
                 ..
-            } => {
-                assert_eq!(msg.unwrap(), "Temporarily unavailable");
-            }
+            } => assert_eq!(msg, "Temporarily unavailable"),
             err => panic!("Incorrect error returned: {:?}", err),
         }
     }
@@ -943,7 +973,7 @@ mod tests {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, &[61; 100]);
+        let source_ptr = write_data(&env, &[61; 333]);
 
         leave_default_data(&env);
 
@@ -956,8 +986,8 @@ mod tests {
                     },
                 ..
             } => {
-                assert_eq!(length, 100);
-                assert_eq!(max_length, 90);
+                assert_eq!(length, 333);
+                assert_eq!(max_length, 256);
             }
             err => panic!("Incorrect error returned: {:?}", err),
         }
@@ -1024,9 +1054,7 @@ mod tests {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg, .. },
                 ..
-            } => {
-                assert_eq!(msg.unwrap(), "Temporarily unavailable");
-            }
+            } => assert_eq!(msg, "Temporarily unavailable"),
             err => panic!("Incorrect error returned: {:?}", err),
         }
     }
@@ -1036,7 +1064,7 @@ mod tests {
         let api = MockApi::default();
         let (env, mut instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, &[61; 100]);
+        let source_ptr = write_data(&env, &[61; 333]);
         let dest_ptr = create_empty(&mut instance, 8);
 
         leave_default_data(&env);
@@ -1050,8 +1078,8 @@ mod tests {
                     },
                 ..
             } => {
-                assert_eq!(length, 100);
-                assert_eq!(max_length, 90);
+                assert_eq!(length, 333);
+                assert_eq!(max_length, 256);
             }
             err => panic!("Incorrect error returned: {:?}", err),
         }
@@ -1128,7 +1156,7 @@ mod tests {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg, .. },
                 ..
-            } => assert_eq!(msg.unwrap(), "Temporarily unavailable"),
+            } => assert_eq!(msg, "Temporarily unavailable"),
             err => panic!("Incorrect error returned: {:?}", err),
         };
     }

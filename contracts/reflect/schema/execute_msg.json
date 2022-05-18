@@ -71,10 +71,10 @@
   ],
   "definitions": {
     "BankMsg": {
-      "description": "The message types of the bank module.\n\nSee https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto.",
+      "description": "The message types of the bank module.\n\nSee https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1/tx.proto.",
       "oneOf": [
         {
-          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a MsgSend in https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto. `from_address` is automatically filled with the current contract's address.",
+          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a MsgSend in https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1/tx.proto. `from_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "send"
@@ -289,10 +289,10 @@
       ]
     },
     "DistributionMsg": {
-      "description": "The message types of the distribution module.\n\nSee https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto",
+      "description": "The message types of the distribution module.\n\nSee https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1/tx.proto",
       "oneOf": [
         {
-          "description": "This is translated to a [MsgSetWithdrawAddress](https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto#L29-L37). `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a [MsgSetWithdrawAddress](https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1/tx.proto#L29-L37). `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "set_withdraw_address"
@@ -314,7 +314,7 @@
           "additionalProperties": false
         },
         {
-          "description": "This is translated to a [[MsgWithdrawDelegatorReward](https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto#L42-L50). `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a [[MsgWithdrawDelegatorReward](https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1/tx.proto#L42-L50). `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "withdraw_delegator_reward"
@@ -340,7 +340,7 @@
     "GovMsg": {
       "oneOf": [
         {
-          "description": "This maps directly to [MsgVote](https://github.com/cosmos/cosmos-sdk/blob/v0.42.5/proto/cosmos/gov/v1beta1/tx.proto#L46-L56) in the Cosmos SDK with voter set to the contract address.",
+          "description": "This maps directly to [MsgVote](https://github.com/cosmos/cosmos-sdk/blob/v0.42.5/proto/cosmos/gov/v1/tx.proto#L46-L56) in the Cosmos SDK with voter set to the contract address.",
           "type": "object",
           "required": [
             "vote"
@@ -532,10 +532,10 @@
       ]
     },
     "StakingMsg": {
-      "description": "The message types of the staking module.\n\nSee https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.",
+      "description": "The message types of the staking module.\n\nSee https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.",
       "oneOf": [
         {
-          "description": "This is translated to a MsgDelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a MsgDelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "delegate"
@@ -560,7 +560,7 @@
           "additionalProperties": false
         },
         {
-          "description": "This is translated to a MsgUndelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a MsgUndelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "undelegate"
@@ -585,7 +585,7 @@
           "additionalProperties": false
         },
         {
-          "description": "This is translated to a MsgBeginRedelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a MsgBeginRedelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto. `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "redelegate"
@@ -672,10 +672,10 @@
       ]
     },
     "WasmMsg": {
-      "description": "The message types of the wasm module.\n\nSee https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.",
+      "description": "The message types of the wasm module.\n\nSee https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.",
       "oneOf": [
         {
-          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a MsgExecuteContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a MsgExecuteContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "execute"
@@ -712,7 +712,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThis is translated to a MsgInstantiateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThis is translated to a MsgInstantiateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "instantiate"
@@ -762,7 +762,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a MsgMigrateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a MsgMigrateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "migrate"

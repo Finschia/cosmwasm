@@ -8,7 +8,6 @@ use crate::Empty;
 mod bank;
 mod ibc;
 mod staking;
-mod stargate;
 mod wasm;
 
 pub use bank::{AllBalanceResponse, BalanceResponse, BankQuery};
@@ -19,21 +18,20 @@ pub use staking::{
     AllDelegationsResponse, AllValidatorsResponse, BondedDenomResponse, Delegation,
     DelegationResponse, FullDelegation, StakingQuery, Validator, ValidatorResponse,
 };
-#[cfg(feature = "stargate")]
-pub use stargate::StargateResponse;
-pub use wasm::WasmQuery;
+pub use wasm::{ContractInfoResponse, WasmQuery};
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum QueryRequest<C: CustomQuery> {
+pub enum QueryRequest<C> {
     Bank(BankQuery),
     Custom(C),
     #[cfg(feature = "staking")]
     Staking(StakingQuery),
-    /// A Stargate query encoded the same way as abci_query, with path and protobuf encoded Data.
-    /// The format is defined in [ADR-21](https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-021-protobuf-query-encoding.md)
-    /// The response is also protobuf encoded. The caller is responsible for compiling the proper protobuf definitions
+    /// A Stargate query is encoded the same way as abci_query, with path and protobuf encoded request data.
+    /// The format is defined in [ADR-21](https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-021-protobuf-query-encoding.md).
+    /// The response is protobuf encoded data directly without a JSON response wrapper.
+    /// The caller is responsible for compiling the proper protobuf definitions for both requests and responses.
     #[cfg(feature = "stargate")]
     Stargate {
         /// this is the fully qualified service path used for routing,
@@ -66,7 +64,9 @@ pub enum QueryRequest<C: CustomQuery> {
 ///
 /// impl CustomQuery for MyCustomQuery {}
 /// ```
-pub trait CustomQuery: Serialize {}
+pub trait CustomQuery: Serialize + Clone {}
+// We require `Clone` because `Clone` in `QueryRequest<C>` is only derived for
+// `C: Clone` and we want consistent behaviour for all `QueryRequest<C>`
 
 impl CustomQuery for Empty {}
 
