@@ -71,10 +71,10 @@
   ],
   "definitions": {
     "BankMsg": {
-      "description": "The message types of the bank module.\n\nSee https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1/tx.proto.",
+      "description": "The message types of the bank module.\n\nSee https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto.",
       "oneOf": [
         {
-          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a MsgSend in https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1/tx.proto. `from_address` is automatically filled with the current contract's address.",
+          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a MsgSend in https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto. `from_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "send"
