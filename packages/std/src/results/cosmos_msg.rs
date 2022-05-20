@@ -46,14 +46,14 @@ pub enum CosmosMsg<T = Empty> {
 
 /// The message types of the bank module.
 ///
-/// See https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankMsg {
     /// Sends native tokens from the contract to the given address.
     ///
-    /// This is translated to a MsgSend in https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto.
+    /// This is translated to a MsgSend in https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto.
     /// `from_address` is automatically filled with the current contract's address.
     Send {
         to_address: String,
@@ -67,19 +67,19 @@ pub enum BankMsg {
 
 /// The message types of the staking module.
 ///
-/// See https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
 #[cfg(feature = "staking")]
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StakingMsg {
-    /// This is translated to a MsgDelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
+    /// This is translated to a MsgDelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Delegate { validator: String, amount: Coin },
-    /// This is translated to a MsgUndelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
+    /// This is translated to a MsgUndelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Undelegate { validator: String, amount: Coin },
-    /// This is translated to a MsgBeginRedelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
+    /// This is translated to a MsgBeginRedelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Redelegate {
         src_validator: String,
@@ -112,14 +112,14 @@ pub enum DistributionMsg {
 
 /// The message types of the wasm module.
 ///
-/// See https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WasmMsg {
     /// Dispatches a call to another contract at a known address (with known ABI).
     ///
-    /// This is translated to a MsgExecuteContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a MsgExecuteContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Execute {
         contract_addr: String,
@@ -129,7 +129,7 @@ pub enum WasmMsg {
     },
     /// Instantiates a new contracts from previously uploaded Wasm code.
     ///
-    /// This is translated to a MsgInstantiateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a MsgInstantiateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Instantiate {
         admin: Option<String>,
@@ -145,7 +145,7 @@ pub enum WasmMsg {
     ///
     /// Only the contract admin (as defined in wasmd), if any, is able to make this call.
     ///
-    /// This is translated to a MsgMigrateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a MsgMigrateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Migrate {
         contract_addr: String,

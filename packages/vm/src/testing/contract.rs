@@ -103,9 +103,9 @@ mod test {
     use cosmwasm_std::{QueryResponse, Response};
 
     static CONTRACT_WITHOUT_MIGRATE: &[u8] =
-        include_bytes!("../../testdata/queue_0.16.2_without_migrate.wasm");
+        include_bytes!("../../testdata/queue_1.0.0_without_migrate.wasm");
     static CONTRACT_WITH_MIGRATE: &[u8] =
-        include_bytes!("../../testdata/queue_0.16.2_with_migrate.wasm");
+        include_bytes!("../../testdata/queue_1.0.0_with_migrate.wasm");
 
     #[test]
     fn test_sanity_integration_test_flow() {

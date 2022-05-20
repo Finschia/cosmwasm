@@ -85,8 +85,8 @@ pub struct BlockInfo {
 ///
 /// It contains the essential info for authorization - identity of the call, and payment.
 ///
-/// `MsgInstantiateContract` and `MsgExecuteContract` are defined in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto .
-/// [MsgExecuteContract]: https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto .
+/// `MsgInstantiateContract` and `MsgExecuteContract` are defined in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto .
+/// [MsgExecuteContract]: https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto .
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct MessageInfo {
     /// The `sender` field from `MsgInstantiateContract` and `MsgExecuteContract`.
