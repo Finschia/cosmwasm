@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::utils::{abort_by, collect_available_arg_types, get_return_len, make_typed_return};
+use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make_typed_return};
 
 macro_rules! abort_by_dynamic_link {
     ($span:expr, $($tts:tt)*) => {
@@ -81,7 +81,7 @@ fn generate_extern_block(
                 quote! { #renamed_param_ident: u32 }
             })
             .collect();
-        let typed_return = make_typed_return(&func_decl.sig.output, "dynamic_link".to_string());
+        let typed_return = make_typed_return(&func_decl.sig.output);
         quote! {
             fn #stub_func_name_ident(#(#renamed_param_defs),*) #typed_return;
         }
@@ -141,19 +141,15 @@ fn make_call_stub_and_return(
         .map(|n| format_ident!("region_arg{}", n))
         .collect();
 
-    let return_len = get_return_len(return_type);
-    match return_len {
-        0 => {
-            quote! {
-                #ident_func_name(#(#arguments),*);
-            }
+    if has_return_value(return_type) {
+        quote! {
+            let result = #ident_func_name(#(#arguments),*);
+            let vec_result = cosmwasm_std::memory::consume_region(result as *mut cosmwasm_std::memory::Region);
+            cosmwasm_std::from_slice(&vec_result).unwrap()
         }
-        _ => {
-            quote! {
-                let result = #ident_func_name(#(#arguments),*);
-                let vec_result = cosmwasm_std::memory::consume_region(result as *mut cosmwasm_std::memory::Region);
-                cosmwasm_std::from_slice(&vec_result).unwrap()
-            }
+    } else {
+        quote! {
+            #ident_func_name(#(#arguments),*);
         }
     }
 }

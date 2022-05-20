@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::utils::{collect_available_arg_types, get_return_len, make_typed_return};
+use crate::utils::{collect_available_arg_types, has_return_value, make_typed_return};
 
 pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
     let stub_func_name_ident = format_ident!("stub_{}", function.sig.ident);
@@ -20,7 +20,7 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
             quote! { #renamed_param_ident: u32 }
         })
         .collect();
-    let typed_return = make_typed_return(&function.sig.output, "callable_point".to_string());
+    let typed_return = make_typed_return(&function.sig.output);
 
     let call_origin_return =
         make_call_origin_and_return(&function.sig.ident, args_len, &function.sig.output);
@@ -42,17 +42,15 @@ fn make_call_origin_and_return(
     return_type: &syn::ReturnType,
 ) -> TokenStream {
     let arguments: Vec<_> = (0..args_len).map(|n| format_ident!("arg{}", n)).collect();
-    let return_len = get_return_len(return_type);
 
-    match return_len {
-        0 => quote! {#func_name_ident(#(#arguments),*);},
-        _ => {
-            quote! {
-                let result = #func_name_ident(#(#arguments),*);
-                let vec_result = cosmwasm_std::to_vec(&result).unwrap();
-                cosmwasm_std::memory::release_buffer(vec_result) as u32
-            }
+    if has_return_value(return_type) {
+        quote! {
+            let result = #func_name_ident(#(#arguments),*);
+            let vec_result = cosmwasm_std::to_vec(&result).unwrap();
+            cosmwasm_std::memory::release_buffer(vec_result) as u32
         }
+    } else {
+        quote! {#func_name_ident(#(#arguments),*);}
     }
 }
 
