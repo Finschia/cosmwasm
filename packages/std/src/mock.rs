@@ -560,10 +560,7 @@ impl Default for WasmQuerier {
             let addr = match request {
                 WasmQuery::Smart { contract_addr, .. } => contract_addr,
                 WasmQuery::Raw { contract_addr, .. } => contract_addr,
-                //<<<<<<< HEAD
-                //=======
                 WasmQuery::ContractInfo { contract_addr, .. } => contract_addr,
-                //>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
             }
             .clone();
             SystemResult::Err(SystemError::NoSuchContract { addr })
@@ -1366,8 +1363,6 @@ mod tests {
             err => panic!("Unexpected error: {:?}", err),
         }
 
-        //<<<<<<< HEAD
-        //=======
         // Query WasmQuery::ContractInfo
         let system_err = querier
             .query(&WasmQuery::ContractInfo {
@@ -1379,7 +1374,6 @@ mod tests {
             err => panic!("Unexpected error: {:?}", err),
         }
 
-        //>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
         querier.update_handler(|request| {
             let constract1 = Addr::unchecked("contract1");
             let mut storage1 = HashMap::<Binary, Binary>::default();
@@ -1417,8 +1411,6 @@ mod tests {
                         })
                     }
                 }
-                //<<<<<<< HEAD
-                //=======
                 WasmQuery::ContractInfo { contract_addr } => {
                     if *contract_addr == constract1 {
                         let response = ContractInfoResponse {
@@ -1434,7 +1426,7 @@ mod tests {
                             addr: contract_addr.clone(),
                         })
                     }
-                } //>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
+                }
             }
         });
 
@@ -1478,8 +1470,6 @@ mod tests {
             }
             res => panic!("Unexpected result: {:?}", res),
         }
-        //<<<<<<< HEAD
-        //=======
 
         // WasmQuery::ContractInfo
         let result = querier.query(&WasmQuery::ContractInfo {
@@ -1493,7 +1483,6 @@ mod tests {
             ),
             res => panic!("Unexpected result: {:?}", res),
         }
-        //>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
     }
 
     #[test]

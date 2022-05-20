@@ -246,10 +246,6 @@ mod tests {
     use super::super::BankMsg;
     use super::*;
     use crate::results::submessages::{ReplyOn, UNUSED_MSG_ID};
-    //<<<<<<< HEAD
-    //    use crate::{attr, coins, from_slice, to_vec, Addr, Coin, Event, IntoEvent};
-    //=======
-    //    use crate::{coins, from_slice, to_vec, ContractResult};
     use crate::{attr, coins, from_slice, to_vec, Addr, Coin, ContractResult, Event, IntoEvent};
 
     #[test]
@@ -290,7 +286,6 @@ mod tests {
             }
         );
     }
-    //>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
 
     #[test]
     fn can_serialize_and_deserialize_init_response() {
@@ -329,7 +324,6 @@ mod tests {
         assert_eq!(deserialized, original);
     }
 
-    //<<<<<<< HEAD
     #[test]
     fn using_into_event() {
         // IntoEvent can be used only when cosmwasm_std is imported as `cosmwasm_std`
@@ -400,7 +394,6 @@ mod tests {
         let actual = Response::<Empty>::new().add_events(vec![act1, act2]);
         assert_eq!(actual, expected);
     }
-    //=======
 
     #[test]
     fn contract_result_is_ok_works() {
@@ -416,6 +409,5 @@ mod tests {
         let failure = ContractResult::<()>::Err("broken".to_string());
         assert!(failure.is_err());
         assert!(!success.is_err());
-        //>>>>>>> 46e5ff3e81a24e457aa3a2c89226088024eb07a7
     }
 }
