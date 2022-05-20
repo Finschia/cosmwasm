@@ -46,25 +46,11 @@ fn make_call_origin_and_return(
 
     match return_len {
         0 => quote! {#func_name_ident(#(#arguments),*);},
-        1 => {
+        _ => {
             quote! {
                 let result = #func_name_ident(#(#arguments),*);
                 let vec_result = cosmwasm_std::to_vec(&result).unwrap();
                 cosmwasm_std::memory::release_buffer(vec_result) as u32
-            }
-        }
-        _ => {
-            let results: Vec<_> = (0..return_len)
-                .map(|n| format_ident!("result{}", n))
-                .collect();
-            let vec_results: Vec<_> = (0..return_len)
-                .map(|n| format_ident!("vec_result{}", n))
-                .collect();
-
-            quote! {
-                let (#(#results),*) = #func_name_ident(#(#arguments),*);
-                #(let #vec_results = cosmwasm_std::to_vec(&#results).unwrap();)*
-                (#(cosmwasm_std::memory::release_buffer(#vec_results) as u32),*)
             }
         }
     }
@@ -112,10 +98,9 @@ mod tests {
             .to_string();
 
             let expected: TokenStream = parse_quote! {
-                let (result0, result1) = foo();
-                let vec_result0 = cosmwasm_std::to_vec(&result0).unwrap();
-                let vec_result1 = cosmwasm_std::to_vec(&result1).unwrap();
-                (cosmwasm_std::memory::release_buffer(vec_result0) as u32 , cosmwasm_std::memory::release_buffer(vec_result1) as u32)
+                let result = foo();
+                let vec_result = cosmwasm_std::to_vec(&result).unwrap();
+                cosmwasm_std::memory::release_buffer(vec_result) as u32
             };
             assert_eq!(expected.to_string(), result_code);
         }

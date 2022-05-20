@@ -49,12 +49,6 @@ pub fn make_typed_return(return_type: &syn::ReturnType, by: String) -> TokenStre
     let return_types_len = get_return_len(return_type);
     match return_types_len {
         0 => quote! {},
-        1 => quote! { -> u32 },
-        //TODO: see (https://github.com/line/cosmwasm/issues/156)
-        _ => abort_by!(return_type, by, "Cannot support returning tuple type yet"),
-        // _ => {
-        //     let returns = vec![quote! {u32}; return_types_len];
-        //     quote! { -> (#(#returns),*)}
-        // }
+        _ => quote! { -> u32 },
     }
 }
