@@ -150,7 +150,7 @@ mod tests {
         let res = instantiate(
             deps.as_mut(),
             mock_env(),
-            info.clone(),
+            info,
             InstantiateMsg {
                 queue_address: QUEUE_ADDRESS.to_string(),
             },
