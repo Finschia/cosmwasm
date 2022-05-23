@@ -1,7 +1,7 @@
 [package]
 name = "query-queue"
 version = "0.0.0"
-authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
+authors = ["loloicci <loloicci@linecorp.com>"]
 edition = "2018"
 publish = false
 
