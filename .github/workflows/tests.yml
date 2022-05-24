@@ -467,6 +467,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       working-directory: ./contracts/query-queue
+      queue-directory: ./contracts/queue
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -492,6 +493,9 @@ jobs:
       - name: Unit tests
         working-directory: ${{env.working-directory}}
         run: cargo unit-test --locked
+      - name: Build queue wasm binary for integration tests
+        working-directory: ${{env.queue-directory}}
+        run: cargo wasm --locked
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
         run: cargo integration-test --locked --no-default-features
