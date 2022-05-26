@@ -106,7 +106,6 @@ impl BackendApi for MockApi {
         // mimicks formats like hex or bech32 where different casings are valid for one address
         let normalized = input.to_lowercase();
 
-        // let gas_info = GasInfo::with_cost(DEFAULT_GAS_COST_CANONICALIZE);
         let gas_info = GasInfo::with_cost(self.canonicalize_cost);
 
         if let Some(backend_error) = self.backend_error {
