@@ -23,7 +23,7 @@ use cosmwasm_vm::testing::{execute, instantiate, mock_env, mock_info, mock_insta
 use cw_voting_with_uuid::msg::{ExecuteMsg, InstantiateMsg};
 
 static WASM: &[u8] =
-    include_bytes!("../target/wasm32-unknown-unknown/release/voting_with_uuid.wasm");
+    include_bytes!("../target/wasm32-unknown-unknown/release/cw_voting_with_uuid.wasm");
 const DENOM: &str = "voting_token";
 
 #[test]
