@@ -21,7 +21,7 @@
 
 * exclude floaty from release checking ([#165](https://github.com/line/cosmwasm/pull/165))
 * update rust version in release.yml ([#163](https://github.com/line/cosmwasm/pull/163))
-   - change the MSRV (Minimum Supported Rust Version) to 1.57.0
+  - change the MSRV (Minimum Supported Rust Version) to 1.57.0
 * export vm::testing::contract::Contract ([#147](https://github.com/line/cosmwasm/pull/147))
 * export DivideByZeroError to pub ([#140](https://github.com/line/cosmwasm/pull/140))
 

@@ -212,7 +212,10 @@ pub fn create_poll(
         .add_attribute("action", "create_poll")
         .add_attribute("creator", new_poll.creator)
         .add_attribute("poll_id", poll_id.to_string())
-        .add_attribute("quorum_percentage", quorum_percentage.unwrap_or(0).to_string())
+        .add_attribute(
+            "quorum_percentage",
+            quorum_percentage.unwrap_or(0).to_string(),
+        )
         .add_attribute("end_height", new_poll.end_height.to_string().to_string())
         .add_attribute("start_height", start_height.unwrap_or(0).to_string())
         .set_data(to_binary(&CreatePollResponse { poll_id })?);
@@ -401,11 +404,10 @@ fn send_tokens(to_address: &Addr, amount: Vec<Coin>, action: &str) -> Response {
     let attributes = vec![attr("action", action), attr("to", to_address.clone())];
 
     Response::new()
-        .add_message(
-            CosmosMsg::Bank(BankMsg::Send {
-                to_address: to_address.to_string(),
-                amount,
-            }))
+        .add_message(CosmosMsg::Bank(BankMsg::Send {
+            to_address: to_address.to_string(),
+            amount,
+        }))
         .add_attributes(attributes)
 }
 

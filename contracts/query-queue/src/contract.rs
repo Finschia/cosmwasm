@@ -102,7 +102,9 @@ fn query_raw(deps: Deps, key: u8) -> StdResult<RawResponse> {
         .querier
         .query_wasm_raw(address, (vec![key]).as_slice())?;
     let response_string = std::str::from_utf8(response.unwrap_or_default().as_slice())?.to_string();
-    Ok(RawResponse { response: response_string })
+    Ok(RawResponse {
+        response: response_string,
+    })
 }
 
 fn query_count(deps: Deps, msg: QueryMsg) -> StdResult<CountResponse> {
@@ -141,16 +143,16 @@ mod tests {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     struct RawQueryResponse {
-        value: u32
+        value: u32,
     }
 
     fn create_contract() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let info = mock_info("creator", &[]);
         let res = instantiate(
             deps.as_mut(),
             mock_env(),
-            info.clone(),
+            info,
             InstantiateMsg {
                 queue_address: QUEUE_ADDRESS.to_string(),
             },
@@ -190,7 +192,9 @@ mod tests {
             WasmQuery::Raw {
                 contract_addr: _,
                 key: _,
-            } => SystemResult::Ok(ContractResult::Ok(to_binary(&RawQueryResponse{value: 42}).unwrap())),
+            } => SystemResult::Ok(ContractResult::Ok(
+                to_binary(&RawQueryResponse { value: 42 }).unwrap(),
+            )),
             _ => SystemResult::Err(SystemError::Unknown {}),
         });
         deps

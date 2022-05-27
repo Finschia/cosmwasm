@@ -86,7 +86,6 @@ pub fn has_ibc_entry_points(module: &impl ExportInfo) -> bool {
 mod tests {
     use super::*;
     use parity_wasm::elements::Internal;
-    use std::iter::FromIterator;
     use wasmer::{Cranelift, Store, Universal};
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
@@ -248,7 +247,7 @@ mod tests {
 
                 (type (func))
                 (func (type 0) nop)
-                (export "interface_version_7" (func 0))
+                (export "interface_version_8" (func 0))
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
@@ -266,7 +265,7 @@ mod tests {
 
                 (type (func))
                 (func (type 0) nop)
-                (export "interface_version_7" (func 0))
+                (export "interface_version_8" (func 0))
                 (export "instantiate" (func 0))
                 (export "execute" (func 0))
                 (export "allocate" (func 0))
@@ -291,7 +290,7 @@ mod tests {
 
                 (type (func))
                 (func (type 0) nop)
-                (export "interface_version_7" (func 0))
+                (export "interface_version_8" (func 0))
                 (export "instantiate" (func 0))
                 (export "execute" (func 0))
                 (export "allocate" (func 0))

@@ -11,8 +11,9 @@ use crate::msg::{
 };
 use crate::state::{config, config_read, replies, replies_read, State};
 
+#[entry_point]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<SpecialQuery>,
     _env: Env,
     info: MessageInfo,
     _msg: InstantiateMsg,
@@ -22,8 +23,9 @@ pub fn instantiate(
     Ok(Response::default())
 }
 
+#[entry_point]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<SpecialQuery>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -36,7 +38,7 @@ pub fn execute(
 }
 
 pub fn try_reflect(
-    deps: DepsMut,
+    deps: DepsMut<SpecialQuery>,
     _env: Env,
     info: MessageInfo,
     msgs: Vec<CosmosMsg<CustomMsg>>,
@@ -60,7 +62,7 @@ pub fn try_reflect(
 }
 
 pub fn try_reflect_subcall(
-    deps: DepsMut,
+    deps: DepsMut<SpecialQuery>,
     _env: Env,
     info: MessageInfo,
     msgs: Vec<SubMsg<CustomMsg>>,
@@ -83,7 +85,7 @@ pub fn try_reflect_subcall(
 }
 
 pub fn try_change_owner(
-    deps: DepsMut,
+    deps: DepsMut<SpecialQuery>,
     _env: Env,
     info: MessageInfo,
     new_owner: String,
@@ -106,13 +108,14 @@ pub fn try_change_owner(
 
 /// This just stores the result for future query
 #[entry_point]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ReflectError> {
+pub fn reply(deps: DepsMut<SpecialQuery>, _env: Env, msg: Reply) -> Result<Response, ReflectError> {
     let key = msg.id.to_be_bytes();
     replies(deps.storage).save(&key, &msg)?;
     Ok(Response::default())
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
+#[entry_point]
+pub fn query(deps: Deps<SpecialQuery>, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
     match msg {
         QueryMsg::Owner {} => to_binary(&query_owner(deps)?),
         QueryMsg::Capitalized { text } => to_binary(&query_capitalized(deps, text)?),
@@ -122,7 +125,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
     }
 }
 
-fn query_owner(deps: Deps) -> StdResult<OwnerResponse> {
+fn query_owner(deps: Deps<SpecialQuery>) -> StdResult<OwnerResponse> {
     let state = config_read(deps.storage).load()?;
     let resp = OwnerResponse {
         owner: state.owner.into(),
@@ -130,18 +133,21 @@ fn query_owner(deps: Deps) -> StdResult<OwnerResponse> {
     Ok(resp)
 }
 
-fn query_subcall(deps: Deps, id: u64) -> StdResult<Reply> {
+fn query_subcall(deps: Deps<SpecialQuery>, id: u64) -> StdResult<Reply> {
     let key = id.to_be_bytes();
     replies_read(deps.storage).load(&key)
 }
 
-fn query_capitalized(deps: Deps, text: String) -> StdResult<CapitalizedResponse> {
+fn query_capitalized(deps: Deps<SpecialQuery>, text: String) -> StdResult<CapitalizedResponse> {
     let req = SpecialQuery::Capitalized { text }.into();
-    let response: SpecialResponse = deps.querier.custom_query(&req)?;
+    let response: SpecialResponse = deps.querier.query(&req)?;
     Ok(CapitalizedResponse { text: response.msg })
 }
 
-fn query_chain(deps: Deps, request: &QueryRequest<SpecialQuery>) -> StdResult<ChainResponse> {
+fn query_chain(
+    deps: Deps<SpecialQuery>,
+    request: &QueryRequest<SpecialQuery>,
+) -> StdResult<ChainResponse> {
     let raw = to_vec(request).map_err(|serialize_err| {
         StdError::generic_err(format!("Serializing QueryRequest: {}", serialize_err))
     })?;
@@ -158,7 +164,7 @@ fn query_chain(deps: Deps, request: &QueryRequest<SpecialQuery>) -> StdResult<Ch
     }
 }
 
-fn query_raw(deps: Deps, contract: String, key: Binary) -> StdResult<RawResponse> {
+fn query_raw(deps: Deps<SpecialQuery>, contract: String, key: Binary) -> StdResult<RawResponse> {
     let response: Option<Vec<u8>> = deps.querier.query_wasm_raw(contract, key)?;
     Ok(RawResponse {
         data: response.unwrap_or_default().into(),
@@ -171,8 +177,8 @@ mod tests {
     use crate::testing::mock_dependencies_with_custom_querier;
     use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{
-        coin, coins, from_binary, AllBalanceResponse, BankMsg, BankQuery, Binary, ContractResult,
-        Event, StakingMsg, StdError, SubMsgExecutionResponse,
+        coin, coins, from_binary, AllBalanceResponse, BankMsg, BankQuery, Binary, Event,
+        StakingMsg, StdError, SubMsgResponse, SubMsgResult,
     };
 
     #[test]
@@ -429,7 +435,7 @@ mod tests {
         let id = 123u64;
         let data = Binary::from(b"foobar");
         let events = vec![Event::new("message").add_attribute("signer", "caller-addr")];
-        let result = ContractResult::Ok(SubMsgExecutionResponse {
+        let result = SubMsgResult::Ok(SubMsgResponse {
             events: events.clone(),
             data: Some(data.clone()),
         });

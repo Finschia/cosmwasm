@@ -29,7 +29,7 @@ impl Contract {
         memory_limit: Option<Size>,
     ) -> TestingResult<Self> {
         check_wasm(wasm, &options.supported_features)?;
-        let module = compile(wasm, memory_limit)?;
+        let module = compile(wasm, memory_limit, &[])?;
         let storage = MockStorage::new();
         let contract = Self { module, storage };
         Ok(contract)
@@ -45,7 +45,7 @@ impl Contract {
         memory_limit: Option<Size>,
     ) -> TestingResult<()> {
         check_wasm(wasm, &options.supported_features)?;
-        let module = compile(wasm, memory_limit)?;
+        let module = compile(wasm, memory_limit, &[])?;
         self.module = module;
         Ok(())
     }
@@ -68,6 +68,8 @@ impl Contract {
             backend,
             options.gas_limit,
             options.print_debug,
+            None,
+            None,
         )?;
         Ok(instance)
     }
@@ -101,9 +103,9 @@ mod test {
     use cosmwasm_std::{QueryResponse, Response};
 
     static CONTRACT_WITHOUT_MIGRATE: &[u8] =
-        include_bytes!("../../testdata/queue_0.16.2_without_migrate.wasm");
+        include_bytes!("../../testdata/queue_1.0.0_without_migrate.wasm");
     static CONTRACT_WITH_MIGRATE: &[u8] =
-        include_bytes!("../../testdata/queue_0.16.2_with_migrate.wasm");
+        include_bytes!("../../testdata/queue_1.0.0_with_migrate.wasm");
 
     #[test]
     fn test_sanity_integration_test_flow() {

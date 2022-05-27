@@ -10,7 +10,7 @@ mod submessages;
 mod system_result;
 
 pub use contract_result::ContractResult;
-pub use cosmos_msg::{wasm_execute, wasm_instantiate, BankMsg, CosmosMsg, WasmMsg};
+pub use cosmos_msg::{wasm_execute, wasm_instantiate, BankMsg, CosmosMsg, CustomMsg, WasmMsg};
 #[cfg(feature = "staking")]
 pub use cosmos_msg::{DistributionMsg, StakingMsg};
 #[cfg(feature = "stargate")]
@@ -19,5 +19,7 @@ pub use empty::Empty;
 pub use events::{attr, Attribute, Event};
 pub use query::QueryResponse;
 pub use response::Response;
-pub use submessages::{Reply, ReplyOn, SubMsg, SubMsgExecutionResponse};
+#[allow(deprecated)]
+pub use submessages::SubMsgExecutionResponse;
+pub use submessages::{Reply, ReplyOn, SubMsg, SubMsgResponse, SubMsgResult};
 pub use system_result::SystemResult;

@@ -1,7 +1,5 @@
 use ed25519_zebra::{batch, Signature, VerificationKey};
 use rand_core::OsRng;
-use std::convert::TryFrom;
-use std::convert::TryInto;
 
 use crate::errors::{CryptoError, CryptoResult};
 
@@ -161,6 +159,7 @@ mod tests {
     #[derive(Deserialize, Debug)]
     struct Encoded {
         #[serde(rename = "privkey")]
+        #[allow(dead_code)]
         private_key: String,
         #[serde(rename = "pubkey")]
         public_key: String,
