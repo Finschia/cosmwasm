@@ -21,7 +21,7 @@ pub fn instantiate(
 
 #[callable_point]
 fn pong(x: u64) -> u64 {
-    return x + 1;
+    x + 1
 }
 
 #[derive(Serialize, Deserialize)]
