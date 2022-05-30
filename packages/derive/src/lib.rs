@@ -3,8 +3,8 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;
-use std::str::FromStr;
 use quote::quote;
+use std::str::FromStr;
 
 mod callable_point;
 mod dynamic_link;
@@ -96,12 +96,10 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let function = parse_macro_input!(item as syn::ItemFn);
-    let mut res = TokenStream::from(
-        quote!{
-            #[allow(dead_code)]
-            #function
-        }
-    );
+    let mut res = TokenStream::from(quote! {
+        #[allow(dead_code)]
+        #function
+    });
 
     let maked = callable_point::make_callable_point(function);
     res.extend(TokenStream::from(maked));
