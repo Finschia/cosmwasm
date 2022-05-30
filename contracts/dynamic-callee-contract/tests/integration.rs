@@ -18,6 +18,7 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             String::from("stub_pong_with_struct"),
             ([Type::I32], [Type::I32]).into(),
         ),
+        (String::from("stub_pong_with_tuple"), ([Type::I32], [Type::I32]).into()),
         (String::from("stub_pong_env"), ([], [Type::I32]).into()),
     ]
 }
@@ -109,6 +110,60 @@ fn callable_point_pong_with_struct_works() {
     let result: ExampleStruct = from_slice(&serialized_return).unwrap();
     assert_eq!(result.str_field, String::from("hello world"));
     assert_eq!(result.u64_field, 101);
+}
+
+#[test]
+fn callable_point_pong_with_tuple_works() {
+    let instance = make_callee_instance();
+
+    let serialized_param = to_vec(
+        &(String::from("hello"), 41i32)
+    )
+    .unwrap();
+    let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
+
+    let required_exports = required_exports();
+    let call_result = instance
+        .call_function_strict(
+            &required_exports[1].1,
+            "stub_pong_with_tuple",
+            &[param_region_ptr.into()],
+        )
+        .unwrap();
+    assert_eq!(call_result.len(), 1);
+
+    let serialized_return =
+        read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
+    let result: (String, i32) = from_slice(&serialized_return).unwrap();
+    assert_eq!(result.0, String::from("hello world"));
+    assert_eq!(result.1, 42);
+}
+
+#[test]
+fn callable_point_pong_with_tuple_takes_2_args_works() {
+    let instance = make_callee_instance();
+
+    let serialized_param1 = to_vec(&String::from("hello")).unwrap();
+    let param_region_ptr1 = write_data_to_mock_env(&instance.env, &serialized_param1).unwrap();
+
+    let serialized_param2 = to_vec(&41i32).unwrap();
+    let param_region_ptr2 = write_data_to_mock_env(&instance.env, &serialized_param2).unwrap();
+
+    let required_exports = required_exports();
+    let call_result = instance
+        .call_function_strict(
+            &required_exports[1].1,
+            "stub_pong_with_tuple_takes_2_args",
+            &[param_region_ptr1.into(), param_region_ptr2.into()],
+        )
+        .unwrap();
+    assert_eq!(call_result.len(), 1);
+
+    let serialized_return =
+        read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
+    let result: (String, i32) = from_slice(&serialized_return).unwrap();
+    assert_eq!(result.0, String::from("hello world"));
+    assert_eq!(result.1, 42);
 }
 
 #[test]

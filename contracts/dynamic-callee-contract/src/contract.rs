@@ -39,6 +39,16 @@ fn pong_with_struct(example: ExampleStruct) -> ExampleStruct {
 }
 
 #[callable_point]
+fn pong_with_tuple(input: (String, i32)) -> (String, i32) {
+    (input.0 + " world", input.1 + 1)
+}
+
+#[callable_point]
+fn pong_with_tuple_takes_2_args(input1: String, input2: i32) -> (String, i32) {
+    (input1 + " world", input2 + 1)
+}
+
+#[callable_point]
 fn pong_env() -> Env {
     GlobalApi::env()
 }
