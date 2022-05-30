@@ -4,6 +4,7 @@ extern crate syn;
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;
 use std::str::FromStr;
+use quote::quote;
 
 mod callable_point;
 mod dynamic_link;
@@ -60,9 +61,9 @@ mod utils;
 /// and `cosmwasm_std::create_entry_points_with_migration!(contract)`
 /// and should not be used together.
 #[proc_macro_attribute]
-pub fn entry_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
-    let cloned = item.clone();
-    let function = parse_macro_input!(cloned as syn::ItemFn);
+pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let mut res = item.clone();
+    let function = parse_macro_input!(item as syn::ItemFn);
     let name = function.sig.ident.to_string();
     // The first argument is `deps`, the rest is region pointers
     let args = function.sig.inputs.len() - 1;
@@ -87,19 +88,24 @@ pub fn entry_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
         ptrs = ptrs
     );
     let entry = TokenStream::from_str(&new_code).unwrap();
-    item.extend(entry);
-    item
+    res.extend(entry);
+    res
 }
 
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn callable_point(_attr: TokenStream, mut item: TokenStream) -> TokenStream {
-    let cloned = item.clone();
-    let function = parse_macro_input!(cloned as syn::ItemFn);
+pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let function = parse_macro_input!(item as syn::ItemFn);
+    let mut res = TokenStream::from(
+        quote!{
+            #[allow(dead_code)]
+            #function
+        }
+    );
 
     let maked = callable_point::make_callable_point(function);
-    item.extend(TokenStream::from(maked));
-    item
+    res.extend(TokenStream::from(maked));
+    res
 }
 
 #[proc_macro_error]

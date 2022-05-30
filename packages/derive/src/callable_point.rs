@@ -14,10 +14,10 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
     let ptr_idents: Vec<_> = (0..args_len).map(|i| format_ident!("ptr{}", i)).collect();
 
     let arg_types = collect_available_arg_types(&function.sig, "callable_point".to_string());
-    let renamed_param_defs: Vec<_> = (0..args_len)
-        .map(|i| {
-            let renamed_param_ident = format_ident!("ptr{}", i);
-            quote! { #renamed_param_ident: u32 }
+    let renamed_param_defs: Vec<_> = ptr_idents
+        .iter()
+        .map(|id| {
+            quote! { #id: u32 }
         })
         .collect();
     let typed_return = make_typed_return(&function.sig.output);
