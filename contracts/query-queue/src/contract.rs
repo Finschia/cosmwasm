@@ -2,8 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    from_slice, to_binary, to_vec, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
-    StdResult, Storage,
+    entry_point, from_slice, to_binary, to_vec, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, StdResult, Storage,
 };
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -59,7 +59,7 @@ fn read_queue_address(storage: &dyn Storage) -> String {
     config.queue_address
 }
 
-// A no-op, just empty data
+#[entry_point]
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
@@ -70,6 +70,7 @@ pub fn instantiate(
     Ok(Response::default())
 }
 
+#[entry_point]
 pub fn execute(
     deps: DepsMut,
     _env: Env,
@@ -86,6 +87,7 @@ fn handle_change_address(deps: DepsMut, address: String) -> StdResult<Response> 
     Ok(Response::default())
 }
 
+#[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
     match msg {
         QueryMsg::Raw { key } => to_binary(&query_raw(deps, key)?),
