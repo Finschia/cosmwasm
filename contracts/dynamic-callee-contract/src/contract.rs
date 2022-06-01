@@ -1,11 +1,11 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, Binary, Deps, DepsMut, Env, GlobalApi, MessageInfo, Response,
-    StdResult, Addr, to_vec,
+    callable_point, dynamic_link, entry_point, DepsMut, Env, GlobalApi, MessageInfo, Response,
+    Addr, to_vec,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg};
 
 // Note, you can use StdResult in some functions where you do not
 // make use of the custom errors
@@ -73,12 +73,7 @@ pub fn execute(
     _deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: ExecuteMsg,
+    _msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {}
-}
-
-#[entry_point]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {}
+    Ok(Response::default())
 }

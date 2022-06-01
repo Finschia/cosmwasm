@@ -1,12 +1,12 @@
 use cosmwasm_std::{
-    dynamic_link, callable_point, entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128, Addr,
+    dynamic_link, callable_point, entry_point, to_vec, DepsMut, Env, MessageInfo, Response,
+    Uint128, Addr,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg};
 
 #[derive(Serialize, Deserialize)]
 pub struct ExampleStruct {
@@ -88,9 +88,4 @@ pub fn try_re_entrancy(env: Env) -> Result<Response, ContractError> {
 
 #[callable_point]
 fn should_never_be_called() {
-}
-
-#[entry_point]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {}
 }
