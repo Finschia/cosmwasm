@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    dynamic_link, callable_point, entry_point, to_vec, DepsMut, Env, MessageInfo, Response,
-    Uint128, Addr,
+    callable_point, dynamic_link, entry_point, to_vec, Addr, DepsMut, Env, MessageInfo, Response,
+    Uint128,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -70,8 +70,14 @@ pub fn try_ping(_deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractE
     let mut res = Response::default();
     res.add_attribute("returned_pong", pong_ret.to_string());
     res.add_attribute("returned_pong_with_struct", struct_ret.to_string());
-    res.add_attribute("returned_pong_with_tuple", format!("({}, {})",  tuple_ret.0,  tuple_ret.1));
-    res.add_attribute("returned_pong_with_tuple_takes_2_args", format!("({}, {})",  tuple_ret2.0,  tuple_ret2.1));
+    res.add_attribute(
+        "returned_pong_with_tuple",
+        format!("({}, {})", tuple_ret.0, tuple_ret.1),
+    );
+    res.add_attribute(
+        "returned_pong_with_tuple_takes_2_args",
+        format!("({}, {})", tuple_ret2.0, tuple_ret2.1),
+    );
     res.add_attribute(
         "returned_contract_address",
         pong_env().contract.address.to_string(),
@@ -87,5 +93,4 @@ pub fn try_re_entrancy(env: Env) -> Result<Response, ContractError> {
 }
 
 #[callable_point]
-fn should_never_be_called() {
-}
+fn should_never_be_called() {}

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, DepsMut, Env, GlobalApi, MessageInfo, Response,
-    Addr, to_vec,
+    callable_point, dynamic_link, entry_point, to_vec, Addr, DepsMut, Env, GlobalApi, MessageInfo,
+    Response,
 };
 use serde::{Deserialize, Serialize};
 
@@ -60,9 +60,9 @@ extern "C" {
 
 #[callable_point]
 fn reentrancy(addr: Addr) {
-    GlobalApi::with_deps_mut(|deps|{
+    GlobalApi::with_deps_mut(|deps| {
         deps.storage
-        .set(b"dynamic_caller_contract", &to_vec(&addr).unwrap());
+            .set(b"dynamic_caller_contract", &to_vec(&addr).unwrap());
     });
     should_never_be_called()
 }

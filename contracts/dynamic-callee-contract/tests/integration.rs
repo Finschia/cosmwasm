@@ -18,7 +18,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             String::from("stub_pong_with_struct"),
             ([Type::I32], [Type::I32]).into(),
         ),
-        (String::from("stub_pong_with_tuple"), ([Type::I32], [Type::I32]).into()),
+        (
+            String::from("stub_pong_with_tuple"),
+            ([Type::I32], [Type::I32]).into(),
+        ),
         (String::from("stub_pong_env"), ([], [Type::I32]).into()),
     ]
 }
@@ -116,10 +119,7 @@ fn callable_point_pong_with_struct_works() {
 fn callable_point_pong_with_tuple_works() {
     let instance = make_callee_instance();
 
-    let serialized_param = to_vec(
-        &(String::from("hello"), 41i32)
-    )
-    .unwrap();
+    let serialized_param = to_vec(&(String::from("hello"), 41i32)).unwrap();
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
 
     let required_exports = required_exports();
@@ -191,11 +191,7 @@ fn callable_point_pong_deps_works() {
 
     let required_exports = required_exports();
     let call_result = instance
-        .call_function_strict(
-            &required_exports[1].1,
-            "stub_pong_env",
-            &[],
-        )
+        .call_function_strict(&required_exports[1].1, "stub_pong_env", &[])
         .unwrap();
     assert_eq!(call_result.len(), 1);
 
