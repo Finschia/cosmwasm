@@ -131,7 +131,7 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
-    #[error("A contract can only be called once per message.")]
+    #[error("A contract can only be called once per one call stack.")]
     ReEntrancyErr {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
