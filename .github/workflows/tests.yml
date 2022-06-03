@@ -205,7 +205,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_burner-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_burner-rust:1.57.0-${{ hashFiles('contracts/burner/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -251,7 +251,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_crypto_verify-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_crypto_verify-rust:1.57.0-${{ hashFiles('contracts/crypto-verify/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -297,7 +297,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-hackatom_verify-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_hackatom-rust:1.57.0-${{ hashFiles('contracts/hackatom/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -343,7 +343,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_ibc_reflect-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_ibc_reflect-rust:1.57.0-${{ hashFiles('contracts/ibc-reflect/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -389,7 +389,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_ibc_reflect_send-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_ibc_reflect_send-rust:1.57.0-${{ hashFiles('contracts/ibc-reflect-send/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -435,7 +435,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_queue-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_queue-rust:1.57.0-${{ hashFiles('contracts/queue/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -482,7 +482,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_query_queue-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_query_queue-rust:1.57.0-${{ hashFiles('contracts/queue/Cargo.lock', 'contracts/query-queue/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -531,7 +531,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_reflect-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_reflect-rust:1.57.0-${{ hashFiles('contracts/reflect/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -577,7 +577,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_staking-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_staking-rust:1.57.0-${{ hashFiles('contracts/staking/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
