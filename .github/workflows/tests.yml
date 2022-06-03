@@ -623,7 +623,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-fmt-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-fmt-rust:1.57.0-${{ hashFiles('Cargo.lock', 'contracts/*/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add rustfmt component
@@ -672,7 +672,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-clippy-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-clippy-rust:1.57.0-${{ hashFiles('Cargo.lock', 'contracts/*/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add clippy component
