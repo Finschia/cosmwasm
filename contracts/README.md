@@ -58,6 +58,11 @@ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_staking",target=/code/contracts/staking/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.12.5 ./contracts/staking
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_voting_with_uuid",target=/code/contracts/voting-with-uuid/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/voting-with-uuid
 ```
 
 ## Entry points
@@ -65,11 +70,12 @@ docker run --rm -v "$(pwd)":/code \
 The development contracts in this folder contain a variety of different entry
 points in order to demonstrate and test the flexibility we have.
 
-| Contract    | Has `query` | Has `migrate` |
-| ----------- | ----------- | ------------- |
-| burner      | no          | yes           |
-| hackatom    | yes         | yes           |
-| ibc-reflect | yes         | no            |
-| queue       | yes         | yes           |
-| reflect     | yes         | no            |
-| staking     | yes         | no            |
+| Contract         | Has `query` | Has `migrate` |
+| ---------------- | ----------- | ------------- |
+| burner           | no          | yes           |
+| hackatom         | yes         | yes           |
+| ibc-reflect      | yes         | no            |
+| queue            | yes         | yes           |
+| reflect          | yes         | no            |
+| staking          | yes         | no            |
+| voting-with-uuid | yes         | no            |
