@@ -18,7 +18,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    Raw { key: u8 },
+    Raw { key: u32 },
     Count {},
     Sum {},
     Reducer {},

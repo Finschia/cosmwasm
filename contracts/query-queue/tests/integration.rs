@@ -40,7 +40,7 @@ static QUEUE_WASM: &[u8] =
     include_bytes!("../../queue/target/wasm32-unknown-unknown/release/queue.wasm");
 
 fn create_contract() -> (Instance<MockApi, MockStorage, MockQuerier>, MessageInfo) {
-    let gas_limit = 500_000_000; // enough for many executions within one instance
+    let gas_limit = 1_000_000_000_000; // ~1ms, enough for many executions within one instance
     let instance_options = InstanceOptions {
         gas_limit,
         print_debug: false,
@@ -119,7 +119,7 @@ fn create_queue_contract_and_push_42() -> (Instance<MockApi, MockStorage, MockQu
         Enqueue { value: i32 },
     }
 
-    let gas_limit = 500_000_000; // enough for many executions within one instance
+    let gas_limit = 1_000_000_000_000; // ~1ms, enough for many executions within one instance
     let mut deps = mock_instance_with_gas_limit(QUEUE_WASM, gas_limit);
     let creator = String::from("creator");
     let info = mock_info(&creator, &[]);
@@ -148,7 +148,7 @@ fn create_integrated_query_contract() -> (Instance<MockApi, MockStorage, MockQue
         List {},
     }
 
-    let gas_limit = 500_000_000; // enough for many executions within one instance
+    let gas_limit = 1_000_000_000_000; // ~1ms, enough for many executions within one instance
     let instance_options = InstanceOptions {
         gas_limit,
         print_debug: false,
@@ -182,7 +182,7 @@ fn create_integrated_query_contract() -> (Instance<MockApi, MockStorage, MockQue
                     .with_storage(|storage| VmResult::Ok(storage.get(key).0.unwrap()))
                     .unwrap();
                 if data.is_none() {
-                    return SystemResult::Err(SystemError::Unknown {});
+                    return SystemResult::Ok(ContractResult::Ok(Binary::from(b"null")));
                 };
                 SystemResult::Ok(ContractResult::Ok(Binary::from(data.unwrap())))
             }
@@ -199,6 +199,7 @@ fn create_integrated_query_contract() -> (Instance<MockApi, MockStorage, MockQue
         },
     )
     .unwrap();
+
     assert_eq!(0, res.messages.len());
     (instance, info)
 }
@@ -211,5 +212,5 @@ fn integration_query_contract_queue() {
     assert_eq!(res.sum, 42);
     let data = query(&mut query_instance, mock_env(), QueryMsg::Raw { key: 0 }).unwrap();
     let res: RawResponse = from_binary(&data).unwrap();
-    assert_eq!(res.response, "{\"value\":42}".to_string());
+    assert_eq!(res.item, Some(42));
 }
