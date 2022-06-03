@@ -17,7 +17,7 @@ struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct RawResponse {
-    pub response: String,
+    pub item: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -45,6 +45,12 @@ pub struct ListResponse {
     pub early: Vec<u32>,
     /// List all IDs starting from 0x20
     pub late: Vec<u32>,
+}
+
+// Item of queue
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Item {
+    pub value: i32,
 }
 
 fn write_queue_address(storage: &mut dyn Storage, addr: String) {
@@ -98,15 +104,18 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
     }
 }
 
-fn query_raw(deps: Deps, key: u8) -> StdResult<RawResponse> {
+fn query_raw(deps: Deps, key: u32) -> StdResult<RawResponse> {
     let address = read_queue_address(deps.storage);
-    let response: Option<Vec<u8>> = deps
-        .querier
-        .query_wasm_raw(address, (vec![key]).as_slice())?;
-    let response_string = std::str::from_utf8(response.unwrap_or_default().as_slice())?.to_string();
-    Ok(RawResponse {
-        response: response_string,
-    })
+    let response = deps.querier.query_wasm_raw(address, key.to_be_bytes())?;
+    match response {
+        None => Ok(RawResponse { item: None }),
+        Some(v) => {
+            let i: Item = from_slice(v.as_slice())?;
+            Ok(RawResponse {
+                item: Some(i.value),
+            })
+        }
+    }
 }
 
 fn query_count(deps: Deps, msg: QueryMsg) -> StdResult<CountResponse> {
@@ -214,9 +223,7 @@ mod tests {
         let deps = create_contract();
         assert_eq!(
             query_raw(deps.as_ref(), 42).unwrap(),
-            RawResponse {
-                response: r#"{"value":42}"#.to_string()
-            }
+            RawResponse { item: Some(42) }
         );
     }
 
