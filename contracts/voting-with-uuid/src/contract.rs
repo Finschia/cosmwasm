@@ -111,7 +111,7 @@ pub fn withdraw_voting_tokens(
     let sender_address_raw = info.sender.as_str().as_bytes();
 
     if let Some(mut token_manager) = bank_read(deps.storage).may_load(sender_address_raw)? {
-        let largest_staked = locked_amount(&sender_address_raw, deps.storage);
+        let largest_staked = locked_amount(sender_address_raw, deps.storage);
         let withdraw_amount = amount.unwrap_or(token_manager.token_balance);
         if largest_staked + withdraw_amount > token_manager.token_balance {
             let max_amount = token_manager.token_balance.checked_sub(largest_staked)?;
@@ -216,7 +216,7 @@ pub fn create_poll(
             "quorum_percentage",
             quorum_percentage.unwrap_or(0).to_string(),
         )
-        .add_attribute("end_height", new_poll.end_height.to_string().to_string())
+        .add_attribute("end_height", new_poll.end_height.to_string())
         .add_attribute("start_height", start_height.unwrap_or(0).to_string())
         .set_data(to_binary(&CreatePollResponse { poll_id })?);
     Ok(r)
