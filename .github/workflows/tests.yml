@@ -604,11 +604,11 @@ jobs:
               exit 1
             fi
 
-contract_voting_with_uuid:
+  contract_voting_with_uuid:
     name: contract_voting_with_uuid
     runs-on: ubuntu-latest
     env:
-      working-directory: ./contracts/voting_with_uuid
+      working-directory: ./contracts/voting-with-uuid
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -623,7 +623,7 @@ contract_voting_with_uuid:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_staking-rust:1.57.0-${{ hashFiles('contracts/voting_with_uuid/Cargo.lock') }}
+          key: cargocache-v2-contract_staking-rust:1.57.0-${{ hashFiles('contracts/voting-with-uuid/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -636,7 +636,7 @@ contract_voting_with_uuid:
         run: cargo unit-test --locked
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
-        run: cargo integration-test --locked --no-default-features
+        run: cargo integration-test-for-ci --locked --no-default-features
       - name: Build and run schema generator
         working-directory: ${{env.working-directory}}
         run: cargo schema --locked
