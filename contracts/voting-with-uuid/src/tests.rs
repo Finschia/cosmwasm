@@ -1,4 +1,3 @@
-
 use crate::contract::{execute, instantiate, query, VOTING_TOKEN};
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg};
