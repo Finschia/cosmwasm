@@ -7,12 +7,6 @@ on:
       - main
       - /^[0-9]+\.[0-9]+$/
       # 👇Add your branch here if benchmarking matters to your work
-      - benchmarking
-      - update-wasmer
-      - metering-restart
-      - load-wasm-speed
-      - cache-analyze
-      - fix-benches
 
 jobs:
   benchmarking:
