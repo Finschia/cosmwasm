@@ -1,11 +1,11 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, Binary, Deps, DepsMut, Env, GlobalApi, MessageInfo, Response,
-    StdResult, Addr, to_vec,
+    callable_point, dynamic_link, entry_point, to_vec, Addr, DepsMut, Env, GlobalApi, MessageInfo,
+    Response,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg};
 
 // Note, you can use StdResult in some functions where you do not
 // make use of the custom errors
@@ -21,7 +21,7 @@ pub fn instantiate(
 
 #[callable_point]
 fn pong(x: u64) -> u64 {
-    return x + 1;
+    x + 1
 }
 
 #[derive(Serialize, Deserialize)]
@@ -39,6 +39,16 @@ fn pong_with_struct(example: ExampleStruct) -> ExampleStruct {
 }
 
 #[callable_point]
+fn pong_with_tuple(input: (String, i32)) -> (String, i32) {
+    (input.0 + " world", input.1 + 1)
+}
+
+#[callable_point]
+fn pong_with_tuple_takes_2_args(input1: String, input2: i32) -> (String, i32) {
+    (input1 + " world", input2 + 1)
+}
+
+#[callable_point]
 fn pong_env() -> Env {
     GlobalApi::env()
 }
@@ -50,9 +60,9 @@ extern "C" {
 
 #[callable_point]
 fn reentrancy(addr: Addr) {
-    GlobalApi::with_deps_mut(|deps|{
+    GlobalApi::with_deps_mut(|deps| {
         deps.storage
-        .set(b"dynamic_caller_contract", &to_vec(&addr).unwrap());
+            .set(b"dynamic_caller_contract", &to_vec(&addr).unwrap());
     });
     should_never_be_called()
 }
@@ -63,12 +73,7 @@ pub fn execute(
     _deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    msg: ExecuteMsg,
+    _msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {}
-}
-
-#[entry_point]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {}
+    Ok(Response::default())
 }

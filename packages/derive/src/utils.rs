@@ -35,26 +35,17 @@ pub fn collect_available_arg_types(func_sig: &syn::Signature, by: String) -> Vec
         .collect()
 }
 
-pub fn get_return_len(return_type: &syn::ReturnType) -> usize {
+pub fn has_return_value(return_type: &syn::ReturnType) -> bool {
     match return_type {
-        syn::ReturnType::Default => 0,
-        syn::ReturnType::Type(_, return_type) => match return_type.as_ref() {
-            syn::Type::Tuple(tuple) => tuple.elems.len(),
-            _ => 1,
-        },
+        syn::ReturnType::Default => false,
+        syn::ReturnType::Type(_, _) => true,
     }
 }
 
-pub fn make_typed_return(return_type: &syn::ReturnType, by: String) -> TokenStream {
-    let return_types_len = get_return_len(return_type);
-    match return_types_len {
-        0 => quote! {},
-        1 => quote! { -> u32 },
-        //TODO: see (https://github.com/line/cosmwasm/issues/156)
-        _ => abort_by!(return_type, by, "Cannot support returning tuple type yet"),
-        // _ => {
-        //     let returns = vec![quote! {u32}; return_types_len];
-        //     quote! { -> (#(#returns),*)}
-        // }
+pub fn make_typed_return(return_type: &syn::ReturnType) -> TokenStream {
+    if has_return_value(return_type) {
+        quote! { -> u32 }
+    } else {
+        quote! {}
     }
 }

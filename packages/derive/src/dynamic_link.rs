@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::utils::{abort_by, collect_available_arg_types, get_return_len, make_typed_return};
+use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make_typed_return};
 
 macro_rules! abort_by_dynamic_link {
     ($span:expr, $($tts:tt)*) => {
@@ -50,9 +50,9 @@ pub fn generate_import_contract_declaration(
     let foreign_function_decls: Vec<&syn::ForeignItemFn> = exist_extern_block
         .items
         .iter()
-        .map(|foregin_item| match foregin_item {
+        .map(|foreign_item| match foreign_item {
             syn::ForeignItem::Fn(item_fn) => item_fn,
-            _ => abort_by_dynamic_link!(foregin_item, "only function type is allowed."),
+            _ => abort_by_dynamic_link!(foreign_item, "only function type is allowed."),
         })
         .collect();
 
@@ -81,7 +81,7 @@ fn generate_extern_block(
                 quote! { #renamed_param_ident: u32 }
             })
             .collect();
-        let typed_return = make_typed_return(&func_decl.sig.output, "dynamic_link".to_string());
+        let typed_return = make_typed_return(&func_decl.sig.output);
         quote! {
             fn #stub_func_name_ident(#(#renamed_param_defs),*) #typed_return;
         }
@@ -141,32 +141,15 @@ fn make_call_stub_and_return(
         .map(|n| format_ident!("region_arg{}", n))
         .collect();
 
-    let return_len = get_return_len(return_type);
-    match return_len {
-        0 => {
-            quote! {
-                #ident_func_name(#(#arguments),*);
-            }
+    if has_return_value(return_type) {
+        quote! {
+            let result = #ident_func_name(#(#arguments),*);
+            let vec_result = cosmwasm_std::memory::consume_region(result as *mut cosmwasm_std::memory::Region);
+            cosmwasm_std::from_slice(&vec_result).unwrap()
         }
-        1 => {
-            quote! {
-                let result = #ident_func_name(#(#arguments),*);
-                let vec_result = cosmwasm_std::memory::consume_region(result as *mut cosmwasm_std::memory::Region);
-                cosmwasm_std::from_slice(&vec_result).unwrap()
-            }
-        }
-        _ => {
-            let vec_results: Vec<_> = (0..return_len)
-                .map(|n| format_ident!("vec_result{}", n))
-                .collect();
-            let results: Vec<_> = (0..return_len)
-                .map(|n| format_ident!("result{}", n))
-                .collect();
-            quote! {
-                let (#(#results),*) = #ident_func_name(#(#arguments),*);
-                #(let #vec_results = cosmwasm_std::memory::consume_region(#results as *mut cosmwasm_std::memory::Region);)*
-                (#(cosmwasm_std::from_slice(&#vec_results).unwrap()),*)
-            }
+    } else {
+        quote! {
+            #ident_func_name(#(#arguments),*);
         }
     }
 }
@@ -232,10 +215,9 @@ mod tests {
             .to_string();
 
             let expected: TokenStream = parse_quote! {
-                let (result0, result1) = stub_foo();
-                let vec_result0 = cosmwasm_std::memory::consume_region(result0 as * mut cosmwasm_std::memory::Region);
-                let vec_result1 = cosmwasm_std::memory::consume_region(result1 as * mut cosmwasm_std::memory::Region);
-                (cosmwasm_std::from_slice(&vec_result0).unwrap(), cosmwasm_std::from_slice(&vec_result1).unwrap())
+                let result = stub_foo();
+                let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
+                cosmwasm_std::from_slice(&vec_result).unwrap()
             };
             assert_eq!(expected.to_string(), result_code);
         }
@@ -246,14 +228,15 @@ mod tests {
         let test_extern: syn::ItemForeignMod = parse_quote! {
             extern {
                 fn foo() -> u64;
-                fn foo(a: u64, b: String) -> u64;
+                fn bar(a: u64, b: String) -> u64;
+                fn foobar(a: u64, b: String) -> (u64, String);
             }
         };
 
         let foreign_function_decls: Vec<&syn::ForeignItemFn> = test_extern
             .items
             .iter()
-            .map(|foregin_item| match foregin_item {
+            .map(|foreign_item| match foreign_item {
                 syn::ForeignItem::Fn(item_fn) => item_fn,
                 _ => {
                     panic!()
@@ -277,17 +260,34 @@ mod tests {
         {
             let result_code = generate_serialization_func(foreign_function_decls[1]).to_string();
             let expected: TokenStream = parse_quote! {
-                fn foo (arg0 : u64 , arg1 : String) -> u64 {
+                fn bar (arg0 : u64 , arg1 : String) -> u64 {
                     let vec_arg0 = cosmwasm_std::to_vec(&arg0).unwrap();
                     let vec_arg1 = cosmwasm_std::to_vec(&arg1).unwrap();
                     let region_arg0 = cosmwasm_std::memory::release_buffer(vec_arg0) as u32;
                     let region_arg1 = cosmwasm_std::memory::release_buffer(vec_arg1) as u32;
                     unsafe {
-                        let result = stub_foo(region_arg0, region_arg1);
+                        let result = stub_bar(region_arg0, region_arg1);
                         let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
                         cosmwasm_std::from_slice(&vec_result).unwrap()
                     }
                }
+            };
+            assert_eq!(expected.to_string(), result_code);
+        }
+        {
+            let result_code = generate_serialization_func(foreign_function_decls[2]).to_string();
+            let expected: TokenStream = parse_quote! {
+                fn foobar(arg0: u64, arg1: String) -> (u64, String) {
+                    let vec_arg0 = cosmwasm_std::to_vec(&arg0).unwrap();
+                    let vec_arg1 = cosmwasm_std::to_vec(&arg1).unwrap();
+                    let region_arg0 = cosmwasm_std::memory::release_buffer(vec_arg0) as u32;
+                    let region_arg1 = cosmwasm_std::memory::release_buffer(vec_arg1) as u32;
+                    unsafe {
+                        let result = stub_foobar(region_arg0, region_arg1);
+                        let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
+                        cosmwasm_std::from_slice(&vec_result).unwrap()
+                    }
+                }
             };
             assert_eq!(expected.to_string(), result_code);
         }
@@ -299,13 +299,14 @@ mod tests {
             extern {
                 fn foo(a: u64, b: String) -> u64;
                 fn bar();
+                fn foobar(a: u64, b: String) -> (u64, String);
             }
         };
 
         let foreign_function_decls: Vec<&syn::ForeignItemFn> = test_extern
             .items
             .iter()
-            .map(|foregin_item| match foregin_item {
+            .map(|foreign_item| match foreign_item {
                 syn::ForeignItem::Fn(item_fn) => item_fn,
                 _ => {
                     panic!()
@@ -320,6 +321,7 @@ mod tests {
             extern "C" {
                 fn stub_foo(ptr0: u32, ptr1: u32) -> u32;
                 fn stub_bar();
+                fn stub_foobar(ptr0: u32, ptr1: u32) -> u32;
             }
         };
         assert_eq!(expected.to_string(), result_code);

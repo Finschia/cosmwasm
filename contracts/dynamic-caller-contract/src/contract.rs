@@ -1,12 +1,12 @@
 use cosmwasm_std::{
-    dynamic_link, callable_point, entry_point, to_vec, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128, Addr,
+    callable_point, dynamic_link, entry_point, to_vec, Addr, DepsMut, Env, MessageInfo, Response,
+    Uint128,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg};
 
 #[derive(Serialize, Deserialize)]
 pub struct ExampleStruct {
@@ -23,6 +23,8 @@ impl fmt::Display for ExampleStruct {
 extern "C" {
     fn pong(ping_num: u64) -> u64;
     fn pong_with_struct(example: ExampleStruct) -> ExampleStruct;
+    fn pong_with_tuple(input: (String, i32)) -> (String, i32);
+    fn pong_with_tuple_takes_2_args(input1: String, input2: i32) -> (String, i32);
     fn pong_env() -> Env;
     fn reentrancy(addr: Addr);
 }
@@ -62,10 +64,20 @@ pub fn try_ping(_deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractE
         str_field: String::from("hello"),
         u64_field: 100u64,
     });
+    let tuple_ret = pong_with_tuple((String::from("hello"), 41));
+    let tuple_ret2 = pong_with_tuple_takes_2_args(String::from("hello"), 41);
 
     let mut res = Response::default();
     res.add_attribute("returned_pong", pong_ret.to_string());
     res.add_attribute("returned_pong_with_struct", struct_ret.to_string());
+    res.add_attribute(
+        "returned_pong_with_tuple",
+        format!("({}, {})", tuple_ret.0, tuple_ret.1),
+    );
+    res.add_attribute(
+        "returned_pong_with_tuple_takes_2_args",
+        format!("({}, {})", tuple_ret2.0, tuple_ret2.1),
+    );
     res.add_attribute(
         "returned_contract_address",
         pong_env().contract.address.to_string(),
@@ -75,16 +87,10 @@ pub fn try_ping(_deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractE
 
 pub fn try_re_entrancy(env: Env) -> Result<Response, ContractError> {
     // It will be tried to call the should_never_be_called function below.
-    // But, should be blocked by VM host side normally because it's reentrancy case. 
+    // But, should be blocked by VM host side normally because it's a reentrancy case.
     reentrancy(env.contract.address);
     Ok(Response::default())
 }
 
 #[callable_point]
-fn should_never_be_called() {
-}
-
-#[entry_point]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {}
-}
+fn should_never_be_called() {}

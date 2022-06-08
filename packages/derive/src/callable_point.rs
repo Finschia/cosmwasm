@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
-use crate::utils::{collect_available_arg_types, get_return_len, make_typed_return};
+use crate::utils::{collect_available_arg_types, has_return_value, make_typed_return};
 
 pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
     let stub_func_name_ident = format_ident!("stub_{}", function.sig.ident);
@@ -14,13 +14,13 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
     let ptr_idents: Vec<_> = (0..args_len).map(|i| format_ident!("ptr{}", i)).collect();
 
     let arg_types = collect_available_arg_types(&function.sig, "callable_point".to_string());
-    let renamed_param_defs: Vec<_> = (0..args_len)
-        .map(|i| {
-            let renamed_param_ident = format_ident!("ptr{}", i);
-            quote! { #renamed_param_ident: u32 }
+    let renamed_param_defs: Vec<_> = ptr_idents
+        .iter()
+        .map(|id| {
+            quote! { #id: u32 }
         })
         .collect();
-    let typed_return = make_typed_return(&function.sig.output, "callable_point".to_string());
+    let typed_return = make_typed_return(&function.sig.output);
 
     let call_origin_return =
         make_call_origin_and_return(&function.sig.ident, args_len, &function.sig.output);
@@ -42,31 +42,15 @@ fn make_call_origin_and_return(
     return_type: &syn::ReturnType,
 ) -> TokenStream {
     let arguments: Vec<_> = (0..args_len).map(|n| format_ident!("arg{}", n)).collect();
-    let return_len = get_return_len(return_type);
 
-    match return_len {
-        0 => quote! {#func_name_ident(#(#arguments),*);},
-        1 => {
-            quote! {
-                let result = #func_name_ident(#(#arguments),*);
-                let vec_result = cosmwasm_std::to_vec(&result).unwrap();
-                cosmwasm_std::memory::release_buffer(vec_result) as u32
-            }
+    if has_return_value(return_type) {
+        quote! {
+            let result = #func_name_ident(#(#arguments),*);
+            let vec_result = cosmwasm_std::to_vec(&result).unwrap();
+            cosmwasm_std::memory::release_buffer(vec_result) as u32
         }
-        _ => {
-            let results: Vec<_> = (0..return_len)
-                .map(|n| format_ident!("result{}", n))
-                .collect();
-            let vec_results: Vec<_> = (0..return_len)
-                .map(|n| format_ident!("vec_result{}", n))
-                .collect();
-
-            quote! {
-                let (#(#results),*) = #func_name_ident(#(#arguments),*);
-                #(let #vec_results = cosmwasm_std::to_vec(&#results).unwrap();)*
-                (#(cosmwasm_std::memory::release_buffer(#vec_results) as u32),*)
-            }
-        }
+    } else {
+        quote! {#func_name_ident(#(#arguments),*);}
     }
 }
 
@@ -112,10 +96,9 @@ mod tests {
             .to_string();
 
             let expected: TokenStream = parse_quote! {
-                let (result0, result1) = foo();
-                let vec_result0 = cosmwasm_std::to_vec(&result0).unwrap();
-                let vec_result1 = cosmwasm_std::to_vec(&result1).unwrap();
-                (cosmwasm_std::memory::release_buffer(vec_result0) as u32 , cosmwasm_std::memory::release_buffer(vec_result1) as u32)
+                let result = foo();
+                let vec_result = cosmwasm_std::to_vec(&result).unwrap();
+                cosmwasm_std::memory::release_buffer(vec_result) as u32
             };
             assert_eq!(expected.to_string(), result_code);
         }
