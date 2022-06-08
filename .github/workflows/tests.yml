@@ -811,5 +811,5 @@ jobs:
         working-directory: ${{env.contracts}}/voting-with-uuid
         run: |
             mkdir -p target/wasm32-unknown-unknown/release
-            touch target/wasm32-unknown-unknown/release/staking.wasm
+            touch target/wasm32-unknown-unknown/release/cw_voting_with_uuid.wasm
             cargo clippy --tests -- -D warnings
