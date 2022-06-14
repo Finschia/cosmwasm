@@ -34,6 +34,7 @@ pub use crate::errors::{
     DivideByZeroError, OverflowError, OverflowOperation, RecoverPubkeyError, StdError, StdResult,
     SystemError, VerificationError,
 };
+#[cfg(target_arch = "wasm32")]
 pub use crate::global_api::GlobalApi;
 #[cfg(feature = "stargate")]
 pub use crate::ibc::{
