@@ -9,7 +9,6 @@ mod conversion;
 mod deps;
 mod entry_points;
 mod errors;
-mod global_api;
 mod ibc;
 mod import_helpers;
 #[cfg(feature = "iterator")]
@@ -34,8 +33,6 @@ pub use crate::errors::{
     DivideByZeroError, OverflowError, OverflowOperation, RecoverPubkeyError, StdError, StdResult,
     SystemError, VerificationError,
 };
-#[cfg(target_arch = "wasm32")]
-pub use crate::global_api::GlobalApi;
 #[cfg(feature = "stargate")]
 pub use crate::ibc::{
     IbcAcknowledgement, IbcBasicResponse, IbcChannel, IbcEndpoint, IbcMsg, IbcOrder, IbcPacket,
@@ -75,12 +72,16 @@ pub use crate::uuid::{new_uuid, Uuid};
 #[cfg(target_arch = "wasm32")]
 mod exports;
 #[cfg(target_arch = "wasm32")]
+mod global_api;
+#[cfg(target_arch = "wasm32")]
 mod imports;
 
 pub mod memory; // Used by exports and imports only. This assumes pointers are 32 bit long, which makes it untestable on dev machines.
 
 #[cfg(target_arch = "wasm32")]
 pub use crate::exports::{do_execute, do_instantiate, do_migrate, do_query, do_reply, do_sudo};
+#[cfg(target_arch = "wasm32")]
+pub use crate::global_api::GlobalApi;
 #[cfg(target_arch = "wasm32")]
 pub use crate::imports::{ExternalApi, ExternalQuerier, ExternalStorage};
 
