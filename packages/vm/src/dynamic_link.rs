@@ -304,7 +304,6 @@ mod tests {
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
-            
                 (type (func))
                 (func (type 0) nop)
                 (export "foo" (func 0))
