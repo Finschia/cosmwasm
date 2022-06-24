@@ -37,6 +37,19 @@ impl fmt::Display for FunctionMetadata {
         )
     }
 }
+
+impl FunctionMetadata {
+    fn clone_and_drop_callee_addr_arg(&self) -> Self {
+        let new_signature =
+            FunctionType::new(&self.signature.params()[1..], self.signature.results());
+        FunctionMetadata {
+            module_name: self.module_name.clone(),
+            name: self.name.clone(),
+            signature: new_signature,
+        }
+    }
+}
+
 fn with_trace_dynamic_call<A, S, Q, C, R>(
     env: &Environment<A, S, Q>,
     callback: C,
@@ -63,29 +76,21 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    let address_region_ptr = ref_to_u32(&args[0])?;
+    let raw_contract_addr = read_region(&env.memory(), address_region_ptr, 64)?;
+    let contract_addr = str::from_utf8(&raw_contract_addr)
+        .map_err(|_| RuntimeError::new("Invalid stored callee contract address"))?
+        .trim_matches('"');
+    let func_args = &args[1..];
     with_trace_dynamic_call(env, || {
         let func_info = env
-            .with_callee_function_metadata(|func_info| Ok(func_info.clone()))
+            .with_callee_function_metadata(|func_info| {
+                Ok(func_info.clone_and_drop_callee_addr_arg())
+            })
             .unwrap();
-
-        let (store_result, gas_info) = env.with_storage_from_context::<_, _>(|store| {
-            Ok(store.get(func_info.module_name.as_bytes()))
-        })?;
-        process_gas_info::<A, S, Q>(env, gas_info)?;
-        let raw_contract_addr = match store_result.unwrap() {
-            Some(raw_contract_addr) => raw_contract_addr,
-            None => {
-                return Err(RuntimeError::new(
-                    "cannot found the callee contract address in the storage",
-                ))
-            }
-        };
-        let contract_addr = match str::from_utf8(&raw_contract_addr) {
-            Ok(contract_addr) => contract_addr.trim_matches('"'),
-            Err(_) => return Err(RuntimeError::new("Invalid stored callee contract address")),
-        };
-
-        let (call_result, gas_info) = env.api.contract_call(env, contract_addr, &func_info, args);
+        let (call_result, gas_info) =
+            env.api
+                .contract_call(env, contract_addr, &func_info, func_args);
         process_gas_info::<A, S, Q>(env, gas_info)?;
         match call_result {
             Ok(ret) => Ok(ret.to_vec()),
