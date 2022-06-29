@@ -7,6 +7,7 @@ use quote::quote;
 use std::str::FromStr;
 
 mod callable_point;
+mod contract;
 mod dynamic_link;
 mod utils;
 /// This attribute macro generates the boilerplate required to call into the
@@ -120,4 +121,18 @@ pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
         contract_name,
         exist_extern_block,
     ))
+}
+
+/// This derive macro is for implementing `cosmwasm_std::Contract`
+///
+/// This implements `get_address` and `set_address` for address field.
+/// Address field is selected as following
+/// 1. If there is a field attributed with `#[address]`, the field will
+///    be used as the address field.
+/// 2. Choose a field by field name. The priority of the name is
+///    "contract_address" -> "contract_addr" -> "address" -> "addr".
+#[proc_macro_derive(Contract, attributes(address))]
+pub fn derive_contract(input: TokenStream) -> TokenStream {
+    let derive_input = parse_macro_input!(input as syn::DeriveInput);
+    contract::derive_contract(derive_input).into()
 }
