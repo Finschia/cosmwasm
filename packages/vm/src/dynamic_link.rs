@@ -76,6 +76,11 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
+    if args.is_empty() {
+        return Err(RuntimeError::new(
+            "No args are passed to trampoline. The first arg must be callee contract address.",
+        ));
+    };
     let address_region_ptr = ref_to_u32(&args[0])?;
     let raw_contract_addr = read_region(&env.memory(), address_region_ptr, 64)?;
     let contract_addr = str::from_utf8(&raw_contract_addr)
@@ -196,8 +201,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::{coins, Empty};
+    use cosmwasm_std::{coins, Addr, Empty};
     use std::cell::RefCell;
+    use wasmer_types::Type;
 
     use crate::testing::{
         mock_env, mock_instance, read_data_from_mock_env, write_data_to_mock_env, MockApi,
@@ -221,29 +227,25 @@ mod tests {
     const INIT_DENOM: &str = "TOKEN";
 
     fn prepare_dynamic_call_data(
-        callee_address: Option<String>,
+        callee_address: Option<Addr>,
         func_info: FunctionMetadata,
         caller_env: &mut Environment<MockApi, MockStorage, MockQuerier>,
-    ) {
-        let target_module_name = func_info.module_name.clone();
+    ) -> Option<u32> {
+        let region_ptr = callee_address.map(|addr| {
+            let data = to_vec(&addr).unwrap();
+            write_data_to_mock_env(caller_env, &data).unwrap()
+        });
+
         caller_env.set_callee_function_metadata(Some(func_info));
 
         let serialized_env = to_vec(&mock_env()).unwrap();
         caller_env.set_serialized_env(&serialized_env);
 
-        let mut storage = MockStorage::new();
-        match callee_address {
-            Some(addr) => {
-                storage
-                    .set(target_module_name.as_bytes(), addr.as_bytes())
-                    .0
-                    .expect("error setting value");
-            }
-            _ => {}
-        }
+        let storage = MockStorage::new();
         let querier: MockQuerier<Empty> =
             MockQuerier::new(&[(INIT_ADDR, &coins(INIT_AMOUNT, INIT_DENOM))]);
         caller_env.move_in(storage, querier);
+        region_ptr
     }
 
     #[test]
@@ -315,19 +317,6 @@ mod tests {
             )"#,
         )
         .unwrap();
-        let caller_wasm = wat::parse_str(
-            r#"(module
-                (memory 3)
-                (export "memory" (memory 0))
-                (export "interface_version_5" (func 0))
-                (export "instantiate" (func 0))
-                (export "allocate" (func 0))
-                (export "deallocate" (func 0))
-                (type (func))
-                (func (type 0) nop)
-            )"#,
-        )
-        .unwrap();
 
         INSTANCE_CACHE.with(|lock| {
             let mut cache = lock.write().unwrap();
@@ -337,7 +326,7 @@ mod tests {
             );
             cache.insert(
                 CALLER_NAME_ADDR.to_string(),
-                RefCell::new(mock_instance(&caller_wasm, &[])),
+                RefCell::new(mock_instance(&CONTRACT, &[])),
             );
         });
     }
@@ -353,15 +342,20 @@ mod tests {
             let target_func_info = FunctionMetadata {
                 module_name: CALLER_NAME_ADDR.to_string(),
                 name: "foo".to_string(),
-                signature: ([], []).into(),
+                signature: ([Type::I32], []).into(),
             };
-            prepare_dynamic_call_data(
-                Some(CALLEE_NAME_ADDR.to_string()),
+            let address_region = prepare_dynamic_call_data(
+                Some(Addr::unchecked(CALLEE_NAME_ADDR)),
                 target_func_info,
                 &mut caller_env,
-            );
+            )
+            .unwrap();
 
-            let result = native_dynamic_link_trampoline(&caller_env, &[]).unwrap();
+            let result = native_dynamic_link_trampoline(
+                &caller_env,
+                &[WasmerVal::I32(address_region as i32)],
+            )
+            .unwrap();
             assert_eq!(result.len(), 0);
         });
     }
@@ -377,16 +371,17 @@ mod tests {
             let target_func_info = FunctionMetadata {
                 module_name: CALLER_NAME_ADDR.to_string(),
                 name: "foo".to_string(),
-                signature: ([], []).into(),
+                signature: ([Type::I32], []).into(),
             };
-            prepare_dynamic_call_data(None, target_func_info, &mut caller_env);
+            let none = prepare_dynamic_call_data(None, target_func_info, &mut caller_env);
+            assert_eq!(none, None);
 
             let result = native_dynamic_link_trampoline(&caller_env, &[]);
             assert!(matches!(result, Err(RuntimeError { .. })));
 
             assert_eq!(
                 result.err().unwrap().message(),
-                "cannot found the callee contract address in the storage"
+                "No args are passed to trampoline. The first arg must be callee contract address."
             );
         });
     }
@@ -402,15 +397,15 @@ mod tests {
             let target_func_info = FunctionMetadata {
                 module_name: CALLER_NAME_ADDR.to_string(),
                 name: "foo".to_string(),
-                signature: ([], []).into(),
+                signature: ([Type::I32], []).into(),
             };
-            prepare_dynamic_call_data(
-                Some("invalid_address".to_string()),
+            let address_region = prepare_dynamic_call_data(
+                Some(Addr::unchecked("invalid_address")),
                 target_func_info,
                 &mut caller_env,
-            );
+            ).unwrap();
 
-            let result = native_dynamic_link_trampoline(&caller_env, &[]);
+            let result = native_dynamic_link_trampoline(&caller_env, &[WasmerVal::I32(address_region as i32)]);
             assert!(matches!(
                 result,
                 Err(RuntimeError { .. })
