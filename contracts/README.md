@@ -60,9 +60,9 @@ docker run --rm -v "$(pwd)":/code \
   cosmwasm/rust-optimizer:0.11.0 ./contracts/dynamic-callee-contract
 
 docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="devcontract_cache_dynamic_caller_contract",target=/code/contracts/dynamic_caller_contract/target \
+  --mount type=volume,source="devcontract_cache_dynamic_caller_contract",target=/code/contracts/dynamic-caller-contract/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/dynamic_caller_contract
+  cosmwasm/rust-optimizer:0.11.0 ./contracts/dynamic-caller-contract
 ```
 
 ## Entry points
