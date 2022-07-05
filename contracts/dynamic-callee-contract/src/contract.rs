@@ -59,7 +59,7 @@ struct Me {
 }
 
 #[dynamic_link(Me)]
-trait Rentrance: Contract {
+trait ReEntrance: Contract {
     fn should_never_be_called(&self);
 }
 
