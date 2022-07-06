@@ -7,6 +7,7 @@ use quote::quote;
 use std::str::FromStr;
 
 mod callable_point;
+mod contract;
 mod dynamic_link;
 mod utils;
 /// This attribute macro generates the boilerplate required to call into the
@@ -106,6 +107,28 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
     res
 }
 
+/// This macro implements dynamic call functions for attributed trait.
+///
+/// This macro takes an attribute specifying a struct to implement the traits for.
+/// The trait must have `cosmwasm_std::Contract` as a supertrait and each
+/// methods of the trait must have `&self` receiver as its first argument.
+///
+/// example usage:
+///
+/// ```
+/// use cosmwasm_std::{Addr, Contract, dynamic_link};
+///
+/// #[derive(Contract)]
+/// struct ContractStruct {
+///   address: Addr
+/// }
+///
+/// #[dynamic_link(ContractStruct)]
+/// trait TraitName: Contract {
+///   fn callable_point_on_another_contract(&self, _: i32) -> i32;
+/// }
+/// ```
+
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -114,10 +137,21 @@ pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
         panic!("too many attributes");
     }
 
-    let contract_name = dynamic_link::parse_contract_name(&attr_args[0]);
-    let exist_extern_block = parse_macro_input!(item as syn::ItemForeignMod);
-    TokenStream::from(dynamic_link::generate_import_contract_declaration(
-        contract_name,
-        exist_extern_block,
-    ))
+    let contract_struct_id = dynamic_link::parse_contract_struct_id(&attr_args[0]);
+    let trait_def = parse_macro_input!(item as syn::ItemTrait);
+    dynamic_link::generate_import_contract_declaration(&contract_struct_id, &trait_def).into()
+}
+
+/// This derive macro is for implementing `cosmwasm_std::Contract`
+///
+/// This implements `get_address` and `set_address` for address field.
+/// Address field is selected as following
+/// 1. If there is a field attributed with `#[address]`, the field will
+///    be used as the address field.
+/// 2. Choose a field by field name. The priority of the name is
+///    "contract_address" -> "contract_addr" -> "address" -> "addr".
+#[proc_macro_derive(Contract, attributes(address))]
+pub fn derive_contract(input: TokenStream) -> TokenStream {
+    let derive_input = parse_macro_input!(input as syn::DeriveInput);
+    contract::derive_contract(derive_input).into()
 }

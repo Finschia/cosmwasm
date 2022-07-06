@@ -9,28 +9,28 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
     vec![
         (
             String::from("stub_pong"),
-            String::from("dynamic_callee_contract"),
-            ([Type::I32], [Type::I32]).into(),
-        ),
-        (
-            String::from("stub_pong_with_struct"),
-            String::from("dynamic_callee_contract"),
-            ([Type::I32], [Type::I32]).into(),
-        ),
-        (
-            String::from("stub_pong_with_tuple"),
-            String::from("dynamic_callee_contract"),
-            ([Type::I32], [Type::I32]).into(),
-        ),
-        (
-            String::from("stub_pong_with_tuple_takes_2_args"),
-            String::from("dynamic_callee_contract"),
+            String::from("CalleeContract"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
+            String::from("stub_pong_with_struct"),
+            String::from("CalleeContract"),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
+        (
+            String::from("stub_pong_with_tuple"),
+            String::from("CalleeContract"),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
+        (
+            String::from("stub_pong_with_tuple_takes_2_args"),
+            String::from("CalleeContract"),
+            ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
+        ),
+        (
             String::from("stub_pong_env"),
-            String::from("dynamic_callee_contract"),
-            ([], [Type::I32]).into(),
+            String::from("CalleeContract"),
+            ([Type::I32], [Type::I32]).into(),
         ),
     ]
 }

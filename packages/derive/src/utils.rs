@@ -16,11 +16,13 @@ macro_rules! abort_by {
 pub(crate) use abort_by;
 
 pub fn collect_available_arg_types(func_sig: &syn::Signature, by: String) -> Vec<&syn::Type> {
-    func_sig
-        .inputs
-        .iter()
-        .map(|arg| match arg {
-            syn::FnArg::Receiver(_) => abort_by!(arg, by, "method type is not allowed."),
+    let mut result: Vec<&syn::Type> = vec![];
+    for arg in &func_sig.inputs {
+        match arg {
+            syn::FnArg::Receiver(receiver) => match receiver.reference {
+                Some(_) => continue,
+                None => abort_by!(arg, by, "non reference receiver is not allowed."),
+            },
             syn::FnArg::Typed(arg_info) => match arg_info.ty.as_ref() {
                 syn::Type::BareFn(_) => {
                     abort_by!(arg, by, "function type by parameter is not allowed.")
@@ -28,11 +30,14 @@ pub fn collect_available_arg_types(func_sig: &syn::Signature, by: String) -> Vec
                 syn::Type::Reference(_) => {
                     abort_by!(arg, by, "reference type by parameter is not allowed.")
                 }
-                syn::Type::Ptr(_) => abort_by!(arg, by, "Ptr type by parameter is not allowed."),
-                _ => arg_info.ty.as_ref(),
+                syn::Type::Ptr(_) => {
+                    abort_by!(arg, by, "ptr type by parameter is not allowed.")
+                }
+                _ => result.push(arg_info.ty.as_ref()),
             },
-        })
-        .collect()
+        }
+    }
+    result
 }
 
 pub fn has_return_value(return_type: &syn::ReturnType) -> bool {

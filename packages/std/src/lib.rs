@@ -63,7 +63,7 @@ pub use crate::results::{DistributionMsg, StakingMsg};
 pub use crate::serde::{from_binary, from_slice, to_binary, to_vec};
 pub use crate::storage::MemoryStorage;
 pub use crate::timestamp::Timestamp;
-pub use crate::traits::{Api, Querier, QuerierResult, QuerierWrapper, Storage};
+pub use crate::traits::{Api, Contract, Querier, QuerierResult, QuerierWrapper, Storage};
 pub use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo};
 pub use crate::uuid::{new_uuid, Uuid};
 
@@ -116,3 +116,4 @@ pub mod testing {
 pub use cosmwasm_derive::callable_point;
 pub use cosmwasm_derive::dynamic_link;
 pub use cosmwasm_derive::entry_point;
+pub use cosmwasm_derive::Contract;

@@ -136,6 +136,15 @@ pub trait Querier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult;
 }
 
+/// Contract represents a dynamic linked callee contract.
+pub trait Contract {
+    /// get contract address
+    fn get_address(&self) -> Addr;
+
+    /// set contract address
+    fn set_address(&mut self, address: Addr);
+}
+
 #[derive(Copy, Clone)]
 pub struct QuerierWrapper<'a>(&'a dyn Querier);
 

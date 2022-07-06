@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, to_vec, Addr, DepsMut, Env, GlobalApi, MessageInfo,
-    Response,
+    callable_point, dynamic_link, entry_point, Addr, Contract, DepsMut, Env, GlobalApi,
+    MessageInfo, Response,
 };
 use serde::{Deserialize, Serialize};
 
@@ -53,18 +53,20 @@ fn pong_env() -> Env {
     GlobalApi::env()
 }
 
-#[dynamic_link(contract_name = "dynamic_caller_contract")]
-extern "C" {
-    fn should_never_be_called();
+#[derive(Contract)]
+struct Me {
+    address: Addr,
+}
+
+#[dynamic_link(Me)]
+trait ReEntrance: Contract {
+    fn should_never_be_called(&self);
 }
 
 #[callable_point]
-fn reentrancy(addr: Addr) {
-    GlobalApi::with_deps_mut(|deps| {
-        deps.storage
-            .set(b"dynamic_caller_contract", &to_vec(&addr).unwrap());
-    });
-    should_never_be_called()
+fn reentrancy(address: Addr) {
+    let me = Me { address };
+    me.should_never_be_called()
 }
 
 // And declare a custom Error variant for the ones where you will want to make use of it
