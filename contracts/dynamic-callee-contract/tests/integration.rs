@@ -63,7 +63,7 @@ fn callable_point_export_works() {
             Some(exported_function) => {
                 assert_eq!(*exported_function, required_export.1);
             }
-            None => assert!(false),
+            None => panic!("{} is not exported.", required_export.0),
         }
     }
 }
