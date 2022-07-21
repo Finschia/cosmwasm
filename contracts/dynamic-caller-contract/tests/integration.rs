@@ -56,15 +56,15 @@ fn dynamic_link_import_works() {
         .collect();
 
     let required_imports = required_imports();
-    for required_export in required_imports {
-        match import_function_map.get(&required_export.0) {
-            Some(exported_function) => {
-                let module_name = &exported_function.0;
-                let function_type = &exported_function.1;
-                assert_eq!(*module_name, required_export.1);
-                assert_eq!(*function_type, required_export.2);
+    for required_import in required_imports {
+        match import_function_map.get(&required_import.0) {
+            Some(imported_function) => {
+                let module_name = &imported_function.0;
+                let function_type = &imported_function.1;
+                assert_eq!(*module_name, required_import.1);
+                assert_eq!(*function_type, required_import.2);
             }
-            None => assert!(false),
+            None => panic!("{} is not imported.", required_import.0),
         }
     }
 }

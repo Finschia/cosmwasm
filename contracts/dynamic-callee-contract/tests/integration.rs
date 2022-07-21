@@ -22,6 +22,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             String::from("stub_pong_with_tuple"),
             ([Type::I32], [Type::I32]).into(),
         ),
+        (
+            String::from("stub_pong_with_tuple_takes_2_args"),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
         (String::from("stub_pong_env"), ([], [Type::I32]).into()),
     ]
 }
@@ -59,7 +63,7 @@ fn callable_point_export_works() {
             Some(exported_function) => {
                 assert_eq!(*exported_function, required_export.1);
             }
-            None => assert!(false),
+            None => panic!("{} is not exported.", required_export.0),
         }
     }
 }
@@ -72,9 +76,11 @@ fn callable_point_pong_works() {
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
 
     let required_exports = required_exports();
+    let export_index = 0;
+    assert_eq!("stub_pong".to_string(), required_exports[export_index].0);
     let call_result = instance
         .call_function_strict(
-            &required_exports[0].1,
+            &required_exports[export_index].1,
             "stub_pong",
             &[param_region_ptr.into()],
         )
@@ -99,9 +105,14 @@ fn callable_point_pong_with_struct_works() {
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
 
     let required_exports = required_exports();
+    let export_index = 1;
+    assert_eq!(
+        "stub_pong_with_struct".to_string(),
+        required_exports[export_index].0
+    );
     let call_result = instance
         .call_function_strict(
-            &required_exports[1].1,
+            &required_exports[export_index].1,
             "stub_pong_with_struct",
             &[param_region_ptr.into()],
         )
@@ -123,9 +134,14 @@ fn callable_point_pong_with_tuple_works() {
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
 
     let required_exports = required_exports();
+    let export_index = 2;
+    assert_eq!(
+        "stub_pong_with_tuple".to_string(),
+        required_exports[export_index].0
+    );
     let call_result = instance
         .call_function_strict(
-            &required_exports[1].1,
+            &required_exports[export_index].1,
             "stub_pong_with_tuple",
             &[param_region_ptr.into()],
         )
@@ -150,9 +166,14 @@ fn callable_point_pong_with_tuple_takes_2_args_works() {
     let param_region_ptr2 = write_data_to_mock_env(&instance.env, &serialized_param2).unwrap();
 
     let required_exports = required_exports();
+    let export_index = 3;
+    assert_eq!(
+        "stub_pong_with_tuple_takes_2_args".to_string(),
+        required_exports[export_index].0
+    );
     let call_result = instance
         .call_function_strict(
-            &required_exports[1].1,
+            &required_exports[export_index].1,
             "stub_pong_with_tuple_takes_2_args",
             &[param_region_ptr1.into(), param_region_ptr2.into()],
         )
@@ -174,8 +195,13 @@ fn callable_point_pong_env_works() {
     instance
         .env
         .set_serialized_env(&to_vec(&mock_env()).unwrap());
+    let export_index = 4;
+    assert_eq!(
+        "stub_pong_env".to_string(),
+        required_exports[export_index].0
+    );
     let call_result = instance
-        .call_function_strict(&required_exports[2].1, "stub_pong_env", &[])
+        .call_function_strict(&required_exports[export_index].1, "stub_pong_env", &[])
         .unwrap();
     assert_eq!(call_result.len(), 1);
 
@@ -183,20 +209,4 @@ fn callable_point_pong_env_works() {
         read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
     let result: Env = from_slice(&serialized_return).unwrap();
     assert_eq!(result.contract.address, Addr::unchecked(MOCK_CONTRACT_ADDR));
-}
-
-#[test]
-fn callable_point_pong_deps_works() {
-    let instance = make_callee_instance();
-
-    let required_exports = required_exports();
-    let call_result = instance
-        .call_function_strict(&required_exports[1].1, "stub_pong_env", &[])
-        .unwrap();
-    assert_eq!(call_result.len(), 1);
-
-    let serialized_return =
-        read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
-    let result: Env = from_slice(&serialized_return).unwrap();
-    assert_eq!(result.contract.address, Addr::unchecked("cosmos2contract"));
 }
