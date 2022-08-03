@@ -41,7 +41,7 @@ jobs:
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Run vm benchmarks (Singlepass)
         working-directory: ${{env.working-directory}}/vm
-        run: cargo bench --no-default-features -- --color never --save-baseline singlepass
+        run: cargo bench --no-default-features --features bench -- --color never --save-baseline singlepass
       - name: Run crypto benchmarks
         working-directory: ${{env.working-directory}}/crypto
         run: cargo bench -- --color never --save-baseline crypto

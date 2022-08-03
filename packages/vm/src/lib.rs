@@ -36,6 +36,8 @@ pub use crate::calls::{
 };
 pub use crate::checksum::Checksum;
 
+#[cfg(feature = "bench")]
+pub use crate::dynamic_link::native_dynamic_link_trampoline_for_bench;
 pub use crate::dynamic_link::{
     copy_region_vals_between_env, dynamic_link, FunctionMetadata, WasmerVal,
 };
