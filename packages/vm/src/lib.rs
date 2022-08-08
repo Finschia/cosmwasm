@@ -35,7 +35,8 @@ pub use crate::calls::{
     call_sudo_raw,
 };
 pub use crate::checksum::Checksum;
-
+#[cfg(feature = "bench")]
+pub use crate::conversion::{ref_to_u32, to_u32};
 #[cfg(feature = "bench")]
 pub use crate::dynamic_link::native_dynamic_link_trampoline_for_bench;
 pub use crate::dynamic_link::{
@@ -55,6 +56,8 @@ pub use crate::ibc_calls::{
     call_ibc_packet_receive_raw, call_ibc_packet_timeout, call_ibc_packet_timeout_raw,
 };
 pub use crate::instance::{GasReport, Instance, InstanceOptions};
+#[cfg(feature = "bench")]
+pub use crate::memory::{read_region, write_region};
 pub use crate::serde::{from_slice, to_vec};
 pub use crate::size::Size;
 

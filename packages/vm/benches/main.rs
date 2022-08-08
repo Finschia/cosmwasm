@@ -10,8 +10,9 @@ use cosmwasm_vm::testing::{
 };
 use cosmwasm_vm::{
     call_execute, call_instantiate, features_from_csv, native_dynamic_link_trampoline_for_bench,
-    Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum, Environment,
-    FunctionMetadata, GasInfo, Instance, InstanceOptions, Querier, Size, Storage, WasmerVal,
+    read_region, ref_to_u32, to_u32, write_region, Backend, BackendApi, BackendError,
+    BackendResult, Cache, CacheOptions, Checksum, Environment, FunctionMetadata, GasInfo, Instance,
+    InstanceOptions, Querier, Size, Storage, WasmerVal,
 };
 use std::cell::RefCell;
 use wasmer_types::Type;
@@ -355,6 +356,47 @@ fn bench_dynamic_link(c: &mut Criterion) {
     group.finish()
 }
 
+fn bench_copy_region(c: &mut Criterion) {
+    let mut group = c.benchmark_group("CopyRegion");
+
+    for i in 0..=3 {
+        let length = 10_i32.pow(i);
+        group.bench_function(format!("read region (length == {})", length), |b| {
+            let data: Vec<u8> = (0..length).map(|x| (x % 255) as u8).collect();
+            assert_eq!(data.len(), length as usize);
+            let instance = mock_instance(&CONTRACT, &[]);
+            let ret = instance
+                .env
+                .call_function1("allocate", &[to_u32(data.len()).unwrap().into()])
+                .unwrap();
+            let region_ptr = ref_to_u32(&ret).unwrap();
+            write_region(&instance.env.memory(), region_ptr, &data).unwrap();
+            let got_data =
+                read_region(&instance.env.memory(), region_ptr, u32::MAX as usize).unwrap();
+            assert_eq!(data, got_data);
+            b.iter(|| {
+                let _ = read_region(&instance.env.memory(), region_ptr, u32::MAX as usize);
+            })
+        });
+
+        group.bench_function(format!("write region (length == {})", length), |b| {
+            let data: Vec<u8> = (0..length).map(|x| (x % 255) as u8).collect();
+            assert_eq!(data.len(), length as usize);
+            let instance = mock_instance(&CONTRACT, &[]);
+            let ret = instance
+                .env
+                .call_function1("allocate", &[to_u32(data.len()).unwrap().into()])
+                .unwrap();
+            let region_ptr = ref_to_u32(&ret).unwrap();
+            b.iter(|| {
+                write_region(&instance.env.memory(), region_ptr, &data).unwrap();
+            })
+        });
+    }
+
+    group.finish();
+}
+
 fn make_config() -> Criterion {
     Criterion::default()
         .plotting_backend(PlottingBackend::Plotters)
@@ -378,4 +420,10 @@ criterion_group!(
     config = make_config();
     targets = bench_dynamic_link
 );
-criterion_main!(instance, cache, dynamic_link);
+criterion_group!(
+    name = copy_region;
+    config = make_config();
+    targets = bench_copy_region
+);
+//criterion_main!(instance, cache, dynamic_link, copy_region);
+criterion_main!(copy_region);
