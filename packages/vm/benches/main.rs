@@ -320,7 +320,8 @@ fn bench_dynamic_link(c: &mut Criterion) {
                     RefCell::new(mock_instance_with_options(
                         &CONTRACT,
                         MockInstanceOptions {
-                            gas_limit: 500_000_000_000,
+                            // enough gas for bench iterations
+                            gas_limit: 500_000_000_000_000_000,
                             ..MockInstanceOptions::default()
                         },
                     )),
