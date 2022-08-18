@@ -165,6 +165,7 @@ impl BackendApi for MockApi {
         };
         (result, gas_info)
     }
+
     fn contract_call<A, S, Q>(
         &self,
         caller_env: &Environment<A, S, Q>,

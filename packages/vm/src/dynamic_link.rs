@@ -107,6 +107,19 @@ where
     })
 }
 
+#[cfg(feature = "bench")]
+pub fn native_dynamic_link_trampoline_for_bench<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    args: &[WasmerVal],
+) -> Result<Vec<WasmerVal>, RuntimeError>
+where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+{
+    native_dynamic_link_trampoline(env, args)
+}
+
 pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
     module: &Module,
     env: &Environment<A, S, Q>,
