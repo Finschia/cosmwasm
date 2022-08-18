@@ -425,5 +425,4 @@ criterion_group!(
     config = make_config();
     targets = bench_copy_region
 );
-//criterion_main!(instance, cache, dynamic_link, copy_region);
-criterion_main!(copy_region);
+criterion_main!(instance, cache, dynamic_link, copy_region);
