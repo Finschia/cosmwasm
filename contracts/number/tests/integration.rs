@@ -1,7 +1,7 @@
 use cosmwasm_std::to_vec;
 use cosmwasm_vm::testing::{
-    mock_backend, mock_env, write_data_to_mock_env, Contract, MockApi,
-    MockInstanceOptions, MockQuerier, MockStorage,
+    mock_backend, mock_env, write_data_to_mock_env, Contract, MockApi, MockInstanceOptions,
+    MockQuerier, MockStorage,
 };
 use cosmwasm_vm::Instance;
 use std::collections::HashMap;
@@ -76,7 +76,9 @@ fn callable_point_add_works() {
             &[param_region_ptr.into()],
         )
         .unwrap_err();
-    assert!(call_result.to_string().contains("RuntimeError: unreachable"))
+    assert!(call_result
+        .to_string()
+        .contains("RuntimeError: unreachable"))
 }
 
 #[test]
@@ -99,7 +101,9 @@ fn callable_point_sub_works() {
             &[param_region_ptr.into()],
         )
         .unwrap_err();
-    assert!(call_result.to_string().contains("RuntimeError: unreachable"))
+    assert!(call_result
+        .to_string()
+        .contains("RuntimeError: unreachable"))
 }
 
 #[test]
@@ -122,7 +126,9 @@ fn callable_point_mul_works() {
             &[param_region_ptr.into()],
         )
         .unwrap_err();
-    assert!(call_result.to_string().contains("RuntimeError: unreachable"))
+    assert!(call_result
+        .to_string()
+        .contains("RuntimeError: unreachable"))
 }
 
 #[test]
@@ -137,5 +143,7 @@ fn callable_point_number_works() {
     let call_result = instance
         .call_function_strict(&required_exports[0].1, "number", &[])
         .unwrap_err();
-    assert!(call_result.to_string().contains("RuntimeError: unreachable"))
+    assert!(call_result
+        .to_string()
+        .contains("RuntimeError: unreachable"))
 }

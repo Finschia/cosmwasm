@@ -196,10 +196,7 @@ fn callable_point_pong_env_works() {
         .env
         .set_serialized_env(&to_vec(&mock_env()).unwrap());
     let export_index = 4;
-    assert_eq!(
-        "pong_env".to_string(),
-        required_exports[export_index].0
-    );
+    assert_eq!("pong_env".to_string(), required_exports[export_index].0);
     let call_result = instance
         .call_function_strict(&required_exports[export_index].1, "pong_env", &[])
         .unwrap();
