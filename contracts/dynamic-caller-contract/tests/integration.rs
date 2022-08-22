@@ -8,27 +8,27 @@ static CONTRACT_CALLER: &[u8] =
 fn required_imports() -> Vec<(String, String, FunctionType)> {
     vec![
         (
-            String::from("stub_pong"),
+            String::from("pong"),
             String::from("CalleeContract"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
-            String::from("stub_pong_with_struct"),
+            String::from("pong_with_struct"),
             String::from("CalleeContract"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
-            String::from("stub_pong_with_tuple"),
+            String::from("pong_with_tuple"),
             String::from("CalleeContract"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
-            String::from("stub_pong_with_tuple_takes_2_args"),
+            String::from("pong_with_tuple_takes_2_args"),
             String::from("CalleeContract"),
             ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
-            String::from("stub_pong_env"),
+            String::from("pong_env"),
             String::from("CalleeContract"),
             ([Type::I32], [Type::I32]).into(),
         ),

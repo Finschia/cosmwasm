@@ -8,22 +8,22 @@ static CONTRACT_CALLER: &[u8] =
 fn required_imports() -> Vec<(String, String, FunctionType)> {
     vec![
         (
-            String::from("stub_add"),
+            String::from("add"),
             String::from("NumberContract"),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
-            String::from("stub_sub"),
+            String::from("sub"),
             String::from("NumberContract"),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
-            String::from("stub_mul"),
+            String::from("mul"),
             String::from("NumberContract"),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
-            String::from("stub_number"),
+            String::from("number"),
             String::from("NumberContract"),
             ([Type::I32], [Type::I32]).into(),
         ),
