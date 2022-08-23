@@ -136,7 +136,7 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// #[cfg(not(target_arch = "wasm32"))]
 /// impl TraitName for ContractStruct {
 ///   fn callable_point_on_another_contract(&self, x: i32) -> i32 {
-///     do_something_as_a_mock()
+///     42
 ///   }
 /// }
 /// ```
