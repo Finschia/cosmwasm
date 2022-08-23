@@ -51,10 +51,7 @@ pub fn parse_attributes(attr_args: AttributeArgs) -> (Ident, bool) {
             "`dynamic_link` macro needs contract struct id as an unnamed attribute like `#[dynamic_link(CalleeContract)]`"
         )
     };
-    let res_mock = match does_use_mock {
-        Some(does_use) => does_use,
-        None => false,
-    };
+    let res_mock = does_use_mock.unwrap_or(false);
     (res_id, res_mock)
 }
 
