@@ -1,6 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Ident, ItemTrait, Meta, NestedMeta, Signature, TraitItem, TypeParamBound};
+use syn::{
+    AttributeArgs, Ident, ItemTrait, Lit, Meta, NestedMeta, Signature, TraitItem, TypeParamBound,
+};
 
 use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make_typed_return};
 
@@ -10,25 +12,56 @@ macro_rules! abort_by_dynamic_link {
     };
 }
 
-pub fn parse_contract_struct_id(nested_meta: &syn::NestedMeta) -> Ident {
-    match nested_meta {
-        NestedMeta::Meta(Meta::Path(path)) => match path.get_ident() {
-            Some(id) => id.clone(),
-            None => abort_by_dynamic_link!(
+pub fn parse_attributes(attr_args: AttributeArgs) -> (Ident, bool) {
+    let mut struct_id: Option<Ident> = None;
+    let mut does_use_mock: Option<bool> = None;
+    for nested_meta in attr_args {
+        match &nested_meta {
+            NestedMeta::Meta(Meta::Path(path)) => match path.get_ident() {
+                Some(id) => struct_id = Some(id.clone()),
+                None => abort_by_dynamic_link!(
+                    nested_meta,
+                    "`dynamic_link` macro cannot take unnamed attributes other than contract struct id"
+                ),
+            },
+            NestedMeta::Meta(Meta::NameValue(mnv)) => {
+                if ! mnv.path.is_ident("user_defined_mock") {
+                    abort_by_dynamic_link!(
+                        nested_meta,
+                        "other named attribute than `user_defined_mock` cannot be used in `dynamic_link` macro."
+                    )
+                }
+                match &mnv.lit {
+                    Lit::Bool(b) => does_use_mock = Some(b.value),
+                    _ => abort_by_dynamic_link!(
+                        nested_meta,
+                        "`user_defined_mock` attribute can take only bool value"
+                    )
+                }
+            },
+            _ => abort_by_dynamic_link!(
                 nested_meta,
-                "contract struct id must be specified like `#[dynamic_link(CalleeContract)]`"
+                "`dynamic_link` macro cannot take attributes other than contract struct id or `user_defined_mock` attribute."
             ),
-        },
-        _ => abort_by_dynamic_link!(
-            nested_meta,
-            "contract struct id must be specified like `#[dynamic_link(CalleeContract)]`"
-        ),
+        }
     }
+    let res_id = match struct_id {
+        Some(id) => id,
+        None => panic!(
+            "`dynamic_link` macro needs contract struct id as an unnamed attribute like `#[dynamic_link(CalleeContract)]`"
+        )
+    };
+    let res_mock = match does_use_mock {
+        Some(does_use) => does_use,
+        None => false,
+    };
+    (res_id, res_mock)
 }
 
 pub fn generate_import_contract_declaration(
     contract_struct_id: &Ident,
     trait_def: &ItemTrait,
+    does_use_user_defined_mock: bool,
 ) -> TokenStream {
     if !has_supertrait_contract(trait_def) {
         abort_by_dynamic_link!(
@@ -56,12 +89,24 @@ pub fn generate_import_contract_declaration(
         contract_struct_id,
         &signatures,
     );
-    quote! {
-        #extern_block
+    if does_use_user_defined_mock {
+        quote! {
+            #trait_def
 
-        #trait_def
+            #[cfg(target_arch = "wasm32")]
+            #extern_block
 
-        #implement_block
+            #[cfg(target_arch = "wasm32")]
+            #implement_block
+        }
+    } else {
+        quote! {
+            #trait_def
+
+            #extern_block
+
+            #implement_block
+        }
     }
 }
 

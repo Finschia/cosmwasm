@@ -109,9 +109,13 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 /// This macro implements dynamic call functions for attributed trait.
 ///
-/// This macro takes an attribute specifying a struct to implement the traits for.
+/// This macro must take an attribute specifying a struct to implement the traits for.
 /// The trait must have `cosmwasm_std::Contract` as a supertrait and each
 /// methods of the trait must have `&self` receiver as its first argument.
+///
+/// This macro can take a bool value as a named attribute `user_defined_mock`
+/// When this value is true, this macro generates implement of the trait for specified struct for only `target_arch = "wasm32"`.
+/// So, with `user_defined_mock = true`, user can and must write mock implement of the trait for specified struct with `#[cfg(not(target_arch = "wasm32"))]`.
 ///
 /// example usage:
 ///
@@ -123,23 +127,33 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   address: Addr
 /// }
 ///
-/// #[dynamic_link(ContractStruct)]
+/// #[dynamic_link(ContractStruct, user_defined_mock = true)]
 /// trait TraitName: Contract {
-///   fn callable_point_on_another_contract(&self, _: i32) -> i32;
+///   fn callable_point_on_another_contract(&self, x: i32) -> i32;
+/// }
+///
+/// // When `user_defined_mock = true` is specified, implement is generated only for "wasm32"
+/// #[cfg(not(target_arch = "wasm32"))]
+/// impl TraitName for ContractStruct {
+///   fn callable_point_on_another_contract(&self, x: i32) -> i32 {
+///     do_something_as_a_mock()
+///   }
 /// }
 /// ```
-
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn dynamic_link(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr_args = parse_macro_input!(attr as syn::AttributeArgs);
-    if attr_args.len() != 1 {
-        panic!("too many attributes");
-    }
 
-    let contract_struct_id = dynamic_link::parse_contract_struct_id(&attr_args[0]);
+    let (contract_struct_id, does_use_user_defined_mock) =
+        dynamic_link::parse_attributes(attr_args);
     let trait_def = parse_macro_input!(item as syn::ItemTrait);
-    dynamic_link::generate_import_contract_declaration(&contract_struct_id, &trait_def).into()
+    dynamic_link::generate_import_contract_declaration(
+        &contract_struct_id,
+        &trait_def,
+        does_use_user_defined_mock,
+    )
+    .into()
 }
 
 /// This derive macro is for implementing `cosmwasm_std::Contract`
