@@ -355,9 +355,9 @@ mod tests {
             mod #module_id {
                 #[link(wasm_import_module = #module_name)]
                 extern "C" {
-                    fn foo(addr: u32, ptr0: u32, ptr1: u32) -> u32;
-                    fn bar(addr: u32);
-                    fn foobar(addr: u32, ptr0: u32, ptr1: u32) -> u32;
+                    pub(crate) fn foo(addr: u32, ptr0: u32, ptr1: u32) -> u32;
+                    pub(crate) fn bar(addr: u32);
+                    pub(crate) fn foobar(addr: u32, ptr0: u32, ptr1: u32) -> u32;
                 }
             }
         };
