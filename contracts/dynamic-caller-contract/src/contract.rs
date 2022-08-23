@@ -69,6 +69,36 @@ impl Callee for CalleeContract {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+impl Callee for CalleeContract {
+    fn pong(&self, ping_num: u64) -> u64 {
+        ping_num + 1
+    }
+
+    fn pong_with_struct(&self, example: ExampleStruct) -> ExampleStruct {
+        ExampleStruct {
+            str_field: example.str_field + " world",
+            u64_field: example.u64_field + 1,
+        }
+    }
+
+    fn pong_with_tuple(&self, input: (String, i32)) -> (String, i32) {
+        (input.0 + " world", input.1 + 1)
+    }
+
+    fn pong_with_tuple_takes_2_args(&self, input1: String, input2: i32) -> (String, i32) {
+        (input1 + " world", input2 + 1)
+    }
+
+    fn pong_env(&self) -> Env {
+        cosmwasm_std::testing::mock_env()
+    }
+
+    fn reentrancy(&self, _addr: Addr) {
+        panic!()
+    }
+}
+
 // Note, you can use StdResult in some functions where you do not
 // make use of the custom errors
 #[entry_point]
@@ -145,7 +175,7 @@ pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError>
 }
 
 #[callable_point]
-fn should_never_be_called(_deps: Deps) {}
+fn should_never_be_called(_deps: Deps, _env: Env) {}
 
 #[cfg(test)]
 mod tests {
