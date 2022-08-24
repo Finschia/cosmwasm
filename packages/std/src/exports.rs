@@ -319,7 +319,7 @@ where
 }
 
 /// Makes all bridges to external dependencies (i.e. Wasm imports) that are injected by the VM
-pub(crate) fn make_dependencies() -> OwnedDeps<ExternalStorage, ExternalApi, ExternalQuerier> {
+pub fn make_dependencies() -> OwnedDeps<ExternalStorage, ExternalApi, ExternalQuerier> {
     OwnedDeps {
         storage: ExternalStorage::new(),
         api: ExternalApi::new(),
