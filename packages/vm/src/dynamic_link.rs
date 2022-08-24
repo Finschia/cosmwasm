@@ -386,7 +386,7 @@ mod tests {
             let mut caller_env = &mut caller_instance.borrow_mut().env;
             let target_func_info = FunctionMetadata {
                 module_name: CALLER_NAME_ADDR.to_string(),
-                name: "foo".to_string(),
+                name: "fail".to_string(),
                 signature: ([Type::I32], []).into(),
             };
             let none = prepare_dynamic_call_data(None, target_func_info, &mut caller_env);
@@ -412,7 +412,7 @@ mod tests {
             let mut caller_env = &mut caller_instance.borrow_mut().env;
             let target_func_info = FunctionMetadata {
                 module_name: CALLER_NAME_ADDR.to_string(),
-                name: "foo".to_string(),
+                name: "fail".to_string(),
                 signature: ([Type::I32], []).into(),
             };
             let address_region = prepare_dynamic_call_data(
@@ -428,7 +428,39 @@ mod tests {
             ));
 
             assert_eq!(result.err().unwrap().message(),
-            "func_info:{module_name:caller, name:foo, signature:[] -> []}, error:Unknown error during call into backend: Some(\"cannot found contract\")"
+            "func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Unknown error during call into backend: Some(\"cannot found contract\")"
+            );
+        });
+    }
+
+    #[test]
+    fn dynamic_link_contract_fails() {
+        init_cache_with_two_instances();
+
+        INSTANCE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
+            let mut caller_env = &mut caller_instance.borrow_mut().env;
+            let target_func_info = FunctionMetadata {
+                module_name: CALLER_NAME_ADDR.to_string(),
+                name: "fail".to_string(),
+                signature: ([Type::I32], []).into(),
+            };
+            let address_region = prepare_dynamic_call_data(
+                Some(Addr::unchecked(CALLEE_NAME_ADDR)),
+                target_func_info,
+                &mut caller_env,
+            )
+            .unwrap();
+
+            let result = native_dynamic_link_trampoline(
+                &caller_env,
+                &[WasmerVal::I32(address_region as i32)],
+            );
+            assert!(matches!(result, Err(RuntimeError { .. })));
+            
+            assert_eq!(result.err().unwrap().message(),
+            "func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: Some(\"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable\\n    at f_fail (<module>[1]:0x7d)\")"
             );
         });
     }

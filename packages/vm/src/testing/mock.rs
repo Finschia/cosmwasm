@@ -200,7 +200,7 @@ impl BackendApi for MockApi {
                             true,
                         )
                         .unwrap()),
-                        Err(e) => Err(BackendError::unknown(e.to_string())),
+                        Err(e) => Err(BackendError::DynamicLinkErr(e.to_string())),
                     };
                     gas_info.cost += callee_instance.create_gas_report().used_internally;
                     (call_ret, gas_info)
