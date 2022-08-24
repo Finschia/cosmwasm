@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_point, entry_point, to_binary, Binary, Deps, DepsMut, Env, GlobalApi, MessageInfo,
-    Response, Storage,
+    callable_point, entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    Storage,
 };
 
 use crate::error::ContractError;
@@ -77,21 +77,21 @@ fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
 }
 
 #[callable_point]
-fn add(by: i32) {
-    GlobalApi::with_deps_mut(|deps| handle_add(deps, by)).unwrap();
+fn add(deps: DepsMut, by: i32) {
+    handle_add(deps, by).unwrap();
 }
 
 #[callable_point]
-fn sub(by: i32) {
-    GlobalApi::with_deps_mut(|deps| handle_sub(deps, by)).unwrap();
+fn sub(deps: DepsMut, by: i32) {
+    handle_sub(deps, by).unwrap();
 }
 
 #[callable_point]
-fn mul(by: i32) {
-    GlobalApi::with_deps_mut(|deps| handle_mul(deps, by)).unwrap();
+fn mul(deps: DepsMut, by: i32) {
+    handle_mul(deps, by).unwrap();
 }
 
 #[callable_point]
-fn number() -> i32 {
-    GlobalApi::with_deps(|deps| read(deps.storage).unwrap())
+fn number(deps: Deps) -> i32 {
+    read(deps.storage).unwrap()
 }
