@@ -1,7 +1,7 @@
 use cosmwasm_std::to_vec;
 use cosmwasm_vm::testing::{
-    mock_backend, mock_env, write_data_to_mock_env, Contract, MockApi,
-    MockInstanceOptions, MockQuerier, MockStorage,
+    mock_backend, mock_env, write_data_to_mock_env, Contract, MockApi, MockInstanceOptions,
+    MockQuerier, MockStorage,
 };
 use cosmwasm_vm::Instance;
 use std::collections::HashMap;
@@ -11,10 +11,10 @@ static CONTRACT: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/releas
 
 fn required_exports() -> Vec<(String, FunctionType)> {
     vec![
-        (String::from("stub_add"), ([Type::I32], []).into()),
-        (String::from("stub_sub"), ([Type::I32], []).into()),
-        (String::from("stub_mul"), ([Type::I32], []).into()),
-        (String::from("stub_number"), ([], [Type::I32]).into()),
+        (String::from("add"), ([Type::I32], []).into()),
+        (String::from("sub"), ([Type::I32], []).into()),
+        (String::from("mul"), ([Type::I32], []).into()),
+        (String::from("number"), ([], [Type::I32]).into()),
     ]
 }
 
@@ -65,18 +65,20 @@ fn callable_point_add_works() {
 
     let required_exports = required_exports();
     let export_index = 0;
-    assert_eq!("stub_add".to_string(), required_exports[export_index].0);
+    assert_eq!("add".to_string(), required_exports[export_index].0);
 
     // Before solving #213, it issues an error.
-    // This is because `stub_add` panics without number in deps.storage.
+    // This is because `add` panics without number in deps.storage.
     let call_result = instance
         .call_function_strict(
             &required_exports[export_index].1,
-            "stub_add",
+            "add",
             &[param_region_ptr.into()],
         )
         .unwrap_err();
-    assert!(call_result.to_string().contains("RuntimeError: unreachable"))
+    assert!(call_result
+        .to_string()
+        .contains("RuntimeError: unreachable"))
 }
 
 #[test]
@@ -88,18 +90,20 @@ fn callable_point_sub_works() {
 
     let required_exports = required_exports();
     let export_index = 1;
-    assert_eq!("stub_sub".to_string(), required_exports[export_index].0);
+    assert_eq!("sub".to_string(), required_exports[export_index].0);
 
     // Before solving #213, it issues an error.
-    // This is because `stub_sub` panics without number in deps.storage.
+    // This is because `sub` panics without number in deps.storage.
     let call_result = instance
         .call_function_strict(
             &required_exports[export_index].1,
-            "stub_sub",
+            "sub",
             &[param_region_ptr.into()],
         )
         .unwrap_err();
-    assert!(call_result.to_string().contains("RuntimeError: unreachable"))
+    assert!(call_result
+        .to_string()
+        .contains("RuntimeError: unreachable"))
 }
 
 #[test]
@@ -111,18 +115,20 @@ fn callable_point_mul_works() {
 
     let required_exports = required_exports();
     let export_index = 2;
-    assert_eq!("stub_mul".to_string(), required_exports[export_index].0);
+    assert_eq!("mul".to_string(), required_exports[export_index].0);
 
     // Before solving #213, it issues an error.
-    // This is because `stub_add` panics without number in deps.storage.
+    // This is because `mul` panics without number in deps.storage.
     let call_result = instance
         .call_function_strict(
             &required_exports[export_index].1,
-            "stub_mul",
+            "mul",
             &[param_region_ptr.into()],
         )
         .unwrap_err();
-    assert!(call_result.to_string().contains("RuntimeError: unreachable"))
+    assert!(call_result
+        .to_string()
+        .contains("RuntimeError: unreachable"))
 }
 
 #[test]
@@ -131,11 +137,13 @@ fn callable_point_number_works() {
 
     let required_exports = required_exports();
     let export_index = 3;
-    assert_eq!("stub_number".to_string(), required_exports[export_index].0);
+    assert_eq!("number".to_string(), required_exports[export_index].0);
     // Before solving #213, it issues an error.
-    // This is because `stub_number` panics without number in deps.storage.
+    // This is because `number` panics without number in deps.storage.
     let call_result = instance
-        .call_function_strict(&required_exports[0].1, "stub_number", &[])
+        .call_function_strict(&required_exports[0].1, "number", &[])
         .unwrap_err();
-    assert!(call_result.to_string().contains("RuntimeError: unreachable"))
+    assert!(call_result
+        .to_string()
+        .contains("RuntimeError: unreachable"))
 }

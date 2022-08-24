@@ -4,7 +4,8 @@ use quote::{format_ident, quote};
 use crate::utils::{collect_available_arg_types, has_return_value, make_typed_return};
 
 pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
-    let stub_func_name_ident = format_ident!("stub_{}", function.sig.ident);
+    let function_name_ident = &function.sig.ident;
+    let mod_name_ident = format_ident!("__wasm_export_{}", function_name_ident);
     let args_len = function.sig.inputs.len();
 
     let arg_idents: Vec<_> = (0..args_len).map(|i| format_ident!("arg{}", i)).collect();
@@ -23,15 +24,19 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
     let typed_return = make_typed_return(&function.sig.output);
 
     let call_origin_return =
-        make_call_origin_and_return(&function.sig.ident, args_len, &function.sig.output);
+        make_call_origin_and_return(function_name_ident, args_len, &function.sig.output);
 
     quote! {
         #[cfg(target_arch = "wasm32")]
-        #[no_mangle]
-        extern "C" fn #stub_func_name_ident(#(#renamed_param_defs),*) #typed_return {
-            #(let #vec_arg_idents: Vec<u8> = unsafe { cosmwasm_std::memory::consume_region(#ptr_idents as *mut cosmwasm_std::memory::Region)};)*
-            #(let #arg_idents: #arg_types = cosmwasm_std::from_slice(&#vec_arg_idents).unwrap();)*
-            #call_origin_return
+        mod #mod_name_ident {
+            use super::*;
+
+            #[no_mangle]
+            extern "C" fn #function_name_ident(#(#renamed_param_defs),*) #typed_return {
+                #(let #vec_arg_idents: Vec<u8> = unsafe { cosmwasm_std::memory::consume_region(#ptr_idents as *mut cosmwasm_std::memory::Region)};)*
+                #(let #arg_idents: #arg_types = cosmwasm_std::from_slice(&#vec_arg_idents).unwrap();)*
+                #call_origin_return
+            }
         }
     }
 }
@@ -45,12 +50,12 @@ fn make_call_origin_and_return(
 
     if has_return_value(return_type) {
         quote! {
-            let result = #func_name_ident(#(#arguments),*);
+            let result = super::#func_name_ident(#(#arguments),*);
             let vec_result = cosmwasm_std::to_vec(&result).unwrap();
             cosmwasm_std::memory::release_buffer(vec_result) as u32
         }
     } else {
-        quote! {#func_name_ident(#(#arguments),*);}
+        quote! { super::#func_name_ident(#(#arguments),*); }
     }
 }
 
@@ -75,7 +80,7 @@ mod tests {
             .to_string();
 
             let expected: TokenStream = parse_quote! {
-                let result = foo();
+                let result = super::foo();
                 let vec_result = cosmwasm_std::to_vec(&result).unwrap();
                 cosmwasm_std::memory::release_buffer(vec_result) as u32
             };
@@ -96,7 +101,7 @@ mod tests {
             .to_string();
 
             let expected: TokenStream = parse_quote! {
-                let result = foo();
+                let result = super::foo();
                 let vec_result = cosmwasm_std::to_vec(&result).unwrap();
                 cosmwasm_std::memory::release_buffer(vec_result) as u32
             };

@@ -13,20 +13,20 @@ static CONTRACT_CALLEE: &[u8] =
 
 fn required_exports() -> Vec<(String, FunctionType)> {
     vec![
-        (String::from("stub_pong"), ([Type::I32], [Type::I32]).into()),
+        (String::from("pong"), ([Type::I32], [Type::I32]).into()),
         (
-            String::from("stub_pong_with_struct"),
+            String::from("pong_with_struct"),
             ([Type::I32], [Type::I32]).into(),
         ),
         (
-            String::from("stub_pong_with_tuple"),
+            String::from("pong_with_tuple"),
             ([Type::I32], [Type::I32]).into(),
         ),
         (
-            String::from("stub_pong_with_tuple_takes_2_args"),
+            String::from("pong_with_tuple_takes_2_args"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
-        (String::from("stub_pong_env"), ([], [Type::I32]).into()),
+        (String::from("pong_env"), ([], [Type::I32]).into()),
     ]
 }
 
@@ -77,11 +77,11 @@ fn callable_point_pong_works() {
 
     let required_exports = required_exports();
     let export_index = 0;
-    assert_eq!("stub_pong".to_string(), required_exports[export_index].0);
+    assert_eq!("pong".to_string(), required_exports[export_index].0);
     let call_result = instance
         .call_function_strict(
             &required_exports[export_index].1,
-            "stub_pong",
+            "pong",
             &[param_region_ptr.into()],
         )
         .unwrap();
@@ -107,13 +107,13 @@ fn callable_point_pong_with_struct_works() {
     let required_exports = required_exports();
     let export_index = 1;
     assert_eq!(
-        "stub_pong_with_struct".to_string(),
+        "pong_with_struct".to_string(),
         required_exports[export_index].0
     );
     let call_result = instance
         .call_function_strict(
             &required_exports[export_index].1,
-            "stub_pong_with_struct",
+            "pong_with_struct",
             &[param_region_ptr.into()],
         )
         .unwrap();
@@ -136,13 +136,13 @@ fn callable_point_pong_with_tuple_works() {
     let required_exports = required_exports();
     let export_index = 2;
     assert_eq!(
-        "stub_pong_with_tuple".to_string(),
+        "pong_with_tuple".to_string(),
         required_exports[export_index].0
     );
     let call_result = instance
         .call_function_strict(
             &required_exports[export_index].1,
-            "stub_pong_with_tuple",
+            "pong_with_tuple",
             &[param_region_ptr.into()],
         )
         .unwrap();
@@ -168,13 +168,13 @@ fn callable_point_pong_with_tuple_takes_2_args_works() {
     let required_exports = required_exports();
     let export_index = 3;
     assert_eq!(
-        "stub_pong_with_tuple_takes_2_args".to_string(),
+        "pong_with_tuple_takes_2_args".to_string(),
         required_exports[export_index].0
     );
     let call_result = instance
         .call_function_strict(
             &required_exports[export_index].1,
-            "stub_pong_with_tuple_takes_2_args",
+            "pong_with_tuple_takes_2_args",
             &[param_region_ptr1.into(), param_region_ptr2.into()],
         )
         .unwrap();
@@ -196,12 +196,9 @@ fn callable_point_pong_env_works() {
         .env
         .set_serialized_env(&to_vec(&mock_env()).unwrap());
     let export_index = 4;
-    assert_eq!(
-        "stub_pong_env".to_string(),
-        required_exports[export_index].0
-    );
+    assert_eq!("pong_env".to_string(), required_exports[export_index].0);
     let call_result = instance
-        .call_function_strict(&required_exports[export_index].1, "stub_pong_env", &[])
+        .call_function_strict(&required_exports[export_index].1, "pong_env", &[])
         .unwrap();
     assert_eq!(call_result.len(), 1);
 
