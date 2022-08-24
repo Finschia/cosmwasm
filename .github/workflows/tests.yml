@@ -37,6 +37,35 @@ jobs:
         working-directory: ${{env.working-directory}}
         run: cargo test --locked
 
+  package_derive:
+    name: package_derive
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./packages/derive
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.51.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-package_derive-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Build
+        working-directory: ${{env.working-directory}}
+        run: cargo build --locked
+      - name: Run tests
+        working-directory: ${{env.working-directory}}
+        run: cargo test --locked
+
   package_schema:
     name: package_schema
     runs-on: ubuntu-latest
@@ -119,6 +148,7 @@ jobs:
               git status && git --no-pager diff
               exit 1
             fi
+
   package_storage:
     name: package_storage
     runs-on: ubuntu-latest
