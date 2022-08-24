@@ -10,6 +10,7 @@ mod callable_point;
 mod contract;
 mod dynamic_link;
 mod utils;
+
 /// This attribute macro generates the boilerplate required to call into the
 /// contract-specific logic from the entry-points to the Wasm module.
 ///
@@ -93,6 +94,21 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
     res
 }
 
+/// This macro generate callable point function which can be called with dynamic link.
+///
+/// Function attributed with this macro must take `deps` typed `Deps` or `DepsMut`
+/// as the first argument.
+///
+/// example usage:
+/// ```
+/// use cosmwasm_std::{Addr, Deps, callable_point};
+///
+/// #[callable_point]
+/// fn validate_address_callable_from_other_contracts(deps: Deps) -> Addr {
+///   // do something with deps, for example, using api.
+///   deps.api.addr_validate("dummy_human_address").unwrap()
+/// }
+/// ```
 #[proc_macro_error]
 #[proc_macro_attribute]
 pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -107,15 +123,17 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
     res
 }
 
-/// This macro implements dynamic call functions for attributed trait.
+/// This macro implements functions to call dynamic linked function for attributed trait.
 ///
 /// This macro must take an attribute specifying a struct to implement the traits for.
 /// The trait must have `cosmwasm_std::Contract` as a supertrait and each
 /// methods of the trait must have `&self` receiver as its first argument.
 ///
 /// This macro can take a bool value as a named attribute `user_defined_mock`
-/// When this value is true, this macro generates implement of the trait for specified struct for only `target_arch = "wasm32"`.
-/// So, with `user_defined_mock = true`, user can and must write mock implement of the trait for specified struct with `#[cfg(not(target_arch = "wasm32"))]`.
+/// When this value is true, this macro generates implement of the trait for
+/// specified struct for only `target_arch = "wasm32"`.
+/// So, with `user_defined_mock = true`, user can and must write mock implement of
+/// the trait for specified struct with `#[cfg(not(target_arch = "wasm32"))]`.
 ///
 /// example usage:
 ///
@@ -132,7 +150,8 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///   fn callable_point_on_another_contract(&self, x: i32) -> i32;
 /// }
 ///
-/// // When `user_defined_mock = true` is specified, implement is generated only for "wasm32"
+/// // When `user_defined_mock = true` is specified, implement is generated
+/// // only for "wasm32"
 /// #[cfg(not(target_arch = "wasm32"))]
 /// impl TraitName for ContractStruct {
 ///   fn callable_point_on_another_contract(&self, x: i32) -> i32 {
