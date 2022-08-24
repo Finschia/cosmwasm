@@ -324,9 +324,12 @@ mod tests {
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
-                (type (func))
-                (func (type 0) nop)
-                (export "foo" (func 0))
+                (type $t_succeed (func))
+                (func $f_succeed (type $t_succeed) nop)
+                (type $t_fail (func))
+                (func $f_fail (type $t_fail) unreachable)
+                (export "succeed" (func $f_succeed))
+                (export "fail" (func $f_fail))
             )"#,
         )
         .unwrap();
@@ -354,7 +357,7 @@ mod tests {
             let mut caller_env = &mut caller_instance.borrow_mut().env;
             let target_func_info = FunctionMetadata {
                 module_name: CALLER_NAME_ADDR.to_string(),
-                name: "foo".to_string(),
+                name: "succeed".to_string(),
                 signature: ([Type::I32], []).into(),
             };
             let address_region = prepare_dynamic_call_data(
