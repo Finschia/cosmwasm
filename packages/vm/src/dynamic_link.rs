@@ -458,7 +458,7 @@ mod tests {
                 &[WasmerVal::I32(address_region as i32)],
             );
             assert!(matches!(result, Err(RuntimeError { .. })));
-            
+
             assert_eq!(result.err().unwrap().message(),
             "func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: Some(\"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable\\n    at f_fail (<module>[1]:0x7d)\")"
             );
