@@ -386,7 +386,7 @@ mod tests {
             let mut caller_env = &mut caller_instance.borrow_mut().env;
             let target_func_info = FunctionMetadata {
                 module_name: CALLER_NAME_ADDR.to_string(),
-                name: "fail".to_string(),
+                name: "foo".to_string(),
                 signature: ([Type::I32], []).into(),
             };
             let none = prepare_dynamic_call_data(None, target_func_info, &mut caller_env);
@@ -412,7 +412,7 @@ mod tests {
             let mut caller_env = &mut caller_instance.borrow_mut().env;
             let target_func_info = FunctionMetadata {
                 module_name: CALLER_NAME_ADDR.to_string(),
-                name: "fail".to_string(),
+                name: "foo".to_string(),
                 signature: ([Type::I32], []).into(),
             };
             let address_region = prepare_dynamic_call_data(
@@ -428,7 +428,7 @@ mod tests {
             ));
 
             assert_eq!(result.err().unwrap().message(),
-            "func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Unknown error during call into backend: Some(\"cannot found contract\")"
+            "func_info:{module_name:caller, name:foo, signature:[] -> []}, error:Error in dynamic link: Some(\"cannot found contract\")"
             );
         });
     }

@@ -206,7 +206,7 @@ impl BackendApi for MockApi {
                     (call_ret, gas_info)
                 }
                 None => (
-                    Err(BackendError::unknown("cannot found contract")),
+                    Err(BackendError::dynamic_link_err("cannot found contract")),
                     gas_info,
                 ),
             }
