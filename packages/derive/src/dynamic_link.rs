@@ -25,7 +25,7 @@ pub fn parse_attributes(attr_args: AttributeArgs) -> (Ident, bool) {
                 ),
             },
             NestedMeta::Meta(Meta::NameValue(mnv)) => {
-                if ! mnv.path.is_ident("user_defined_mock") {
+                if !mnv.path.is_ident("user_defined_mock") {
                     abort_by_dynamic_link!(
                         nested_meta,
                         "other named attribute than `user_defined_mock` cannot be used in `dynamic_link` macro."
