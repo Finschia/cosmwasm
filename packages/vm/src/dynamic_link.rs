@@ -3,10 +3,11 @@ use std::fmt;
 use std::str;
 
 use crate::backend::{BackendApi, Querier, Storage};
-use crate::conversion::{ref_to_u32, to_u32};
+use crate::conversion::ref_to_u32;
 use crate::environment::{process_gas_info, Environment};
-use crate::errors::{CommunicationError, VmResult};
-use crate::memory::{read_region, write_region};
+use crate::errors::VmResult;
+use crate::imports::write_to_contract;
+use crate::memory::read_region;
 use wasmer::{Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val};
 use wasmer_types::ImportIndex;
 
@@ -198,17 +199,20 @@ where
             src_env.call_function0("deallocate", &[val_region_ptr.into()])?;
         }
 
-        let ret = dst_env.call_function1("allocate", &[to_u32(data.len())?.into()])?;
-        let region_ptr = ref_to_u32(&ret)?;
-        if region_ptr == 0 {
-            return Err(CommunicationError::zero_address().into());
-        }
-
-        write_region(&dst_env.memory(), region_ptr, &data)?;
-        copied_region_ptrs.push(region_ptr.into());
+        let region_ptr = write_value_to_env(dst_env, &data)?;
+        copied_region_ptrs.push(region_ptr);
     }
 
     Ok(copied_region_ptrs.into_boxed_slice())
+}
+
+pub fn write_value_to_env<A, S, Q>(env: &Environment<A, S, Q>, value: &[u8]) -> VmResult<WasmerVal>
+where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+{
+    Ok(write_to_contract(env, value)?.into())
 }
 
 #[cfg(test)]
