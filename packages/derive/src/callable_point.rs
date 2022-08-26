@@ -7,11 +7,11 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
     let function_name_ident = &function.sig.ident;
     let mod_name_ident = format_ident!("__wasm_export_{}", function_name_ident);
     // The first argument is `deps`, the rest is region pointers
-    if function.sig.inputs.is_empty() {
+    if function.sig.inputs.len() < 2 {
         abort_by!(
             function,
             "callable_point",
-            "the first argument of callable_point function needs `deps` typed `Deps` or `DepsMut`"
+            "callable_point function needs `deps` typed `Deps` or `DepsMut` as the first argument and `env` typed `Env` as the second argument."
         )
     }
     let args_len = function.sig.inputs.len() - 1;
@@ -24,6 +24,7 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
 
     let orig_arg_types = collect_available_arg_types(&function.sig, "callable_point".to_string());
     let arg_types = &orig_arg_types[1..];
+
     let is_dep_mutable = match &orig_arg_types[0] {
         syn::Type::Path(p) => {
             if p.path.is_ident("Deps") {
@@ -41,6 +42,25 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
             abort_by!(
                 function, "callable_point",
                 "the first argument of callable_point function needs `deps` typed `Deps` or `DepsMut`"
+            )
+        }
+    };
+
+    match &orig_arg_types[1] {
+        syn::Type::Path(p) => {
+            if !p.path.is_ident("Env") {
+                abort_by!(
+                    function,
+                    "callable_point",
+                    "the second argument of callable_point function needs `env` typed `Env`"
+                )
+            }
+        }
+        _ => {
+            abort_by!(
+                function,
+                "callable_point",
+                "the second argument of callable_point function needs `env` typed `Env`"
             )
         }
     };

@@ -11,10 +11,10 @@ static CONTRACT: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/releas
 
 fn required_exports() -> Vec<(String, FunctionType)> {
     vec![
-        (String::from("add"), ([Type::I32], []).into()),
-        (String::from("sub"), ([Type::I32], []).into()),
-        (String::from("mul"), ([Type::I32], []).into()),
-        (String::from("number"), ([], [Type::I32]).into()),
+        (String::from("add"), ([Type::I32, Type::I32], []).into()),
+        (String::from("sub"), ([Type::I32, Type::I32], []).into()),
+        (String::from("mul"), ([Type::I32, Type::I32], []).into()),
+        (String::from("number"), ([Type::I32], [Type::I32]).into()),
     ]
 }
 
@@ -59,6 +59,8 @@ fn callable_point_export_works() {
 #[test]
 fn callable_point_add_works() {
     let instance = make_number_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let serialized_param = to_vec(&10i32).unwrap();
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
@@ -73,7 +75,7 @@ fn callable_point_add_works() {
         .call_function_strict(
             &required_exports[export_index].1,
             "add",
-            &[param_region_ptr.into()],
+            &[env_region_ptr.into(), param_region_ptr.into()],
         )
         .unwrap_err();
     assert!(call_result
@@ -84,6 +86,8 @@ fn callable_point_add_works() {
 #[test]
 fn callable_point_sub_works() {
     let instance = make_number_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let serialized_param = to_vec(&10i32).unwrap();
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
@@ -98,7 +102,7 @@ fn callable_point_sub_works() {
         .call_function_strict(
             &required_exports[export_index].1,
             "sub",
-            &[param_region_ptr.into()],
+            &[env_region_ptr.into(), param_region_ptr.into()],
         )
         .unwrap_err();
     assert!(call_result
@@ -109,6 +113,8 @@ fn callable_point_sub_works() {
 #[test]
 fn callable_point_mul_works() {
     let instance = make_number_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let serialized_param = to_vec(&10i32).unwrap();
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
@@ -123,7 +129,7 @@ fn callable_point_mul_works() {
         .call_function_strict(
             &required_exports[export_index].1,
             "mul",
-            &[param_region_ptr.into()],
+            &[env_region_ptr.into(), param_region_ptr.into()],
         )
         .unwrap_err();
     assert!(call_result
@@ -134,6 +140,8 @@ fn callable_point_mul_works() {
 #[test]
 fn callable_point_number_works() {
     let instance = make_number_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let required_exports = required_exports();
     let export_index = 3;
@@ -141,7 +149,7 @@ fn callable_point_number_works() {
     // Before solving #213, it issues an error.
     // This is because `number` panics without number in deps.storage.
     let call_result = instance
-        .call_function_strict(&required_exports[0].1, "number", &[])
+        .call_function_strict(&required_exports[0].1, "number", &[env_region_ptr.into()])
         .unwrap_err();
     assert!(call_result
         .to_string()
