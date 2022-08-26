@@ -179,12 +179,6 @@ pub fn native_debug<A: BackendApi, S: Storage, Q: Querier>(
     Ok(())
 }
 
-pub fn native_env<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-) -> VmResult<u32> {
-    write_to_contract(env, &env.get_serialized_env())
-}
-
 //
 // Import implementations
 //

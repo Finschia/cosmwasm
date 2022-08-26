@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, Addr, Contract, Deps, DepsMut, Env, GlobalApi,
-    MessageInfo, Response,
+    callable_point, dynamic_link, entry_point, Addr, Contract, Deps, DepsMut, Env, MessageInfo,
+    Response,
 };
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +29,6 @@ pub struct ExampleStruct {
     pub str_field: String,
     pub u64_field: u64,
 }
-
 #[callable_point]
 fn pong_with_struct(_deps: Deps, example: ExampleStruct) -> ExampleStruct {
     ExampleStruct {
@@ -49,8 +48,8 @@ fn pong_with_tuple_takes_2_args(_deps: Deps, input1: String, input2: i32) -> (St
 }
 
 #[callable_point]
-fn pong_env(_deps: Deps) -> Env {
-    GlobalApi::env()
+fn pong_env(_deps: Deps, env: Env) -> Env {
+    env
 }
 
 #[callable_point]
