@@ -3,7 +3,7 @@ use cosmwasm_vm::testing::{
     mock_backend, mock_env, read_data_from_mock_env, write_data_to_mock_env, Contract, MockApi,
     MockInstanceOptions, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
 };
-use cosmwasm_vm::Instance;
+use cosmwasm_vm::{Instance, VmError};
 use dynamic_callee_contract::contract::ExampleStruct;
 use std::collections::HashMap;
 use wasmer_types::{FunctionType, Type};
@@ -27,6 +27,7 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (String::from("pong_env"), ([], [Type::I32]).into()),
+        (String::from("callee_panic"), ([], []).into()),
     ]
 }
 
@@ -206,4 +207,25 @@ fn callable_point_pong_env_works() {
         read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
     let result: Env = from_slice(&serialized_return).unwrap();
     assert_eq!(result.contract.address, Addr::unchecked(MOCK_CONTRACT_ADDR));
+}
+
+#[test]
+fn callable_point_callee_panic_works() {
+    let instance = make_callee_instance();
+
+    let required_exports = required_exports();
+    instance
+        .env
+        .set_serialized_env(&to_vec(&mock_env()).unwrap());
+    let export_index = 5;
+    assert_eq!("callee_panic".to_string(), required_exports[export_index].0);
+    let call_result =
+        instance.call_function_strict(&required_exports[export_index].1, "callee_panic", &[]);
+
+    match call_result.unwrap_err() {
+        VmError::RuntimeErr { msg, .. } => {
+            assert_eq!(msg, "Wasmer runtime error: RuntimeError: unreachable")
+        }
+        e => panic!("Unexpected error: {:?}", e),
+    }
 }
