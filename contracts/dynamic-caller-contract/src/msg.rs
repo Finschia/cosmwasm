@@ -12,6 +12,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     Ping { ping_num: Uint128 },
     TryReEntrancy {},
+    CalleePanic {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
