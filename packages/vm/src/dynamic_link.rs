@@ -396,7 +396,7 @@ mod tests {
             assert!(matches!(result, Err(RuntimeError { .. })));
 
             assert_eq!(
-                result.err().unwrap().message(),
+                result.unwrap_err().message(),
                 "No args are passed to trampoline. The first arg must be callee contract address."
             );
         });
@@ -427,8 +427,8 @@ mod tests {
                 Err(RuntimeError { .. })
             ));
 
-            assert_eq!(result.err().unwrap().message(),
-            "func_info:{module_name:caller, name:foo, signature:[] -> []}, error:Error in dynamic link: Some(\"cannot found contract\")"
+            assert_eq!(result.unwrap_err().message(),
+            "func_info:{module_name:caller, name:foo, signature:[] -> []}, error:Error in dynamic link: \"cannot found contract\""
             );
         });
     }
@@ -459,8 +459,8 @@ mod tests {
             );
             assert!(matches!(result, Err(RuntimeError { .. })));
 
-            assert_eq!(result.err().unwrap().message(),
-            "func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: Some(\"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable\\n    at f_fail (<module>[1]:0x7d)\")"
+            assert_eq!(result.unwrap_err().message(),
+            "func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: \"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable\\n    at f_fail (<module>[1]:0x7d)\""
             );
         });
     }
