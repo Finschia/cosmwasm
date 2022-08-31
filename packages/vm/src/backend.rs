@@ -178,7 +178,7 @@ pub enum BackendError {
     #[error("Ran out of gas during call into backend")]
     OutOfGas {},
     #[error("Error in dynamic link: {msg:?}")]
-    DynamicLinkErr { msg: Option<String> },
+    DynamicLinkErr { msg: String },
     #[error("Unknown error during call into backend: {msg:?}")]
     Unknown { msg: Option<String> },
     // This is the only error case of BackendError that is reported back to the contract.
@@ -205,7 +205,7 @@ impl BackendError {
 
     pub fn dynamic_link_err<S: ToString>(msg: S) -> Self {
         BackendError::DynamicLinkErr {
-            msg: Some(msg.to_string()),
+            msg: msg.to_string(),
         }
     }
 
