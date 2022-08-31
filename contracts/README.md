@@ -90,6 +90,8 @@ points in order to demonstrate and test the flexibility we have.
 | staking                 | `#[entry_point]`                              | yes         | no            |
 | dynamic_callee_contract | `#[entry_point]`                              | no          | no            |
 | dynamic_caller_contract | `#[entry_point]`                              | no          | no            |
+| number                  | `#[entry_point]`                              | yes         | no            |
+| call-number             | `#[entry_point]`                              | yes         | no            |
 
 
 <sup>1</sup> Because we can. Don't try this at home.
