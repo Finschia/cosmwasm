@@ -20,7 +20,7 @@ docker run --rm -v "$(pwd)":/code \
   cosmwasm/rust-optimizer:0.11.0 ./contracts/burner
 
 docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="devcontract_cache_burner",target=/code/contracts/crypto-verify/target \
+  --mount type=volume,source="devcontract_cache_crypto_verify",target=/code/contracts/crypto-verify/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.11.0 ./contracts/crypto-verify
 
@@ -63,6 +63,16 @@ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_dynamic_caller_contract",target=/code/contracts/dynamic-caller-contract/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.11.0 ./contracts/dynamic-caller-contract
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_number",target=/code/contracts/number/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.11.0 ./contracts/number
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_call_number",target=/code/contracts/call-number/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.11.0 ./contracts/call-number
 ```
 
 ## Entry points
@@ -80,6 +90,8 @@ points in order to demonstrate and test the flexibility we have.
 | staking                 | `#[entry_point]`                              | yes         | no            |
 | dynamic_callee_contract | `#[entry_point]`                              | no          | no            |
 | dynamic_caller_contract | `#[entry_point]`                              | no          | no            |
+| number                  | `#[entry_point]`                              | yes         | no            |
+| call-number             | `#[entry_point]`                              | yes         | no            |
 
 
 <sup>1</sup> Because we can. Don't try this at home.
