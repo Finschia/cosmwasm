@@ -224,7 +224,9 @@ fn callable_point_callee_panic_works() {
 
     match call_result.unwrap_err() {
         VmError::RuntimeErr { msg, .. } => {
-            assert_eq!(msg, "Wasmer runtime error: RuntimeError: unreachable")
+            // Because content in the latter part depends on the environment,
+            // comparing whether the error begins with panic error or not.
+            assert!(msg.starts_with("Wasmer runtime error: RuntimeError: unreachable"))
         }
         e => panic!("Unexpected error: {:?}", e),
     }
