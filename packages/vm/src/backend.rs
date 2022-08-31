@@ -177,6 +177,8 @@ pub enum BackendError {
     IteratorDoesNotExist { id: u32 },
     #[error("Ran out of gas during call into backend")]
     OutOfGas {},
+    #[error("Error in dynamic link: {msg:?}")]
+    DynamicLinkErr { msg: String },
     #[error("Unknown error during call into backend: {msg:?}")]
     Unknown { msg: Option<String> },
     // This is the only error case of BackendError that is reported back to the contract.
@@ -199,6 +201,12 @@ impl BackendError {
 
     pub fn out_of_gas() -> Self {
         BackendError::OutOfGas {}
+    }
+
+    pub fn dynamic_link_err<S: ToString>(msg: S) -> Self {
+        BackendError::DynamicLinkErr {
+            msg: msg.to_string(),
+        }
     }
 
     pub fn unknown<S: ToString>(msg: S) -> Self {
