@@ -434,7 +434,7 @@ mod tests {
     }
 
     #[test]
-    fn dynamic_link_contract_fails() {
+    fn dynamic_link_callee_contract_fails() {
         init_cache_with_two_instances();
 
         INSTANCE_CACHE.with(|lock| {
