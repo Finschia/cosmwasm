@@ -27,7 +27,7 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (String::from("pong_env"), ([], [Type::I32]).into()),
-        (String::from("callee_panic"), ([], []).into()),
+        (String::from("do_panic"), ([], []).into()),
     ]
 }
 
@@ -210,7 +210,7 @@ fn callable_point_pong_env_works() {
 }
 
 #[test]
-fn callable_point_callee_panic_works() {
+fn callable_point_do_panic_raise_runtime_error() {
     let instance = make_callee_instance();
 
     let required_exports = required_exports();
@@ -218,9 +218,9 @@ fn callable_point_callee_panic_works() {
         .env
         .set_serialized_env(&to_vec(&mock_env()).unwrap());
     let export_index = 5;
-    assert_eq!("callee_panic".to_string(), required_exports[export_index].0);
+    assert_eq!("do_panic".to_string(), required_exports[export_index].0);
     let call_result =
-        instance.call_function_strict(&required_exports[export_index].1, "callee_panic", &[]);
+        instance.call_function_strict(&required_exports[export_index].1, "do_panic", &[]);
 
     match call_result.unwrap_err() {
         VmError::RuntimeErr { msg, .. } => {
