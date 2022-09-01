@@ -32,6 +32,11 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
             String::from("CalleeContract"),
             ([Type::I32], [Type::I32]).into(),
         ),
+        (
+            String::from("do_panic"),
+            String::from("CalleeContract"),
+            ([Type::I32], []).into(),
+        ),
     ]
 }
 

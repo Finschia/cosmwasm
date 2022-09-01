@@ -53,6 +53,11 @@ fn pong_env() -> Env {
     GlobalApi::env()
 }
 
+#[callable_point]
+fn do_panic() {
+    panic!();
+}
+
 #[derive(Contract)]
 struct Me {
     address: Addr,
