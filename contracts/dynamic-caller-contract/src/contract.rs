@@ -32,6 +32,7 @@ trait Callee: Contract {
     fn pong_with_tuple_takes_2_args(&self, input1: String, input2: i32) -> (String, i32);
     fn pong_env(&self) -> Env;
     fn reentrancy(&self, addr: Addr);
+    fn do_panic(&self);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -62,6 +63,10 @@ impl Callee for CalleeContract {
     fn reentrancy(&self, _addr: Addr) {
         panic!()
     }
+
+    fn do_panic(&self) {
+        panic!()
+    }
 }
 
 // Note, you can use StdResult in some functions where you do not
@@ -90,6 +95,7 @@ pub fn execute(
     match msg {
         ExecuteMsg::Ping { ping_num } => try_ping(deps, ping_num),
         ExecuteMsg::TryReEntrancy {} => try_re_entrancy(deps, env),
+        ExecuteMsg::DoPanic {} => try_do_panic(deps, env),
     }
 }
 
@@ -128,6 +134,13 @@ pub fn try_re_entrancy(deps: DepsMut, env: Env) -> Result<Response, ContractErro
     let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").unwrap())?;
     let contract = CalleeContract { address };
     contract.reentrancy(env.contract.address);
+    Ok(Response::default())
+}
+
+pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
+    let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").unwrap())?;
+    let contract = CalleeContract { address };
+    contract.do_panic();
     Ok(Response::default())
 }
 
