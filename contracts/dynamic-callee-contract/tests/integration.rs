@@ -210,7 +210,7 @@ fn callable_point_pong_env_works() {
 }
 
 #[test]
-fn callable_point_do_panic_raise_runtime_error() {
+fn callable_point_do_panic_raises_runtime_error() {
     let instance = make_callee_instance();
 
     let required_exports = required_exports();
