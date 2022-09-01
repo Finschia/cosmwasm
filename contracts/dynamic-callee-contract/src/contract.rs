@@ -54,7 +54,7 @@ fn pong_env(_deps: Deps) -> Env {
 }
 
 #[callable_point]
-fn do_panic() {
+fn do_panic(_deps: Deps) {
     panic!();
 }
 
