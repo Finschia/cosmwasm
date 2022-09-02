@@ -459,9 +459,9 @@ mod tests {
             );
             assert!(matches!(result, Err(RuntimeError { .. })));
 
-            assert_eq!(result.unwrap_err().message(),
-            "func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: \"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable\\n    at f_fail (<module>[1]:0x7d)\""
-            );
+            // Because content in the latter part depends on the environment,
+            // comparing whether the error begins with panic error or not.
+            assert!(result.unwrap_err().message().starts_with("func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: \"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable"));
         });
     }
 }
