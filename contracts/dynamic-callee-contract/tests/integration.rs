@@ -234,6 +234,8 @@ fn callable_point_pong_env_works() {
 #[test]
 fn callable_point_do_panic_raises_runtime_error() {
     let instance = make_callee_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let required_exports = required_exports();
     instance
@@ -241,8 +243,11 @@ fn callable_point_do_panic_raises_runtime_error() {
         .set_serialized_env(&to_vec(&mock_env()).unwrap());
     let export_index = 5;
     assert_eq!("do_panic".to_string(), required_exports[export_index].0);
-    let call_result =
-        instance.call_function_strict(&required_exports[export_index].1, "do_panic", &[]);
+    let call_result = instance.call_function_strict(
+        &required_exports[export_index].1,
+        "do_panic",
+        &[env_region_ptr.into()],
+    );
 
     match call_result.unwrap_err() {
         VmError::RuntimeErr { msg, .. } => {
