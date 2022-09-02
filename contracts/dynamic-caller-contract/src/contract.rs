@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, from_slice, to_vec, Addr, Contract, DepsMut, Env,
-    MessageInfo, Response, Uint128,
+    callable_point, dynamic_link, entry_point, from_slice, to_vec, Addr, Contract, Deps, DepsMut,
+    Env, MessageInfo, Response, Uint128,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -145,7 +145,7 @@ pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError>
 }
 
 #[callable_point]
-fn should_never_be_called() {}
+fn should_never_be_called(_deps: Deps) {}
 
 #[cfg(test)]
 mod tests {
