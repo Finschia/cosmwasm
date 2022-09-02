@@ -32,6 +32,8 @@ pub enum CommunicationError {
     RegionLengthTooBig { length: usize, max_length: usize },
     #[error("Region too small. Got {}, required {}", size, required)]
     RegionTooSmall { size: usize, required: usize },
+    #[error("Regions length too big. limit {}", max_length)]
+    ExceedsLimitLengthCopyRegions { max_length: usize },
     #[error("Got a zero Wasm address")]
     ZeroAddress {},
 }
@@ -62,6 +64,10 @@ impl CommunicationError {
 
     pub(crate) fn region_too_small(size: usize, required: usize) -> Self {
         CommunicationError::RegionTooSmall { size, required }
+    }
+
+    pub(crate) fn exceeds_limit_length_copy_regions(max_length: usize) -> Self {
+        CommunicationError::ExceedsLimitLengthCopyRegions { max_length }
     }
 
     pub(crate) fn zero_address() -> Self {
@@ -126,6 +132,17 @@ mod tests {
             CommunicationError::RegionTooSmall { size, required, .. } => {
                 assert_eq!(size, 12);
                 assert_eq!(required, 33);
+            }
+            e => panic!("Unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn exceeds_limit_length_copy_regions_works() {
+        let error = CommunicationError::exceeds_limit_length_copy_regions(42);
+        match error {
+            CommunicationError::ExceedsLimitLengthCopyRegions { max_length, .. } => {
+                assert_eq!(max_length, 42);
             }
             e => panic!("Unexpected error: {:?}", e),
         }
