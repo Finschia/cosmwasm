@@ -6,7 +6,8 @@ use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make
 pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
     let function_name_ident = &function.sig.ident;
     let mod_name_ident = format_ident!("__wasm_export_{}", function_name_ident);
-    // The first argument is `deps`, the rest is region pointers
+    // The first argument is `deps` and the second one is `env`,
+    // the rest is region pointers
     if function.sig.inputs.len() < 2 {
         abort_by!(
             function,
