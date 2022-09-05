@@ -5,14 +5,9 @@ on:
     branches:
       # Long living branches
       - main
+      - dynamic_link
       - /^[0-9]+\.[0-9]+$/
       # 👇Add your branch here if benchmarking matters to your work
-      - benchmarking
-      - update-wasmer
-      - metering-restart
-      - load-wasm-speed
-      - cache-analyze
-      - fix-benches
 
 jobs:
   benchmarking:
@@ -28,7 +23,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.50.0
+          toolchain: 1.51.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -36,7 +31,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-benchmarking-rust:1.50.0-{{ checksum "Cargo.lock" }}
+          key: cargocache-v2-benchmarking-rust:1.51.0-{{ checksum "Cargo.lock" }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Run vm benchmarks (Singlepass)
@@ -45,3 +40,67 @@ jobs:
       - name: Run crypto benchmarks
         working-directory: ${{env.working-directory}}/crypto
         run: cargo bench -- --color never --save-baseline crypto
+
+  package_crypto:
+    name: package_crypto
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./packages/crypto
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.51.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-package_crypto-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Build
+        working-directory: ${{env.working-directory}}
+        run: cargo build --locked
+      - name: Run tests
+        working-directory: ${{env.working-directory}}
+        run: cargo test --locked
+
+  package_vm:
+    name: package_vm
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./packages/vm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.51.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-package_vm-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Build
+        working-directory: ${{env.working-directory}}
+        run: cargo build --locked
+      - name: Build with all features
+        working-directory: ${{env.working-directory}}
+        run: cargo build --locked --features iterator,staking,stargate
+      - name: Test
+        working-directory: ${{env.working-directory}}
+        run: cargo test --locked
+      - name: Test with all features
+        working-directory: ${{env.working-directory}}
+        run: cargo test --locked --features iterator,staking,stargate
