@@ -5,10 +5,12 @@ use std::str;
 use crate::backend::{BackendApi, Querier, Storage};
 use crate::conversion::{ref_to_u32, to_u32};
 use crate::environment::{process_gas_info, Environment};
-use crate::errors::{CommunicationError, VmResult};
+use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::memory::{read_region, write_region};
 use wasmer::{Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val};
 use wasmer_types::ImportIndex;
+
+const MAX_REGIONS_LENGTH: usize = 100_000;
 
 pub type WasmerVal = Val;
 
@@ -191,9 +193,26 @@ where
     Q2: Querier + 'static,
 {
     let mut copied_region_ptrs = Vec::<WasmerVal>::with_capacity(vals.len());
+    let mut max_regions_len = MAX_REGIONS_LENGTH;
     for val in vals {
         let val_region_ptr = ref_to_u32(val)?;
-        let data = read_region(&src_env.memory(), val_region_ptr, u32::MAX as usize)?;
+        let data = read_region(&src_env.memory(), val_region_ptr, max_regions_len).map_err(
+            |e| match e {
+                VmError::CommunicationErr {
+                    source: CommunicationError::RegionLengthTooBig { .. },
+                    #[cfg(feature = "backtraces")]
+                    backtrace,
+                } => VmError::CommunicationErr {
+                    source: CommunicationError::exceeds_limit_length_copy_regions(
+                        MAX_REGIONS_LENGTH,
+                    ),
+                    #[cfg(feature = "backtraces")]
+                    backtrace,
+                },
+                _ => e,
+            },
+        )?;
+        max_regions_len -= data.len();
         if deallocation {
             src_env.call_function0("deallocate", &[val_region_ptr.into()])?;
         }
@@ -223,7 +242,6 @@ mod tests {
         MockQuerier, MockStorage, INSTANCE_CACHE,
     };
     use crate::to_vec;
-    use crate::VmError;
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 
@@ -313,6 +331,36 @@ mod tests {
             read_from_src_result,
             Err(VmError::CommunicationErr { .. })
         ));
+    }
+
+    #[test]
+    fn trying_copy_too_large_region_fails() {
+        let src_instance = mock_instance(&CONTRACT, &[]);
+        let dst_instance = mock_instance(&CONTRACT, &[]);
+
+        let big_data_1 = [0_u8; MAX_REGIONS_LENGTH - 42 + 1];
+        let big_data_2 = [1_u8; 42];
+
+        let data_ptr1 = write_data_to_mock_env(&src_instance.env, &big_data_1).unwrap();
+        let data_ptr2 = write_data_to_mock_env(&src_instance.env, &big_data_2).unwrap();
+        let copy_result = copy_region_vals_between_env(
+            &src_instance.env,
+            &dst_instance.env,
+            &[
+                WasmerVal::I32(data_ptr1 as i32),
+                WasmerVal::I32(data_ptr2 as i32),
+            ],
+            true,
+        );
+        assert!(matches!(
+            copy_result.unwrap_err(),
+            VmError::CommunicationErr {
+                source: CommunicationError::ExceedsLimitLengthCopyRegions {
+                    max_length: MAX_REGIONS_LENGTH
+                },
+                ..
+            }
+        ))
     }
 
     fn init_cache_with_two_instances() {
