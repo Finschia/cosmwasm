@@ -14,7 +14,7 @@ use crate::features::required_features_from_wasmer_instance;
 use crate::imports::{
     native_addr_canonicalize, native_addr_humanize, native_addr_validate, native_db_read,
     native_db_remove, native_db_write, native_debug, native_ed25519_batch_verify,
-    native_ed25519_verify, native_env, native_query_chain, native_secp256k1_recover_pubkey,
+    native_ed25519_verify, native_query_chain, native_secp256k1_recover_pubkey,
     native_secp256k1_verify, native_sha1_calculate,
 };
 #[cfg(feature = "iterator")]
@@ -210,11 +210,6 @@ where
         env_imports.insert(
             "db_next",
             Function::new_native_with_env(store, env.clone(), native_db_next),
-        );
-
-        env_imports.insert(
-            "global_env",
-            Function::new_native_with_env(store, env.clone(), native_env),
         );
 
         import_obj.register("env", env_imports);

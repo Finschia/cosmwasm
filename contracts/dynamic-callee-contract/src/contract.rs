@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, Addr, Contract, Deps, DepsMut, Env, GlobalApi,
-    MessageInfo, Response,
+    callable_point, dynamic_link, entry_point, Addr, Contract, Deps, DepsMut, Env, MessageInfo,
+    Response,
 };
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +20,7 @@ pub fn instantiate(
 }
 
 #[callable_point]
-fn pong(_deps: Deps, x: u64) -> u64 {
+fn pong(_deps: Deps, _env: Env, x: u64) -> u64 {
     x + 1
 }
 
@@ -29,9 +29,8 @@ pub struct ExampleStruct {
     pub str_field: String,
     pub u64_field: u64,
 }
-
 #[callable_point]
-fn pong_with_struct(_deps: Deps, example: ExampleStruct) -> ExampleStruct {
+fn pong_with_struct(_deps: Deps, _env: Env, example: ExampleStruct) -> ExampleStruct {
     ExampleStruct {
         str_field: example.str_field + " world",
         u64_field: example.u64_field + 1,
@@ -39,39 +38,44 @@ fn pong_with_struct(_deps: Deps, example: ExampleStruct) -> ExampleStruct {
 }
 
 #[callable_point]
-fn pong_with_tuple(_deps: Deps, input: (String, i32)) -> (String, i32) {
+fn pong_with_tuple(_deps: Deps, _env: Env, input: (String, i32)) -> (String, i32) {
     (input.0 + " world", input.1 + 1)
 }
 
 #[callable_point]
-fn pong_with_tuple_takes_2_args(_deps: Deps, input1: String, input2: i32) -> (String, i32) {
+fn pong_with_tuple_takes_2_args(
+    _deps: Deps,
+    _env: Env,
+    input1: String,
+    input2: i32,
+) -> (String, i32) {
     (input1 + " world", input2 + 1)
 }
 
 #[callable_point]
-fn pong_env(_deps: Deps) -> Env {
-    GlobalApi::env()
+fn pong_env(_deps: Deps, env: Env) -> Env {
+    env
 }
 
 #[callable_point]
-fn do_panic(_deps: Deps) {
+fn do_panic(_deps: Deps, _env: Env) {
     panic!();
 }
 
 #[derive(Contract)]
-struct Me {
+struct Caller {
     address: Addr,
 }
 
-#[dynamic_link(Me)]
+#[dynamic_link(Caller)]
 trait ReEntrance: Contract {
     fn should_never_be_called(&self);
 }
 
 #[callable_point]
-fn reentrancy(_deps: Deps, address: Addr) {
-    let me = Me { address };
-    me.should_never_be_called()
+fn reentrancy(_deps: Deps, _env: Env, address: Addr) {
+    let caller = Caller { address };
+    caller.should_never_be_called()
 }
 
 // And declare a custom Error variant for the ones where you will want to make use of it

@@ -179,12 +179,6 @@ pub fn native_debug<A: BackendApi, S: Storage, Q: Querier>(
     Ok(())
 }
 
-pub fn native_env<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-) -> VmResult<u32> {
-    write_to_contract(env, &env.get_serialized_env())
-}
-
 //
 // Import implementations
 //
@@ -506,7 +500,7 @@ pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
 }
 
 /// Creates a Region in the contract, writes the given data to it and returns the memory location
-fn write_to_contract<A: BackendApi, S: Storage, Q: Querier>(
+pub(crate) fn write_to_contract<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     input: &[u8],
 ) -> VmResult<u32> {

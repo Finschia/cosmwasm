@@ -13,21 +13,24 @@ static CONTRACT_CALLEE: &[u8] =
 
 fn required_exports() -> Vec<(String, FunctionType)> {
     vec![
-        (String::from("pong"), ([Type::I32], [Type::I32]).into()),
+        (
+            String::from("pong"),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
         (
             String::from("pong_with_struct"),
-            ([Type::I32], [Type::I32]).into(),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_with_tuple"),
-            ([Type::I32], [Type::I32]).into(),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_with_tuple_takes_2_args"),
-            ([Type::I32, Type::I32], [Type::I32]).into(),
+            ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
         ),
-        (String::from("pong_env"), ([], [Type::I32]).into()),
-        (String::from("do_panic"), ([], []).into()),
+        (String::from("pong_env"), ([Type::I32], [Type::I32]).into()),
+        (String::from("do_panic"), ([Type::I32], []).into()),
     ]
 }
 
@@ -72,6 +75,8 @@ fn callable_point_export_works() {
 #[test]
 fn callable_point_pong_works() {
     let instance = make_callee_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let serialized_param = to_vec(&10u64).unwrap();
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
@@ -83,7 +88,7 @@ fn callable_point_pong_works() {
         .call_function_strict(
             &required_exports[export_index].1,
             "pong",
-            &[param_region_ptr.into()],
+            &[env_region_ptr.into(), param_region_ptr.into()],
         )
         .unwrap();
     assert_eq!(call_result.len(), 1);
@@ -97,12 +102,15 @@ fn callable_point_pong_works() {
 #[test]
 fn callable_point_pong_with_struct_works() {
     let instance = make_callee_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let serialized_param = to_vec(&ExampleStruct {
         str_field: String::from("hello"),
         u64_field: 100u64,
     })
     .unwrap();
+
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
 
     let required_exports = required_exports();
@@ -115,7 +123,7 @@ fn callable_point_pong_with_struct_works() {
         .call_function_strict(
             &required_exports[export_index].1,
             "pong_with_struct",
-            &[param_region_ptr.into()],
+            &[env_region_ptr.into(), param_region_ptr.into()],
         )
         .unwrap();
     assert_eq!(call_result.len(), 1);
@@ -130,6 +138,8 @@ fn callable_point_pong_with_struct_works() {
 #[test]
 fn callable_point_pong_with_tuple_works() {
     let instance = make_callee_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let serialized_param = to_vec(&(String::from("hello"), 41i32)).unwrap();
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
@@ -144,7 +154,7 @@ fn callable_point_pong_with_tuple_works() {
         .call_function_strict(
             &required_exports[export_index].1,
             "pong_with_tuple",
-            &[param_region_ptr.into()],
+            &[env_region_ptr.into(), param_region_ptr.into()],
         )
         .unwrap();
     assert_eq!(call_result.len(), 1);
@@ -159,6 +169,8 @@ fn callable_point_pong_with_tuple_works() {
 #[test]
 fn callable_point_pong_with_tuple_takes_2_args_works() {
     let instance = make_callee_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let serialized_param1 = to_vec(&String::from("hello")).unwrap();
     let param_region_ptr1 = write_data_to_mock_env(&instance.env, &serialized_param1).unwrap();
@@ -176,7 +188,11 @@ fn callable_point_pong_with_tuple_takes_2_args_works() {
         .call_function_strict(
             &required_exports[export_index].1,
             "pong_with_tuple_takes_2_args",
-            &[param_region_ptr1.into(), param_region_ptr2.into()],
+            &[
+                env_region_ptr.into(),
+                param_region_ptr1.into(),
+                param_region_ptr2.into(),
+            ],
         )
         .unwrap();
     assert_eq!(call_result.len(), 1);
@@ -191,6 +207,8 @@ fn callable_point_pong_with_tuple_takes_2_args_works() {
 #[test]
 fn callable_point_pong_env_works() {
     let instance = make_callee_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let required_exports = required_exports();
     instance
@@ -199,7 +217,11 @@ fn callable_point_pong_env_works() {
     let export_index = 4;
     assert_eq!("pong_env".to_string(), required_exports[export_index].0);
     let call_result = instance
-        .call_function_strict(&required_exports[export_index].1, "pong_env", &[])
+        .call_function_strict(
+            &required_exports[export_index].1,
+            "pong_env",
+            &[env_region_ptr.into()],
+        )
         .unwrap();
     assert_eq!(call_result.len(), 1);
 
@@ -212,6 +234,8 @@ fn callable_point_pong_env_works() {
 #[test]
 fn callable_point_do_panic_raises_runtime_error() {
     let instance = make_callee_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let required_exports = required_exports();
     instance
@@ -219,8 +243,11 @@ fn callable_point_do_panic_raises_runtime_error() {
         .set_serialized_env(&to_vec(&mock_env()).unwrap());
     let export_index = 5;
     assert_eq!("do_panic".to_string(), required_exports[export_index].0);
-    let call_result =
-        instance.call_function_strict(&required_exports[export_index].1, "do_panic", &[]);
+    let call_result = instance.call_function_strict(
+        &required_exports[export_index].1,
+        "do_panic",
+        &[env_region_ptr.into()],
+    );
 
     match call_result.unwrap_err() {
         VmError::RuntimeErr { msg, .. } => {

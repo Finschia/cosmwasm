@@ -97,14 +97,14 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// This macro generate callable point function which can be called with dynamic link.
 ///
 /// Function attributed with this macro must take `deps` typed `Deps` or `DepsMut`
-/// as the first argument.
+/// as the first argument and `env` typed `Env` as the second argument.
 ///
 /// example usage:
 /// ```
-/// use cosmwasm_std::{Addr, Deps, callable_point};
+/// use cosmwasm_std::{Addr, Env, Deps, callable_point};
 ///
 /// #[callable_point]
-/// fn validate_address_callable_from_other_contracts(deps: Deps) -> Addr {
+/// fn validate_address_callable_from_other_contracts(deps: Deps, _env: Env) -> Addr {
 ///   // do something with deps, for example, using api.
 ///   deps.api.addr_validate("dummy_human_address").unwrap()
 /// }

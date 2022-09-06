@@ -145,7 +145,7 @@ pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError>
 }
 
 #[callable_point]
-fn should_never_be_called(_deps: Deps) {}
+fn should_never_be_called(_deps: Deps, _env: Env) {}
 
 #[cfg(test)]
 mod tests {
