@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order,
+    entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, IbcMsg, MessageInfo, Order,
     QueryResponse, Response, StdError, StdResult,
 };
 
@@ -22,12 +22,7 @@ pub fn instantiate(
     let cfg = Config { admin: info.sender };
     config(deps.storage).save(&cfg)?;
 
-    Ok(Response {
-        data: None,
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "instantiate")],
-    })
+    Ok(Response::new().add_attribute("action", "instantiate"))
 }
 
 #[entry_point]
@@ -60,15 +55,9 @@ pub fn handle_update_admin(
     cfg.admin = deps.api.addr_validate(&new_admin)?;
     config(deps.storage).save(&cfg)?;
 
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![
-            attr("action", "handle_update_admin"),
-            attr("new_admin", cfg.admin),
-        ],
-        data: None,
-    })
+    Ok(Response::new()
+        .add_attribute("action", "handle_update_admin")
+        .add_attribute("new_admin", cfg.admin))
 }
 
 pub fn handle_send_msgs(
@@ -94,12 +83,10 @@ pub fn handle_send_msgs(
         timeout: env.block.time.plus_seconds(PACKET_LIFETIME).into(),
     };
 
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![msg.into()],
-        attributes: vec![attr("action", "handle_send_msgs")],
-        data: None,
-    })
+    let res = Response::new()
+        .add_message(msg)
+        .add_attribute("action", "handle_send_msgs");
+    Ok(res)
 }
 
 pub fn handle_check_remote_balance(
@@ -124,12 +111,10 @@ pub fn handle_check_remote_balance(
         timeout: env.block.time.plus_seconds(PACKET_LIFETIME).into(),
     };
 
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![msg.into()],
-        attributes: vec![attr("action", "handle_check_remote_balance")],
-        data: None,
-    })
+    let res = Response::new()
+        .add_message(msg)
+        .add_attribute("action", "handle_check_remote_balance");
+    Ok(res)
 }
 
 pub fn handle_send_funds(
@@ -174,12 +159,10 @@ pub fn handle_send_funds(
         timeout: env.block.time.plus_seconds(PACKET_LIFETIME).into(),
     };
 
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![msg.into()],
-        attributes: vec![attr("action", "handle_send_funds")],
-        data: None,
-    })
+    let res = Response::new()
+        .add_message(msg)
+        .add_attribute("action", "handle_send_funds");
+    Ok(res)
 }
 
 #[entry_point]
@@ -226,7 +209,7 @@ mod tests {
 
     #[test]
     fn instantiate_works() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let msg = InstantiateMsg {};
         let info = mock_info(CREATOR, &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();

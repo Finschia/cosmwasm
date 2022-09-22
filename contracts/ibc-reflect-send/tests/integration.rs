@@ -17,10 +17,13 @@
 //!      });
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
-use cosmwasm_std::testing::{mock_ibc_channel, mock_ibc_packet_ack};
+use cosmwasm_std::testing::{
+    mock_ibc_channel_connect_ack, mock_ibc_channel_open_init, mock_ibc_channel_open_try,
+    mock_ibc_packet_ack,
+};
 use cosmwasm_std::{
-    attr, coin, coins, to_binary, BankMsg, CosmosMsg, Empty, IbcAcknowledgement, IbcBasicResponse,
-    IbcMsg, IbcOrder, Response,
+    attr, coin, coins, BankMsg, CosmosMsg, Empty, IbcAcknowledgement, IbcBasicResponse, IbcMsg,
+    IbcOrder, Response,
 };
 use cosmwasm_vm::testing::{
     execute, ibc_channel_connect, ibc_channel_open, ibc_packet_ack, instantiate, mock_env,
@@ -28,7 +31,7 @@ use cosmwasm_vm::testing::{
 };
 use cosmwasm_vm::{from_slice, Instance};
 
-use ibc_reflect_send::ibc::IBC_VERSION;
+use ibc_reflect_send::ibc::IBC_APP_VERSION;
 use ibc_reflect_send::ibc_msg::{AcknowledgementMsg, PacketMsg, WhoAmIResponse};
 use ibc_reflect_send::msg::{AccountResponse, AdminResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -37,6 +40,8 @@ static WASM: &[u8] =
     include_bytes!("../target/wasm32-unknown-unknown/release/ibc_reflect_send.wasm");
 
 const CREATOR: &str = "creator";
+
+const DESERIALIZATION_LIMIT: usize = 20_000;
 
 fn setup() -> Instance<MockApi, MockStorage, MockQuerier> {
     let mut deps = mock_instance(WASM, &[]);
@@ -51,18 +56,18 @@ fn setup() -> Instance<MockApi, MockStorage, MockQuerier> {
 // save the account (tested in detail in `proper_handshake_flow`)
 fn connect(deps: &mut Instance<MockApi, MockStorage, MockQuerier>, channel_id: &str) {
     // open packet has no counterparty version, connect does
-    let mut handshake_open = mock_ibc_channel(channel_id, IbcOrder::Ordered, IBC_VERSION);
-    handshake_open.counterparty_version = None;
+    let handshake_open = mock_ibc_channel_open_init(channel_id, IbcOrder::Ordered, IBC_APP_VERSION);
     // first we try to open with a valid handshake
     ibc_channel_open(deps, mock_env(), handshake_open).unwrap();
 
     // then we connect (with counter-party version set)
-    let handshake_connect = mock_ibc_channel(channel_id, IbcOrder::Ordered, IBC_VERSION);
+    let handshake_connect =
+        mock_ibc_channel_connect_ack(channel_id, IbcOrder::Ordered, IBC_APP_VERSION);
     let res: IbcBasicResponse = ibc_channel_connect(deps, mock_env(), handshake_connect).unwrap();
 
     // this should send a WhoAmI request, which is received some blocks later
     assert_eq!(1, res.messages.len());
-    match &res.messages[0] {
+    match &res.messages[0].msg {
         CosmosMsg::Ibc(IbcMsg::SendPacket {
             channel_id: packet_channel,
             ..
@@ -71,20 +76,18 @@ fn connect(deps: &mut Instance<MockApi, MockStorage, MockQuerier>, channel_id: &
     };
 }
 
-fn who_am_i_response<T: Into<String>>(
+fn who_am_i_response(
     deps: &mut Instance<MockApi, MockStorage, MockQuerier>,
     channel_id: &str,
-    account: T,
+    account: impl Into<String>,
 ) {
     let packet = PacketMsg::WhoAmI {};
     let response = AcknowledgementMsg::Ok(WhoAmIResponse {
         account: account.into(),
     });
-    let ack = IbcAcknowledgement {
-        acknowledgement: to_binary(&response).unwrap(),
-        original_packet: mock_ibc_packet_ack(channel_id, &packet).unwrap(),
-    };
-    let res: IbcBasicResponse = ibc_packet_ack(deps, mock_env(), ack).unwrap();
+    let ack = IbcAcknowledgement::encode_json(&response).unwrap();
+    let msg = mock_ibc_packet_ack(channel_id, &packet, ack).unwrap();
+    let res: IbcBasicResponse = ibc_packet_ack(deps, mock_env(), msg).unwrap();
     assert_eq!(0, res.messages.len());
 }
 
@@ -92,7 +95,7 @@ fn who_am_i_response<T: Into<String>>(
 fn instantiate_works() {
     let mut deps = setup();
     let r = query(&mut deps, mock_env(), QueryMsg::Admin {}).unwrap();
-    let admin: AdminResponse = from_slice(&r).unwrap();
+    let admin: AdminResponse = from_slice(&r, DESERIALIZATION_LIMIT).unwrap();
     assert_eq!(CREATOR, admin.admin.as_str());
 }
 
@@ -100,13 +103,14 @@ fn instantiate_works() {
 fn enforce_version_in_handshake() {
     let mut deps = setup();
 
-    let wrong_order = mock_ibc_channel("channel-12", IbcOrder::Unordered, IBC_VERSION);
+    let wrong_order = mock_ibc_channel_open_try("channel-12", IbcOrder::Unordered, IBC_APP_VERSION);
     ibc_channel_open(&mut deps, mock_env(), wrong_order).unwrap_err();
 
-    let wrong_version = mock_ibc_channel("channel-12", IbcOrder::Ordered, "reflect");
+    let wrong_version = mock_ibc_channel_open_try("channel-12", IbcOrder::Ordered, "reflect");
     ibc_channel_open(&mut deps, mock_env(), wrong_version).unwrap_err();
 
-    let valid_handshake = mock_ibc_channel("channel-12", IbcOrder::Ordered, IBC_VERSION);
+    let valid_handshake =
+        mock_ibc_channel_open_try("channel-12", IbcOrder::Ordered, IBC_APP_VERSION);
     ibc_channel_open(&mut deps, mock_env(), valid_handshake).unwrap();
 }
 
@@ -118,7 +122,7 @@ fn get_account(
         channel_id: channel_id.into(),
     };
     let r = query(deps, mock_env(), msg).unwrap();
-    from_slice(&r).unwrap()
+    from_slice(&r, DESERIALIZATION_LIMIT).unwrap()
 }
 
 #[test]
@@ -170,23 +174,18 @@ fn dispatch_message_send_and_ack() {
     let info = mock_info(CREATOR, &[]);
     let mut res: Response = execute(&mut deps, mock_env(), info, execute_msg).unwrap();
     assert_eq!(1, res.messages.len());
-    let packet = match res.messages.swap_remove(0) {
+    let msg = match res.messages.swap_remove(0).msg {
         CosmosMsg::Ibc(IbcMsg::SendPacket {
             channel_id, data, ..
         }) => {
-            let mut packet = mock_ibc_packet_ack(&channel_id, &1).unwrap();
-            packet.data = data;
-            packet
+            let ack = IbcAcknowledgement::encode_json(&AcknowledgementMsg::Ok(())).unwrap();
+            let mut msg = mock_ibc_packet_ack(&channel_id, &1, ack).unwrap();
+            msg.original_packet.data = data;
+            msg
         }
         o => panic!("Unexpected message: {:?}", o),
     };
-
-    // and handle the ack
-    let ack = IbcAcknowledgement {
-        acknowledgement: to_binary(&AcknowledgementMsg::Ok(())).unwrap(),
-        original_packet: packet,
-    };
-    let res: IbcBasicResponse = ibc_packet_ack(&mut deps, mock_env(), ack).unwrap();
+    let res: IbcBasicResponse = ibc_packet_ack(&mut deps, mock_env(), msg).unwrap();
     // no actions expected, but let's check the events to see it was dispatched properly
     assert_eq!(0, res.messages.len());
     assert_eq!(vec![attr("action", "acknowledge_dispatch")], res.attributes)
@@ -229,7 +228,7 @@ fn send_remote_funds() {
     let info = mock_info(CREATOR, &coins(12344, "utrgd"));
     let res: Response = execute(&mut deps, mock_env(), info, msg).unwrap();
     assert_eq!(1, res.messages.len());
-    match &res.messages[0] {
+    match &res.messages[0].msg {
         CosmosMsg::Ibc(IbcMsg::Transfer {
             channel_id,
             to_address,

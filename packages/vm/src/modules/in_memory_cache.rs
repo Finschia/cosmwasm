@@ -99,7 +99,7 @@ mod tests {
     use wasmer::{imports, Instance as WasmerInstance};
     use wasmer_middlewares::metering::set_remaining_points;
 
-    const TESTING_GAS_LIMIT: u64 = 5_000;
+    const TESTING_GAS_LIMIT: u64 = 500_000_000;
     // Based on `examples/module_size.sh`
     const TESTING_WASM_SIZE_FACTOR: usize = 18;
 
@@ -108,12 +108,12 @@ mod tests {
         let key_size = mem::size_of::<Checksum>();
         assert_eq!(key_size, 32);
 
-        // A Module consists of a Store (2 Arcs) and an Arc to the Engine.
+        // A Module consists of a Store (3 Arcs) and an Arc to the Engine.
         // This is 3 * 64bit of data, but we don't get any guarantee how the Rust structs
         // Module and Store are aligned (https://doc.rust-lang.org/reference/type-layout.html#the-default-representation).
         // So we get this value by trial and error. It can change over time and across platforms.
         let value_size = mem::size_of::<Module>();
-        assert_eq!(value_size, 48);
+        assert_eq!(value_size, 56);
 
         // Just in case we want to go that route
         let boxed_value_size = mem::size_of::<Box<Module>>();
@@ -142,7 +142,7 @@ mod tests {
         assert!(cache_entry.is_none());
 
         // Compile module
-        let original = compile(&wasm, None).unwrap();
+        let original = compile(&wasm, None, &[]).unwrap();
 
         // Ensure original module can be executed
         {
@@ -213,19 +213,19 @@ mod tests {
 
         // Add 1
         cache
-            .store(&checksum1, compile(&wasm1, None).unwrap(), 900_000)
+            .store(&checksum1, compile(&wasm1, None, &[]).unwrap(), 900_000)
             .unwrap();
         assert_eq!(cache.len(), 1);
 
         // Add 2
         cache
-            .store(&checksum2, compile(&wasm2, None).unwrap(), 900_000)
+            .store(&checksum2, compile(&wasm2, None, &[]).unwrap(), 900_000)
             .unwrap();
         assert_eq!(cache.len(), 2);
 
         // Add 3 (pushes out the previous two)
         cache
-            .store(&checksum3, compile(&wasm3, None).unwrap(), 1_500_000)
+            .store(&checksum3, compile(&wasm3, None, &[]).unwrap(), 1_500_000)
             .unwrap();
         assert_eq!(cache.len(), 1);
     }
@@ -273,19 +273,19 @@ mod tests {
 
         // Add 1
         cache
-            .store(&checksum1, compile(&wasm1, None).unwrap(), 900_000)
+            .store(&checksum1, compile(&wasm1, None, &[]).unwrap(), 900_000)
             .unwrap();
         assert_eq!(cache.size(), 900_000);
 
         // Add 2
         cache
-            .store(&checksum2, compile(&wasm2, None).unwrap(), 800_000)
+            .store(&checksum2, compile(&wasm2, None, &[]).unwrap(), 800_000)
             .unwrap();
         assert_eq!(cache.size(), 1_700_000);
 
         // Add 3 (pushes out the previous two)
         cache
-            .store(&checksum3, compile(&wasm3, None).unwrap(), 1_500_000)
+            .store(&checksum3, compile(&wasm3, None, &[]).unwrap(), 1_500_000)
             .unwrap();
         assert_eq!(cache.size(), 1_500_000);
     }

@@ -1,6 +1,7 @@
 use cosmwasm_std::{
-    attr, entry_point, from_slice, to_binary, DepsMut, Env, IbcAcknowledgement, IbcBasicResponse,
-    IbcChannel, IbcMsg, IbcOrder, IbcPacket, IbcReceiveResponse, StdError, StdResult,
+    entry_point, from_slice, to_binary, DepsMut, Env, IbcBasicResponse, IbcChannelCloseMsg,
+    IbcChannelConnectMsg, IbcChannelOpenMsg, IbcMsg, IbcOrder, IbcPacketAckMsg,
+    IbcPacketReceiveMsg, IbcPacketTimeoutMsg, IbcReceiveResponse, StdError, StdResult,
 };
 
 use crate::ibc_msg::{
@@ -8,7 +9,7 @@ use crate::ibc_msg::{
 };
 use crate::state::{accounts, AccountData};
 
-pub const IBC_VERSION: &str = "ibc-reflect-v1";
+pub const IBC_APP_VERSION: &str = "ibc-reflect-v1";
 
 // TODO: make configurable?
 /// packets live one hour
@@ -16,23 +17,24 @@ pub const PACKET_LIFETIME: u64 = 60 * 60;
 
 #[entry_point]
 /// enforces ordering and versioing constraints
-pub fn ibc_channel_open(_deps: DepsMut, _env: Env, channel: IbcChannel) -> StdResult<()> {
+pub fn ibc_channel_open(_deps: DepsMut, _env: Env, msg: IbcChannelOpenMsg) -> StdResult<()> {
+    let channel = msg.channel();
+
     if channel.order != IbcOrder::Ordered {
         return Err(StdError::generic_err("Only supports ordered channels"));
     }
-    if channel.version.as_str() != IBC_VERSION {
+    if channel.version.as_str() != IBC_APP_VERSION {
         return Err(StdError::generic_err(format!(
             "Must set version to `{}`",
-            IBC_VERSION
+            IBC_APP_VERSION
         )));
     }
-    // TODO: do we need to check counterparty version as well?
-    // This flow needs to be well documented
-    if let Some(counter_version) = channel.counterparty_version {
-        if counter_version.as_str() != IBC_VERSION {
+
+    if let Some(counter_version) = msg.counterparty_version() {
+        if counter_version != IBC_APP_VERSION {
             return Err(StdError::generic_err(format!(
                 "Counterparty version must be `{}`",
-                IBC_VERSION
+                IBC_APP_VERSION
             )));
         }
     }
@@ -45,9 +47,11 @@ pub fn ibc_channel_open(_deps: DepsMut, _env: Env, channel: IbcChannel) -> StdRe
 pub fn ibc_channel_connect(
     deps: DepsMut,
     env: Env,
-    channel: IbcChannel,
+    msg: IbcChannelConnectMsg,
 ) -> StdResult<IbcBasicResponse> {
-    let channel_id = channel.endpoint.channel_id;
+    let channel = msg.channel();
+
+    let channel_id = &channel.endpoint.channel_id;
 
     // create an account holder the channel exists (not found if not registered)
     let data = AccountData::default();
@@ -61,14 +65,10 @@ pub fn ibc_channel_connect(
         timeout: env.block.time.plus_seconds(PACKET_LIFETIME).into(),
     };
 
-    Ok(IbcBasicResponse {
-        submessages: vec![],
-        messages: vec![msg.into()],
-        attributes: vec![
-            attr("action", "ibc_connect"),
-            attr("channel_id", channel_id),
-        ],
-    })
+    Ok(IbcBasicResponse::new()
+        .add_message(msg)
+        .add_attribute("action", "ibc_connect")
+        .add_attribute("channel_id", channel_id))
 }
 
 #[entry_point]
@@ -76,17 +76,17 @@ pub fn ibc_channel_connect(
 pub fn ibc_channel_close(
     deps: DepsMut,
     _env: Env,
-    channel: IbcChannel,
+    msg: IbcChannelCloseMsg,
 ) -> StdResult<IbcBasicResponse> {
+    let channel = msg.channel();
+
     // remove the channel
-    let channel_id = channel.endpoint.channel_id;
+    let channel_id = &channel.endpoint.channel_id;
     accounts(deps.storage).remove(channel_id.as_bytes());
 
-    Ok(IbcBasicResponse {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "ibc_close"), attr("channel_id", channel_id)],
-    })
+    Ok(IbcBasicResponse::new()
+        .add_attribute("action", "ibc_close")
+        .add_attribute("channel_id", channel_id))
 }
 
 #[entry_point]
@@ -94,37 +94,34 @@ pub fn ibc_channel_close(
 pub fn ibc_packet_receive(
     _deps: DepsMut,
     _env: Env,
-    _packet: IbcPacket,
+    _packet: IbcPacketReceiveMsg,
 ) -> StdResult<IbcReceiveResponse> {
-    Ok(IbcReceiveResponse {
-        acknowledgement: b"{}".into(),
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "ibc_packet_ack")],
-    })
+    Ok(IbcReceiveResponse::new()
+        .set_ack(b"{}")
+        .add_attribute("action", "ibc_packet_ack"))
 }
 
 #[entry_point]
 pub fn ibc_packet_ack(
     deps: DepsMut,
     env: Env,
-    ack: IbcAcknowledgement,
+    msg: IbcPacketAckMsg,
 ) -> StdResult<IbcBasicResponse> {
     // which local channel was this packet send from
-    let caller = ack.original_packet.src.channel_id;
+    let caller = msg.original_packet.src.channel_id;
     // we need to parse the ack based on our request
-    let msg: PacketMsg = from_slice(&ack.original_packet.data)?;
-    match msg {
+    let packet: PacketMsg = from_slice(&msg.original_packet.data)?;
+    match packet {
         PacketMsg::Dispatch { .. } => {
-            let res: AcknowledgementMsg<DispatchResponse> = from_slice(&ack.acknowledgement)?;
+            let res: AcknowledgementMsg<DispatchResponse> = from_slice(&msg.acknowledgement.data)?;
             acknowledge_dispatch(deps, caller, res)
         }
         PacketMsg::WhoAmI {} => {
-            let res: AcknowledgementMsg<WhoAmIResponse> = from_slice(&ack.acknowledgement)?;
+            let res: AcknowledgementMsg<WhoAmIResponse> = from_slice(&msg.acknowledgement.data)?;
             acknowledge_who_am_i(deps, caller, res)
         }
         PacketMsg::Balances {} => {
-            let res: AcknowledgementMsg<BalancesResponse> = from_slice(&ack.acknowledgement)?;
+            let res: AcknowledgementMsg<BalancesResponse> = from_slice(&msg.acknowledgement.data)?;
             acknowledge_balances(deps, env, caller, res)
         }
     }
@@ -138,11 +135,7 @@ fn acknowledge_dispatch(
     _ack: AcknowledgementMsg<DispatchResponse>,
 ) -> StdResult<IbcBasicResponse> {
     // TODO: actually handle success/error?
-    Ok(IbcBasicResponse {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "acknowledge_dispatch")],
-    })
+    Ok(IbcBasicResponse::new().add_attribute("action", "acknowledge_dispatch"))
 }
 
 // receive PacketMsg::WhoAmI response
@@ -156,11 +149,9 @@ fn acknowledge_who_am_i(
     let WhoAmIResponse { account } = match ack {
         AcknowledgementMsg::Ok(res) => res,
         AcknowledgementMsg::Err(e) => {
-            return Ok(IbcBasicResponse {
-                submessages: vec![],
-                messages: vec![],
-                attributes: vec![attr("action", "acknowledge_who_am_i"), attr("error", e)],
-            })
+            return Ok(IbcBasicResponse::new()
+                .add_attribute("action", "acknowledge_who_am_i")
+                .add_attribute("error", e))
         }
     };
 
@@ -177,11 +168,7 @@ fn acknowledge_who_am_i(
         }
     })?;
 
-    Ok(IbcBasicResponse {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "acknowledge_who_am_i")],
-    })
+    Ok(IbcBasicResponse::new().add_attribute("action", "acknowledge_who_am_i"))
 }
 
 // receive PacketMsg::Balances response
@@ -195,11 +182,9 @@ fn acknowledge_balances(
     let BalancesResponse { account, balances } = match ack {
         AcknowledgementMsg::Ok(res) => res,
         AcknowledgementMsg::Err(e) => {
-            return Ok(IbcBasicResponse {
-                submessages: vec![],
-                messages: vec![],
-                attributes: vec![attr("action", "acknowledge_balances"), attr("error", e)],
-            })
+            return Ok(IbcBasicResponse::new()
+                .add_attribute("action", "acknowledge_balances")
+                .add_attribute("error", e))
         }
     };
 
@@ -224,11 +209,7 @@ fn acknowledge_balances(
         }
     })?;
 
-    Ok(IbcBasicResponse {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "acknowledge_balances")],
-    })
+    Ok(IbcBasicResponse::new().add_attribute("action", "acknowledge_balances"))
 }
 
 #[entry_point]
@@ -236,13 +217,9 @@ fn acknowledge_balances(
 pub fn ibc_packet_timeout(
     _deps: DepsMut,
     _env: Env,
-    _packet: IbcPacket,
+    _msg: IbcPacketTimeoutMsg,
 ) -> StdResult<IbcBasicResponse> {
-    Ok(IbcBasicResponse {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "ibc_packet_timeout")],
-    })
+    Ok(IbcBasicResponse::new().add_attribute("action", "ibc_packet_timeout"))
 }
 
 #[cfg(test)]
@@ -252,15 +229,16 @@ mod tests {
     use crate::msg::{AccountResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 
     use cosmwasm_std::testing::{
-        mock_dependencies, mock_env, mock_ibc_channel, mock_ibc_packet_ack, mock_info, MockApi,
-        MockQuerier, MockStorage,
+        mock_dependencies, mock_env, mock_ibc_channel_connect_ack, mock_ibc_channel_open_init,
+        mock_ibc_channel_open_try, mock_ibc_packet_ack, mock_info, MockApi, MockQuerier,
+        MockStorage,
     };
-    use cosmwasm_std::{coin, coins, BankMsg, CosmosMsg, OwnedDeps};
+    use cosmwasm_std::{coin, coins, BankMsg, CosmosMsg, IbcAcknowledgement, OwnedDeps};
 
     const CREATOR: &str = "creator";
 
     fn setup() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let msg = InstantiateMsg {};
         let info = mock_info(CREATOR, &[]);
         let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -271,19 +249,19 @@ mod tests {
     // connect will run through the entire handshake to set up a proper connect and
     // save the account (tested in detail in `proper_handshake_flow`)
     fn connect(mut deps: DepsMut, channel_id: &str) {
-        // open packet has no counterparty version, connect does
-        let mut handshake_open = mock_ibc_channel(channel_id, IbcOrder::Ordered, IBC_VERSION);
-        handshake_open.counterparty_version = None;
+        let handshake_open =
+            mock_ibc_channel_open_init(channel_id, IbcOrder::Ordered, IBC_APP_VERSION);
         // first we try to open with a valid handshake
         ibc_channel_open(deps.branch(), mock_env(), handshake_open).unwrap();
 
         // then we connect (with counter-party version set)
-        let handshake_connect = mock_ibc_channel(channel_id, IbcOrder::Ordered, IBC_VERSION);
+        let handshake_connect =
+            mock_ibc_channel_connect_ack(channel_id, IbcOrder::Ordered, IBC_APP_VERSION);
         let res = ibc_channel_connect(deps.branch(), mock_env(), handshake_connect).unwrap();
 
         // this should send a WhoAmI request, which is received some blocks later
         assert_eq!(1, res.messages.len());
-        match &res.messages[0] {
+        match &res.messages[0].msg {
             CosmosMsg::Ibc(IbcMsg::SendPacket {
                 channel_id: packet_channel,
                 ..
@@ -292,16 +270,14 @@ mod tests {
         };
     }
 
-    fn who_am_i_response<T: Into<String>>(deps: DepsMut, channel_id: &str, account: T) {
+    fn who_am_i_response(deps: DepsMut, channel_id: &str, account: impl Into<String>) {
         let packet = PacketMsg::WhoAmI {};
         let response = AcknowledgementMsg::Ok(WhoAmIResponse {
             account: account.into(),
         });
-        let ack = IbcAcknowledgement {
-            acknowledgement: to_binary(&response).unwrap(),
-            original_packet: mock_ibc_packet_ack(channel_id, &packet).unwrap(),
-        };
-        let res = ibc_packet_ack(deps, mock_env(), ack).unwrap();
+        let ack = IbcAcknowledgement::encode_json(&response).unwrap();
+        let msg = mock_ibc_packet_ack(channel_id, &packet, ack).unwrap();
+        let res = ibc_packet_ack(deps, mock_env(), msg).unwrap();
         assert_eq!(0, res.messages.len());
     }
 
@@ -309,13 +285,15 @@ mod tests {
     fn enforce_version_in_handshake() {
         let mut deps = setup();
 
-        let wrong_order = mock_ibc_channel("channel-12", IbcOrder::Unordered, IBC_VERSION);
+        let wrong_order =
+            mock_ibc_channel_open_try("channel-12", IbcOrder::Unordered, IBC_APP_VERSION);
         ibc_channel_open(deps.as_mut(), mock_env(), wrong_order).unwrap_err();
 
-        let wrong_version = mock_ibc_channel("channel-12", IbcOrder::Ordered, "reflect");
+        let wrong_version = mock_ibc_channel_open_try("channel-12", IbcOrder::Ordered, "reflect");
         ibc_channel_open(deps.as_mut(), mock_env(), wrong_version).unwrap_err();
 
-        let valid_handshake = mock_ibc_channel("channel-12", IbcOrder::Ordered, IBC_VERSION);
+        let valid_handshake =
+            mock_ibc_channel_open_try("channel-12", IbcOrder::Ordered, IBC_APP_VERSION);
         ibc_channel_open(deps.as_mut(), mock_env(), valid_handshake).unwrap();
     }
 
@@ -376,26 +354,21 @@ mod tests {
         let info = mock_info(CREATOR, &[]);
         let mut res = execute(deps.as_mut(), mock_env(), info, handle_msg).unwrap();
         assert_eq!(1, res.messages.len());
-        let packet = match res.messages.swap_remove(0) {
+        let msg = match res.messages.swap_remove(0).msg {
             CosmosMsg::Ibc(IbcMsg::SendPacket {
                 channel_id, data, ..
             }) => {
-                let mut packet = mock_ibc_packet_ack(&channel_id, &1).unwrap();
-                packet.data = data;
-                packet
+                let ack = IbcAcknowledgement::encode_json(&AcknowledgementMsg::Ok(())).unwrap();
+                let mut msg = mock_ibc_packet_ack(&channel_id, &1, ack).unwrap();
+                msg.original_packet.data = data;
+                msg
             }
             o => panic!("Unexpected message: {:?}", o),
         };
-
-        // and handle the ack
-        let ack = IbcAcknowledgement {
-            acknowledgement: to_binary(&AcknowledgementMsg::Ok(())).unwrap(),
-            original_packet: packet,
-        };
-        let res = ibc_packet_ack(deps.as_mut(), mock_env(), ack).unwrap();
+        let res = ibc_packet_ack(deps.as_mut(), mock_env(), msg).unwrap();
         // no actions expected, but let's check the events to see it was dispatched properly
         assert_eq!(0, res.messages.len());
-        assert_eq!(vec![attr("action", "acknowledge_dispatch")], res.attributes)
+        assert_eq!(vec![("action", "acknowledge_dispatch")], res.attributes)
     }
 
     #[test]
@@ -435,7 +408,7 @@ mod tests {
         let info = mock_info(CREATOR, &coins(12344, "utrgd"));
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(1, res.messages.len());
-        match &res.messages[0] {
+        match &res.messages[0].msg {
             CosmosMsg::Ibc(IbcMsg::Transfer {
                 channel_id,
                 to_address,

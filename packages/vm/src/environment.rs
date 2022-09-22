@@ -38,51 +38,23 @@ pub struct GasConfig {
     pub sha1_calculate_cost: u64,
 }
 
-impl GasConfig {
-    // Base crypto-verify gas cost: 1000 lbf-sdk * 100 CosmWasm factor
-    const BASE_CRYPTO_COST: u64 = 100_000;
-
-    // secp256k1 cost factor (reference)
-    const SECP256K1_VERIFY_FACTOR: (u64, u64) = (154, 154); // ~154 us in crypto benchmarks
-
-    // Gas cost factors, relative to secp256k1_verify cost
-    const SECP256K1_RECOVER_PUBKEY_FACTOR: (u64, u64) = (162, 154); // 162 us / 154 us ~ 1.05
-    const ED25519_VERIFY_FACTOR: (u64, u64) = (63, 154); // 63 us / 154 us ~ 0.41
-
-    // Gas cost factors, relative to ed25519_verify cost
-    // From https://docs.rs/ed25519-zebra/2.2.0/ed25519_zebra/batch/index.html
-    const ED255219_BATCH_VERIFY_FACTOR: (u64, u64) = (
-        GasConfig::ED25519_VERIFY_FACTOR.0,
-        GasConfig::ED25519_VERIFY_FACTOR.1 * 2,
-    ); // 0.41 / 2. ~ 0.21
-    const ED255219_BATCH_VERIFY_ONE_PUBKEY_FACTOR: (u64, u64) = (
-        GasConfig::ED25519_VERIFY_FACTOR.0,
-        GasConfig::ED25519_VERIFY_FACTOR.1 * 4,
-    ); // 0.41 / 4. ~ 0.1
-
-    // sha1 cost factor
-    const SHA1_CALCULATE_FACTOR: (u64, u64) = (270, 15400); // 270 ns in crypto benchmarks when INPUT_MAX_LEN=80
-
-    fn calc_crypto_cost(factor: (u64, u64)) -> u64 {
-        (GasConfig::BASE_CRYPTO_COST * factor.0) / factor.1
-    }
-}
-
 impl Default for GasConfig {
     fn default() -> Self {
+        // Target is 10^12 per millisecond (see GAS.md), i.e. 10^9 gas per µ second.
+        const GAS_PER_US: u64 = 1_000_000_000;
+        const GAS_PER_NS: u64 = 1_000_000;
         Self {
-            secp256k1_verify_cost: GasConfig::calc_crypto_cost(GasConfig::SECP256K1_VERIFY_FACTOR),
-            secp256k1_recover_pubkey_cost: GasConfig::calc_crypto_cost(
-                GasConfig::SECP256K1_RECOVER_PUBKEY_FACTOR,
-            ),
-            ed25519_verify_cost: GasConfig::calc_crypto_cost(GasConfig::ED25519_VERIFY_FACTOR),
-            ed25519_batch_verify_cost: GasConfig::calc_crypto_cost(
-                GasConfig::ED255219_BATCH_VERIFY_FACTOR,
-            ),
-            ed25519_batch_verify_one_pubkey_cost: GasConfig::calc_crypto_cost(
-                GasConfig::ED255219_BATCH_VERIFY_ONE_PUBKEY_FACTOR,
-            ),
-            sha1_calculate_cost: GasConfig::calc_crypto_cost(GasConfig::SHA1_CALCULATE_FACTOR),
+            // ~154 us in crypto benchmarks
+            secp256k1_verify_cost: 154 * GAS_PER_US,
+            // ~162 us in crypto benchmarks
+            secp256k1_recover_pubkey_cost: 162 * GAS_PER_US,
+            // ~63 us in crypto benchmarks
+            ed25519_verify_cost: 63 * GAS_PER_US,
+            // Gas cost factors, relative to ed25519_verify cost
+            // From https://docs.rs/ed25519-zebra/2.2.0/ed25519_zebra/batch/index.html
+            ed25519_batch_verify_cost: 63 * GAS_PER_US / 2,
+            ed25519_batch_verify_one_pubkey_cost: 63 * GAS_PER_US / 4,
+            sha1_calculate_cost: 269 * GAS_PER_NS,
         }
     }
 }
@@ -518,7 +490,7 @@ mod tests {
     const INIT_AMOUNT: u128 = 500;
     const INIT_DENOM: &str = "TOKEN";
 
-    const TESTING_GAS_LIMIT: u64 = 500_000;
+    const TESTING_GAS_LIMIT: u64 = 500_000_000_000; // ~0.5ms
     const DEFAULT_QUERY_GAS_LIMIT: u64 = 300_000;
     const TESTING_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
 
@@ -531,26 +503,26 @@ mod tests {
     ) {
         let env = Environment::new(MockApi::default(), gas_limit, false);
 
-        let module = compile(&CONTRACT, TESTING_MEMORY_LIMIT).unwrap();
+        let module = compile(CONTRACT, TESTING_MEMORY_LIMIT, &[]).unwrap();
         let store = module.store();
         // we need stubs for all required imports
         let import_obj = imports! {
             "env" => {
-                "db_read" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "db_write" => Function::new_native(&store, |_a: u32, _b: u32| {}),
-                "db_remove" => Function::new_native(&store, |_a: u32| {}),
-                "db_scan" => Function::new_native(&store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
-                "db_next" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "query_chain" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_validate" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_canonicalize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "addr_humanize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "secp256k1_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "secp256k1_recover_pubkey" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
-                "ed25519_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "ed25519_batch_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "sha1_calculate" => Function::new_native(&store, |_a: u32| -> u64 { 0 }),
-                "debug" => Function::new_native(&store, |_a: u32| {}),
+                "db_read" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "db_write" => Function::new_native(store, |_a: u32, _b: u32| {}),
+                "db_remove" => Function::new_native(store, |_a: u32| {}),
+                "db_scan" => Function::new_native(store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
+                "db_next" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "query_chain" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "addr_validate" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "addr_canonicalize" => Function::new_native(store, |_a: u32, _b: u32| -> u32 { 0 }),
+                "addr_humanize" => Function::new_native(store, |_a: u32, _b: u32| -> u32 { 0 }),
+                "secp256k1_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "secp256k1_recover_pubkey" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
+                "ed25519_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "ed25519_batch_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "sha1_calculate" => Function::new_native(store, |_a: u32| -> u64 { 0 }),
+                "debug" => Function::new_native(store, |_a: u32| {}),
             },
         };
         let instance = Box::from(WasmerInstance::new(&module, &import_obj).unwrap());
@@ -761,7 +733,7 @@ mod tests {
         let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
-        assert_eq!(env.is_storage_readonly(), true);
+        assert!(env.is_storage_readonly());
     }
 
     #[test]
@@ -771,15 +743,15 @@ mod tests {
 
         // change
         env.set_storage_readonly(false);
-        assert_eq!(env.is_storage_readonly(), false);
+        assert!(!env.is_storage_readonly());
 
         // still false
         env.set_storage_readonly(false);
-        assert_eq!(env.is_storage_readonly(), false);
+        assert!(!env.is_storage_readonly());
 
         // change back
         env.set_storage_readonly(true);
-        assert_eq!(env.is_storage_readonly(), true);
+        assert!(env.is_storage_readonly());
     }
 
     #[test]
@@ -826,7 +798,7 @@ mod tests {
         let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
-        env.call_function0("interface_version_5", &[]).unwrap();
+        env.call_function0("interface_version_8", &[]).unwrap();
     }
 
     #[test]
@@ -840,6 +812,7 @@ mod tests {
                 function_name,
                 expected,
                 actual,
+                ..
             } => {
                 assert_eq!(function_name, "allocate");
                 assert_eq!(expected, 0);
@@ -874,6 +847,7 @@ mod tests {
                 function_name,
                 expected,
                 actual,
+                ..
             } => {
                 assert_eq!(function_name, "deallocate");
                 assert_eq!(expected, 1);

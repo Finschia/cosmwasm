@@ -10,7 +10,7 @@ pub struct InstantiateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     ReflectMsg { msgs: Vec<CosmosMsg<CustomMsg>> },
-    ReflectSubCall { msgs: Vec<SubMsg<CustomMsg>> },
+    ReflectSubMsg { msgs: Vec<SubMsg<CustomMsg>> },
     ChangeOwner { owner: String },
 }
 
@@ -31,8 +31,8 @@ pub enum QueryMsg {
         contract: String,
         key: Binary,
     },
-    /// If there was a previous ReflectSubCall with this ID, returns cosmwasm_std::Reply
-    SubCallResult {
+    /// If there was a previous ReflectSubMsg with this ID, returns cosmwasm_std::Reply
+    SubMsgResult {
         id: u64,
     },
 }
@@ -72,6 +72,8 @@ pub enum CustomMsg {
     Debug(String),
     Raw(Binary),
 }
+
+impl cosmwasm_std::CustomMsg for CustomMsg {}
 
 impl From<CustomMsg> for CosmosMsg<CustomMsg> {
     fn from(original: CustomMsg) -> Self {

@@ -22,7 +22,8 @@ use cosmwasm_vm::testing::{execute, instantiate, mock_env, mock_info, mock_insta
 
 use cw_voting_with_uuid::msg::{ExecuteMsg, InstantiateMsg};
 
-static WASM: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/release/optimized.wasm");
+static WASM: &[u8] =
+    include_bytes!("../target/wasm32-unknown-unknown/release/cw_voting_with_uuid.wasm");
 const DENOM: &str = "voting_token";
 
 #[test]
@@ -45,7 +46,7 @@ fn compare_gas_spent() {
 
     let seq_msg = ExecuteMsg::MakeSequenceId {};
     let before_gas2 = deps.get_gas_left();
-    let _execute_res: Response = execute(&mut deps, env.clone(), info.clone(), seq_msg).unwrap();
+    let _execute_res: Response = execute(&mut deps, env, info, seq_msg).unwrap();
     let gas_used_seq_id = before_gas2 - deps.get_gas_left();
 
     assert!(gas_used_seq_id < gas_used_uuid);

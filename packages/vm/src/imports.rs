@@ -1,15 +1,13 @@
 //! Import implementations
 
 use std::cmp::max;
-use std::convert::TryInto;
 
 use cosmwasm_crypto::{
     ed25519_batch_verify, ed25519_verify, secp256k1_recover_pubkey, secp256k1_verify,
     sha1_calculate, CryptoError,
 };
 use cosmwasm_crypto::{
-    BATCH_MAX_LEN, ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN, INPUTS_MAX_CNT,
-    INPUT_MAX_LEN, MESSAGE_HASH_MAX_LEN, MESSAGE_MAX_LEN,
+    ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN, MESSAGE_HASH_MAX_LEN,
 };
 
 #[cfg(feature = "iterator")]
@@ -32,159 +30,52 @@ use crate::GasInfo;
 const KI: usize = 1024;
 /// A mibi (mega binary)
 const MI: usize = 1024 * 1024;
-/// Max key length for db_write (i.e. when VM reads from Wasm memory)
+/// Max key length for db_write/db_read/db_remove/db_scan (when VM reads the key argument from Wasm memory)
 const MAX_LENGTH_DB_KEY: usize = 64 * KI;
-/// Max key length for db_write (i.e. when VM reads from Wasm memory)
+/// Max value length for db_write (when VM reads the value argument from Wasm memory)
 const MAX_LENGTH_DB_VALUE: usize = 128 * KI;
-/// Typically 20 (lbf-sdk, Cosmos SDK, Ethereum) or 32 (Nano, Substrate)
-const MAX_LENGTH_CANONICAL_ADDRESS: usize = 32;
-/// The maximum allowed size for bech32 (https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32)
-const MAX_LENGTH_HUMAN_ADDRESS: usize = 90;
+/// Typically 20 (Cosmos SDK, Ethereum), 32 (Nano, Substrate) or 54 (MockApi)
+const MAX_LENGTH_CANONICAL_ADDRESS: usize = 64;
+/// The max length of human address inputs (in bytes).
+/// The maximum allowed size for [bech32](https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32)
+/// is 90 characters and we're adding some safety margin around that for other formats.
+const MAX_LENGTH_HUMAN_ADDRESS: usize = 256;
 const MAX_LENGTH_QUERY_CHAIN_REQUEST: usize = 64 * KI;
 /// Length of a serialized Ed25519  signature
 const MAX_LENGTH_ED25519_SIGNATURE: usize = 64;
+/// Max length of a Ed25519 message in bytes.
+/// This is an arbitrary value, for performance / memory contraints. If you need to verify larger
+/// messages, let us know.
+const MAX_LENGTH_ED25519_MESSAGE: usize = 128 * 1024;
+/// Max number of batch Ed25519 messages / signatures / public_keys.
+/// This is an arbitrary value, for performance / memory contraints. If you need to batch-verify a
+/// larger number of signatures, let us know.
+const MAX_COUNT_ED25519_BATCH: usize = 256;
+/// Max count of a inputs for sha1.
+/// A limit is set to prevent malicious excessive input.
+/// Now, we limit ourselves to only small sizes for use cases in Uuid.
+pub const MAX_COUNT_SHA1_INPUT: usize = 4;
+/// Max length of a input for sha1
+/// After executing the crypto bench according to this,
+/// the gas factor is determined based on the result.
+/// If you modify this value, you need to adjust the gas factor.
+pub const MAX_LENGTH_SHA1_MESSAGE: usize = 80;
 
 /// Max length for a debug message
 const MAX_LENGTH_DEBUG: usize = 2 * MI;
 
-// The block of native_* prefixed functions is tailored for Wasmer's
-// Function::new_native_with_env interface. Those require an env in the first
-// argument and cannot capiture other variables such as the Api.
+/// Max length for an abort message
+const MAX_LENGTH_ABORT: usize = 2 * MI;
 
-pub fn native_db_read<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    key_ptr: u32,
-) -> VmResult<u32> {
-    let ptr = do_read::<A, S, Q>(env, key_ptr)?;
-    Ok(ptr)
-}
-
-pub fn native_db_write<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    key_ptr: u32,
-    value_ptr: u32,
-) -> VmResult<()> {
-    do_write(env, key_ptr, value_ptr)
-}
-
-pub fn native_db_remove<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    key_ptr: u32,
-) -> VmResult<()> {
-    do_remove(env, key_ptr)
-}
-
-pub fn native_addr_validate<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    source_ptr: u32,
-) -> VmResult<u32> {
-    do_addr_validate(&env, source_ptr)
-}
-
-pub fn native_addr_canonicalize<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    source_ptr: u32,
-    destination_ptr: u32,
-) -> VmResult<u32> {
-    do_addr_canonicalize(&env, source_ptr, destination_ptr)
-}
-
-pub fn native_addr_humanize<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    source_ptr: u32,
-    destination_ptr: u32,
-) -> VmResult<u32> {
-    do_addr_humanize(&env, source_ptr, destination_ptr)
-}
-
-pub fn native_secp256k1_verify<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    hash_ptr: u32,
-    signature_ptr: u32,
-    pubkey_ptr: u32,
-) -> VmResult<u32> {
-    do_secp256k1_verify(env, hash_ptr, signature_ptr, pubkey_ptr)
-}
-
-pub fn native_secp256k1_recover_pubkey<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    hash_ptr: u32,
-    signature_ptr: u32,
-    recovery_param: u32,
-) -> VmResult<u64> {
-    do_secp256k1_recover_pubkey(env, hash_ptr, signature_ptr, recovery_param)
-}
-
-pub fn native_ed25519_verify<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    message_ptr: u32,
-    signature_ptr: u32,
-    pubkey_ptr: u32,
-) -> VmResult<u32> {
-    do_ed25519_verify(env, message_ptr, signature_ptr, pubkey_ptr)
-}
-
-pub fn native_ed25519_batch_verify<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    messages_ptr: u32,
-    signatures_ptr: u32,
-    pubkeys_ptr: u32,
-) -> VmResult<u32> {
-    do_ed25519_batch_verify(env, messages_ptr, signatures_ptr, pubkeys_ptr)
-}
-
-pub fn native_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    hash_inputs_ptr: u32,
-) -> VmResult<u64> {
-    do_sha1_calculate(env, hash_inputs_ptr)
-}
-
-pub fn native_query_chain<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    request_ptr: u32,
-) -> VmResult<u32> {
-    do_query_chain(env, request_ptr)
-}
-
-#[cfg(feature = "iterator")]
-pub fn native_db_scan<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    start_ptr: u32,
-    end_ptr: u32,
-    order: i32,
-) -> VmResult<u32> {
-    do_scan(env, start_ptr, end_ptr, order)
-}
-
-#[cfg(feature = "iterator")]
-pub fn native_db_next<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    iterator_id: u32,
-) -> VmResult<u32> {
-    do_next(env, iterator_id)
-}
-
-/// Prints a debug message to console.
-/// This does not charge gas, so debug printing should be disabled when used in a blockchain module.
-pub fn native_debug<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
-    message_ptr: u32,
-) -> VmResult<()> {
-    if env.print_debug {
-        let message_data = read_region(&env.memory(), message_ptr, MAX_LENGTH_DEBUG)?;
-        let msg = String::from_utf8_lossy(&message_data);
-        println!("{}", msg);
-    }
-    Ok(())
-}
-
-//
 // Import implementations
 //
+// This block of do_* prefixed functions is tailored for Wasmer's
+// Function::new_native_with_env interface. Those require an env in the first
+// argument and cannot capture other variables. Thus everything is accessed
+// through the env.
 
 /// Reads a storage entry from the VM's storage into Wasm memory
-fn do_read<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_db_read<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     key_ptr: u32,
 ) -> VmResult<u32> {
@@ -202,7 +93,7 @@ fn do_read<A: BackendApi, S: Storage, Q: Querier>(
 }
 
 /// Writes a storage entry from Wasm memory into the VM's storage
-fn do_write<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_db_write<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     key_ptr: u32,
     value_ptr: u32,
@@ -222,7 +113,7 @@ fn do_write<A: BackendApi, S: Storage, Q: Querier>(
     Ok(())
 }
 
-fn do_remove<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_db_remove<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     key_ptr: u32,
 ) -> VmResult<()> {
@@ -240,7 +131,7 @@ fn do_remove<A: BackendApi, S: Storage, Q: Querier>(
     Ok(())
 }
 
-fn do_addr_validate<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_addr_validate<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     source_ptr: u32,
 ) -> VmResult<u32> {
@@ -256,16 +147,32 @@ fn do_addr_validate<A: BackendApi, S: Storage, Q: Querier>(
 
     let (result, gas_info) = env.api.canonical_address(&source_string);
     process_gas_info::<A, S, Q>(env, gas_info)?;
-    match result {
-        Ok(_canonical) => Ok(0),
+    let canonical = match result {
+        Ok(data) => data,
         Err(BackendError::UserErr { msg, .. }) => {
-            Ok(write_to_contract::<A, S, Q>(env, msg.as_bytes())?)
+            return write_to_contract::<A, S, Q>(env, msg.as_bytes())
         }
-        Err(err) => Err(VmError::from(err)),
+        Err(err) => return Err(VmError::from(err)),
+    };
+
+    let (result, gas_info) = env.api.human_address(&canonical);
+    process_gas_info::<A, S, Q>(env, gas_info)?;
+    let normalized = match result {
+        Ok(addr) => addr,
+        Err(BackendError::UserErr { msg, .. }) => {
+            return write_to_contract::<A, S, Q>(env, msg.as_bytes())
+        }
+        Err(err) => return Err(VmError::from(err)),
+    };
+
+    if normalized != source_string {
+        return write_to_contract::<A, S, Q>(env, b"Address is not normalized");
     }
+
+    Ok(0)
 }
 
-fn do_addr_canonicalize<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_addr_canonicalize<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     source_ptr: u32,
     destination_ptr: u32,
@@ -294,7 +201,7 @@ fn do_addr_canonicalize<A: BackendApi, S: Storage, Q: Querier>(
     }
 }
 
-fn do_addr_humanize<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_addr_humanize<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     source_ptr: u32,
     destination_ptr: u32,
@@ -315,7 +222,7 @@ fn do_addr_humanize<A: BackendApi, S: Storage, Q: Querier>(
     }
 }
 
-fn do_secp256k1_verify<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_secp256k1_verify<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     hash_ptr: u32,
     signature_ptr: u32,
@@ -336,7 +243,6 @@ fn do_secp256k1_verify<A: BackendApi, S: Storage, Q: Querier>(
             | CryptoError::GenericErr { .. } => err.code(),
             CryptoError::BatchErr { .. }
             | CryptoError::InvalidRecoveryParam { .. }
-            | CryptoError::MessageTooLong { .. }
             | CryptoError::InputsTooLarger { .. }
             | CryptoError::InputTooLong { .. } => panic!("Error must not happen for this call"),
         },
@@ -344,7 +250,7 @@ fn do_secp256k1_verify<A: BackendApi, S: Storage, Q: Querier>(
     ))
 }
 
-fn do_secp256k1_recover_pubkey<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_secp256k1_recover_pubkey<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     hash_ptr: u32,
     signature_ptr: u32,
@@ -372,20 +278,19 @@ fn do_secp256k1_recover_pubkey<A: BackendApi, S: Storage, Q: Querier>(
             | CryptoError::GenericErr { .. } => Ok(to_high_half(err.code())),
             CryptoError::BatchErr { .. }
             | CryptoError::InvalidPubkeyFormat { .. }
-            | CryptoError::MessageTooLong { .. }
             | CryptoError::InputsTooLarger { .. }
             | CryptoError::InputTooLong { .. } => panic!("Error must not happen for this call"),
         },
     }
 }
 
-fn do_ed25519_verify<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_ed25519_verify<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     message_ptr: u32,
     signature_ptr: u32,
     pubkey_ptr: u32,
 ) -> VmResult<u32> {
-    let message = read_region(&env.memory(), message_ptr, MESSAGE_MAX_LEN)?;
+    let message = read_region(&env.memory(), message_ptr, MAX_LENGTH_ED25519_MESSAGE)?;
     let signature = read_region(&env.memory(), signature_ptr, MAX_LENGTH_ED25519_SIGNATURE)?;
     let pubkey = read_region(&env.memory(), pubkey_ptr, EDDSA_PUBKEY_LEN)?;
 
@@ -394,8 +299,7 @@ fn do_ed25519_verify<A: BackendApi, S: Storage, Q: Querier>(
     process_gas_info::<A, S, Q>(env, gas_info)?;
     Ok(result.map_or_else(
         |err| match err {
-            CryptoError::MessageTooLong { .. }
-            | CryptoError::InvalidPubkeyFormat { .. }
+            CryptoError::InvalidPubkeyFormat { .. }
             | CryptoError::InvalidSignatureFormat { .. }
             | CryptoError::GenericErr { .. } => err.code(),
             CryptoError::BatchErr { .. }
@@ -408,7 +312,7 @@ fn do_ed25519_verify<A: BackendApi, S: Storage, Q: Querier>(
     ))
 }
 
-fn do_ed25519_batch_verify<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_ed25519_batch_verify<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     messages_ptr: u32,
     signatures_ptr: u32,
@@ -417,17 +321,17 @@ fn do_ed25519_batch_verify<A: BackendApi, S: Storage, Q: Querier>(
     let messages = read_region(
         &env.memory(),
         messages_ptr,
-        (MESSAGE_MAX_LEN + 4) * BATCH_MAX_LEN,
+        (MAX_LENGTH_ED25519_MESSAGE + 4) * MAX_COUNT_ED25519_BATCH,
     )?;
     let signatures = read_region(
         &env.memory(),
         signatures_ptr,
-        (MAX_LENGTH_ED25519_SIGNATURE + 4) * BATCH_MAX_LEN,
+        (MAX_LENGTH_ED25519_SIGNATURE + 4) * MAX_COUNT_ED25519_BATCH,
     )?;
     let public_keys = read_region(
         &env.memory(),
         public_keys_ptr,
-        (EDDSA_PUBKEY_LEN + 4) * BATCH_MAX_LEN,
+        (EDDSA_PUBKEY_LEN + 4) * MAX_COUNT_ED25519_BATCH,
     )?;
 
     let messages = decode_sections(&messages);
@@ -445,7 +349,6 @@ fn do_ed25519_batch_verify<A: BackendApi, S: Storage, Q: Querier>(
     Ok(result.map_or_else(
         |err| match err {
             CryptoError::BatchErr { .. }
-            | CryptoError::MessageTooLong { .. }
             | CryptoError::InvalidPubkeyFormat { .. }
             | CryptoError::InvalidSignatureFormat { .. }
             | CryptoError::GenericErr { .. } => err.code(),
@@ -465,7 +368,7 @@ pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
     let hash_inputs = read_region(
         &env.memory(),
         hash_inputs_ptr,
-        (INPUT_MAX_LEN + 4) * INPUTS_MAX_CNT,
+        (MAX_LENGTH_SHA1_MESSAGE + 4) * MAX_COUNT_SHA1_INPUT,
     )?;
 
     let hash_inputs = decode_sections(&hash_inputs);
@@ -487,7 +390,6 @@ pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
                 Ok(to_high_half(err.code()))
             }
             CryptoError::BatchErr { .. }
-            | CryptoError::MessageTooLong { .. }
             | CryptoError::InvalidPubkeyFormat { .. }
             | CryptoError::InvalidSignatureFormat { .. }
             | CryptoError::GenericErr { .. }
@@ -497,6 +399,30 @@ pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
             }
         },
     }
+}
+
+/// Prints a debug message to console.
+/// This does not charge gas, so debug printing should be disabled when used in a blockchain module.
+pub fn do_debug<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    message_ptr: u32,
+) -> VmResult<()> {
+    if env.print_debug {
+        let message_data = read_region(&env.memory(), message_ptr, MAX_LENGTH_DEBUG)?;
+        let msg = String::from_utf8_lossy(&message_data);
+        println!("{}", msg);
+    }
+    Ok(())
+}
+
+/// Aborts the contract and shows the given error message
+pub fn do_abort<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    message_ptr: u32,
+) -> VmResult<()> {
+    let message_data = read_region(&env.memory(), message_ptr, MAX_LENGTH_ABORT)?;
+    let msg = String::from_utf8_lossy(&message_data);
+    Err(VmError::aborted(msg))
 }
 
 /// Creates a Region in the contract, writes the given data to it and returns the memory location
@@ -514,7 +440,7 @@ pub(crate) fn write_to_contract<A: BackendApi, S: Storage, Q: Querier>(
     Ok(target_ptr)
 }
 
-fn do_query_chain<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_query_chain<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     request_ptr: u32,
 ) -> VmResult<u32> {
@@ -530,7 +456,7 @@ fn do_query_chain<A: BackendApi, S: Storage, Q: Querier>(
 }
 
 #[cfg(feature = "iterator")]
-fn do_scan<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_db_scan<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     start_ptr: u32,
     end_ptr: u32,
@@ -551,7 +477,7 @@ fn do_scan<A: BackendApi, S: Storage, Q: Querier>(
 }
 
 #[cfg(feature = "iterator")]
-fn do_next<A: BackendApi, S: Storage, Q: Querier>(
+pub fn do_db_next<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     iterator_id: u32,
 ) -> VmResult<u32> {
@@ -615,7 +541,7 @@ mod tests {
     const INIT_AMOUNT: u128 = 500;
     const INIT_DENOM: &str = "TOKEN";
 
-    const TESTING_GAS_LIMIT: u64 = 500_000;
+    const TESTING_GAS_LIMIT: u64 = 500_000_000_000; // ~0.5ms
     const TESTING_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
 
     const ECDSA_HASH_HEX: &str = "5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0";
@@ -636,26 +562,26 @@ mod tests {
         let gas_limit = TESTING_GAS_LIMIT;
         let env = Environment::new(api, gas_limit, false);
 
-        let module = compile(&CONTRACT, TESTING_MEMORY_LIMIT).unwrap();
+        let module = compile(CONTRACT, TESTING_MEMORY_LIMIT, &[]).unwrap();
         let store = module.store();
         // we need stubs for all required imports
         let import_obj = imports! {
             "env" => {
-                "db_read" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "db_write" => Function::new_native(&store, |_a: u32, _b: u32| {}),
-                "db_remove" => Function::new_native(&store, |_a: u32| {}),
-                "db_scan" => Function::new_native(&store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
-                "db_next" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "query_chain" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_validate" => Function::new_native(&store, |_a: u32| -> u32 { 0 }),
-                "addr_canonicalize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "addr_humanize" => Function::new_native(&store, |_a: u32, _b: u32| -> u32 { 0 }),
-                "secp256k1_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "secp256k1_recover_pubkey" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
-                "ed25519_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "ed25519_batch_verify" => Function::new_native(&store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
-                "sha1_calculate" => Function::new_native(&store, |_a: u32| -> u64 { 0 }),
-                "debug" => Function::new_native(&store, |_a: u32| {}),
+                "db_read" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "db_write" => Function::new_native(store, |_a: u32, _b: u32| {}),
+                "db_remove" => Function::new_native(store, |_a: u32| {}),
+                "db_scan" => Function::new_native(store, |_a: u32, _b: u32, _c: i32| -> u32 { 0 }),
+                "db_next" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "query_chain" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "addr_validate" => Function::new_native(store, |_a: u32| -> u32 { 0 }),
+                "addr_canonicalize" => Function::new_native(store, |_a: u32, _b: u32| -> u32 { 0 }),
+                "addr_humanize" => Function::new_native(store, |_a: u32, _b: u32| -> u32 { 0 }),
+                "secp256k1_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "secp256k1_recover_pubkey" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u64 { 0 }),
+                "ed25519_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "ed25519_batch_verify" => Function::new_native(store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
+                "sha1_calculate" => Function::new_native(store, |_a: u32| -> u64 { 0 }),
+                "debug" => Function::new_native(store, |_a: u32| {}),
             },
         };
         let instance = Box::from(WasmerInstance::new(&module, &import_obj).unwrap());
@@ -707,37 +633,37 @@ mod tests {
     }
 
     #[test]
-    fn do_read_works() {
+    fn do_db_read_works() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
         leave_default_data(&env);
 
         let key_ptr = write_data(&env, KEY1);
-        let result = do_read(&env, key_ptr);
+        let result = do_db_read(&env, key_ptr);
         let value_ptr = result.unwrap();
         assert!(value_ptr > 0);
         assert_eq!(force_read(&env, value_ptr as u32), VALUE1);
     }
 
     #[test]
-    fn do_read_works_for_non_existent_key() {
+    fn do_db_read_works_for_non_existent_key() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
         leave_default_data(&env);
 
         let key_ptr = write_data(&env, b"I do not exist in storage");
-        let result = do_read(&env, key_ptr);
+        let result = do_db_read(&env, key_ptr);
         assert_eq!(result.unwrap(), 0);
     }
 
     #[test]
-    fn do_read_fails_for_large_key() {
+    fn do_db_read_fails_for_large_key() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
         leave_default_data(&env);
 
         let key_ptr = write_data(&env, &vec![7u8; 300 * 1024]);
-        let result = do_read(&env, key_ptr);
+        let result = do_db_read(&env, key_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::RegionLengthTooBig { length, .. },
@@ -748,7 +674,7 @@ mod tests {
     }
 
     #[test]
-    fn do_write_works() {
+    fn do_db_write_works() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -757,7 +683,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        do_write(&env, key_ptr, value_ptr).unwrap();
+        do_db_write(&env, key_ptr, value_ptr).unwrap();
 
         let val = env
             .with_storage_from_context::<_, _>(|store| {
@@ -771,7 +697,7 @@ mod tests {
     }
 
     #[test]
-    fn do_write_can_override() {
+    fn do_db_write_can_override() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -780,7 +706,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        do_write(&env, key_ptr, value_ptr).unwrap();
+        do_db_write(&env, key_ptr, value_ptr).unwrap();
 
         let val = env
             .with_storage_from_context::<_, _>(|store| {
@@ -791,7 +717,7 @@ mod tests {
     }
 
     #[test]
-    fn do_write_works_for_empty_value() {
+    fn do_db_write_works_for_empty_value() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -800,7 +726,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        do_write(&env, key_ptr, value_ptr).unwrap();
+        do_db_write(&env, key_ptr, value_ptr).unwrap();
 
         let val = env
             .with_storage_from_context::<_, _>(|store| {
@@ -814,7 +740,7 @@ mod tests {
     }
 
     #[test]
-    fn do_write_fails_for_large_key() {
+    fn do_db_write_fails_for_large_key() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -823,7 +749,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_write(&env, key_ptr, value_ptr);
+        let result = do_db_write(&env, key_ptr, value_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source:
@@ -840,7 +766,7 @@ mod tests {
     }
 
     #[test]
-    fn do_write_fails_for_large_value() {
+    fn do_db_write_fails_for_large_value() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -849,7 +775,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_write(&env, key_ptr, value_ptr);
+        let result = do_db_write(&env, key_ptr, value_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source:
@@ -866,7 +792,7 @@ mod tests {
     }
 
     #[test]
-    fn do_write_is_prohibited_in_readonly_contexts() {
+    fn do_db_write_is_prohibited_in_readonly_contexts() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -876,7 +802,7 @@ mod tests {
         leave_default_data(&env);
         env.set_storage_readonly(true);
 
-        let result = do_write(&env, key_ptr, value_ptr);
+        let result = do_db_write(&env, key_ptr, value_ptr);
         match result.unwrap_err() {
             VmError::WriteAccessDenied { .. } => {}
             e => panic!("Unexpected error: {:?}", e),
@@ -884,7 +810,7 @@ mod tests {
     }
 
     #[test]
-    fn do_remove_works() {
+    fn do_db_remove_works() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -899,7 +825,7 @@ mod tests {
         })
         .unwrap();
 
-        do_remove(&env, key_ptr).unwrap();
+        do_db_remove(&env, key_ptr).unwrap();
 
         env.with_storage_from_context::<_, _>(|store| {
             println!("{:?}", store);
@@ -916,7 +842,7 @@ mod tests {
     }
 
     #[test]
-    fn do_remove_works_for_non_existent_key() {
+    fn do_db_remove_works_for_non_existent_key() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -926,7 +852,7 @@ mod tests {
         leave_default_data(&env);
 
         // Note: right now we cannot differnetiate between an existent and a non-existent key
-        do_remove(&env, key_ptr).unwrap();
+        do_db_remove(&env, key_ptr).unwrap();
 
         let value = env
             .with_storage_from_context::<_, _>(|store| {
@@ -937,7 +863,7 @@ mod tests {
     }
 
     #[test]
-    fn do_remove_fails_for_large_key() {
+    fn do_db_remove_fails_for_large_key() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -945,7 +871,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let result = do_remove(&env, key_ptr);
+        let result = do_db_remove(&env, key_ptr);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source:
@@ -962,7 +888,7 @@ mod tests {
     }
 
     #[test]
-    fn do_remove_is_prohibited_in_readonly_contexts() {
+    fn do_db_remove_is_prohibited_in_readonly_contexts() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -971,7 +897,7 @@ mod tests {
         leave_default_data(&env);
         env.set_storage_readonly(true);
 
-        let result = do_remove(&env, key_ptr);
+        let result = do_db_remove(&env, key_ptr);
         match result.unwrap_err() {
             VmError::WriteAccessDenied { .. } => {}
             e => panic!("Unexpected error: {:?}", e),
@@ -983,11 +909,12 @@ mod tests {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, b"foo");
+        let source_ptr1 = write_data(&env, b"foo");
+        let source_ptr2 = write_data(&env, b"eth1n48g2mjh9ezz7zjtya37wtgg5r5emr0drkwlgw");
 
-        leave_default_data(&env);
-
-        let res = do_addr_validate(&env, source_ptr).unwrap();
+        let res = do_addr_validate(&env, source_ptr1).unwrap();
+        assert_eq!(res, 0);
+        let res = do_addr_validate(&env, source_ptr2).unwrap();
         assert_eq!(res, 0);
     }
 
@@ -998,9 +925,8 @@ mod tests {
 
         let source_ptr1 = write_data(&env, b"fo\x80o"); // invalid UTF-8 (fo�o)
         let source_ptr2 = write_data(&env, b""); // empty
-        let source_ptr3 = write_data(&env, b"addressexceedingaddressspace"); // too long
-
-        leave_default_data(&env);
+        let source_ptr3 = write_data(&env, b"addressexceedingaddressspacesuperlongreallylongiamensuringthatitislongerthaneverything"); // too long
+        let source_ptr4 = write_data(&env, b"fooBar"); // Not normalized. The definition of normalized is chain-dependent but the MockApi requires lower case.
 
         let res = do_addr_validate(&env, source_ptr1).unwrap();
         assert_ne!(res, 0);
@@ -1016,6 +942,11 @@ mod tests {
         assert_ne!(res, 0);
         let err = String::from_utf8(force_read(&env, res)).unwrap();
         assert_eq!(err, "Invalid input: human address too long");
+
+        let res = do_addr_validate(&env, source_ptr4).unwrap();
+        assert_ne!(res, 0);
+        let err = String::from_utf8(force_read(&env, res)).unwrap();
+        assert_eq!(err, "Address is not normalized");
     }
 
     #[test]
@@ -1032,9 +963,7 @@ mod tests {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg, .. },
                 ..
-            } => {
-                assert_eq!(msg.unwrap(), "Temporarily unavailable");
-            }
+            } => assert_eq!(msg, "Temporarily unavailable"),
             err => panic!("Incorrect error returned: {:?}", err),
         }
     }
@@ -1044,7 +973,7 @@ mod tests {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, &[61; 100]);
+        let source_ptr = write_data(&env, &[61; 333]);
 
         leave_default_data(&env);
 
@@ -1057,8 +986,8 @@ mod tests {
                     },
                 ..
             } => {
-                assert_eq!(length, 100);
-                assert_eq!(max_length, 90);
+                assert_eq!(length, 333);
+                assert_eq!(max_length, 256);
             }
             err => panic!("Incorrect error returned: {:?}", err),
         }
@@ -1071,7 +1000,7 @@ mod tests {
         let api = MockApi::default();
 
         let source_ptr = write_data(&env, b"foo");
-        let dest_ptr = create_empty(&mut instance, api.canonical_length as u32);
+        let dest_ptr = create_empty(&mut instance, api.canonical_length() as u32);
 
         leave_default_data(&env);
 
@@ -1079,7 +1008,7 @@ mod tests {
         let res = do_addr_canonicalize(&env, source_ptr, dest_ptr).unwrap();
         assert_eq!(res, 0);
         let data = force_read(&env, dest_ptr);
-        assert_eq!(data.len(), api.canonical_length);
+        assert_eq!(data.len(), api.canonical_length());
     }
 
     #[test]
@@ -1089,8 +1018,8 @@ mod tests {
 
         let source_ptr1 = write_data(&env, b"fo\x80o"); // invalid UTF-8 (fo�o)
         let source_ptr2 = write_data(&env, b""); // empty
-        let source_ptr3 = write_data(&env, b"addressexceedingaddressspace"); // too long
-        let dest_ptr = create_empty(&mut instance, 8);
+        let source_ptr3 = write_data(&env, b"addressexceedingaddressspacesuperlongreallylongiamensuringthatitislongerthaneverything"); // too long
+        let dest_ptr = create_empty(&mut instance, 70);
 
         leave_default_data(&env);
 
@@ -1125,9 +1054,7 @@ mod tests {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg, .. },
                 ..
-            } => {
-                assert_eq!(msg.unwrap(), "Temporarily unavailable");
-            }
+            } => assert_eq!(msg, "Temporarily unavailable"),
             err => panic!("Incorrect error returned: {:?}", err),
         }
     }
@@ -1137,7 +1064,7 @@ mod tests {
         let api = MockApi::default();
         let (env, mut instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, &[61; 100]);
+        let source_ptr = write_data(&env, &[61; 333]);
         let dest_ptr = create_empty(&mut instance, 8);
 
         leave_default_data(&env);
@@ -1151,8 +1078,8 @@ mod tests {
                     },
                 ..
             } => {
-                assert_eq!(length, 100);
-                assert_eq!(max_length, 90);
+                assert_eq!(length, 333);
+                assert_eq!(max_length, 256);
             }
             err => panic!("Incorrect error returned: {:?}", err),
         }
@@ -1175,7 +1102,7 @@ mod tests {
                 ..
             } => {
                 assert_eq!(size, 7);
-                assert_eq!(required, api.canonical_length);
+                assert_eq!(required, api.canonical_length());
             }
             err => panic!("Incorrect error returned: {:?}", err),
         }
@@ -1187,9 +1114,9 @@ mod tests {
         let (env, mut instance) = make_instance(api);
         let api = MockApi::default();
 
-        let source_data = vec![0x22; api.canonical_length];
+        let source_data = vec![0x22; api.canonical_length()];
         let source_ptr = write_data(&env, &source_data);
-        let dest_ptr = create_empty(&mut instance, 50);
+        let dest_ptr = create_empty(&mut instance, 70);
 
         leave_default_data(&env);
 
@@ -1204,7 +1131,7 @@ mod tests {
         let (env, mut instance) = make_instance(api);
 
         let source_ptr = write_data(&env, b"foo"); // too short
-        let dest_ptr = create_empty(&mut instance, 50);
+        let dest_ptr = create_empty(&mut instance, 70);
 
         leave_default_data(&env);
 
@@ -1220,7 +1147,7 @@ mod tests {
         let (env, mut instance) = make_instance(api);
 
         let source_ptr = write_data(&env, b"foo\0\0\0\0\0");
-        let dest_ptr = create_empty(&mut instance, 50);
+        let dest_ptr = create_empty(&mut instance, 70);
 
         leave_default_data(&env);
 
@@ -1229,7 +1156,7 @@ mod tests {
             VmError::BackendErr {
                 source: BackendError::Unknown { msg, .. },
                 ..
-            } => assert_eq!(msg.unwrap(), "Temporarily unavailable"),
+            } => assert_eq!(msg, "Temporarily unavailable"),
             err => panic!("Incorrect error returned: {:?}", err),
         };
     }
@@ -1239,8 +1166,8 @@ mod tests {
         let api = MockApi::default();
         let (env, mut instance) = make_instance(api);
 
-        let source_ptr = write_data(&env, &[61; 33]);
-        let dest_ptr = create_empty(&mut instance, 50);
+        let source_ptr = write_data(&env, &[61; 65]);
+        let dest_ptr = create_empty(&mut instance, 70);
 
         leave_default_data(&env);
 
@@ -1253,8 +1180,8 @@ mod tests {
                     },
                 ..
             } => {
-                assert_eq!(length, 33);
-                assert_eq!(max_length, 32);
+                assert_eq!(length, 65);
+                assert_eq!(max_length, 64);
             }
             err => panic!("Incorrect error returned: {:?}", err),
         }
@@ -1266,7 +1193,7 @@ mod tests {
         let (env, mut instance) = make_instance(api);
         let api = MockApi::default();
 
-        let source_data = vec![0x22; api.canonical_length];
+        let source_data = vec![0x22; api.canonical_length()];
         let source_ptr = write_data(&env, &source_data);
         let dest_ptr = create_empty(&mut instance, 2);
 
@@ -1279,7 +1206,7 @@ mod tests {
                 ..
             } => {
                 assert_eq!(size, 2);
-                assert_eq!(required, api.canonical_length);
+                assert_eq!(required, api.canonical_length());
             }
             err => panic!("Incorrect error returned: {:?}", err),
         }
@@ -1616,7 +1543,7 @@ mod tests {
 
         let mut msg = hex::decode(EDDSA_MSG_HEX).unwrap();
         // extend / break msg
-        msg.extend_from_slice(&[0x00; MESSAGE_MAX_LEN + 1]);
+        msg.extend_from_slice(&[0x00; MAX_LENGTH_ED25519_MESSAGE + 1]);
         let msg_ptr = write_data(&env, &msg);
         let sig = hex::decode(EDDSA_SIG_HEX).unwrap();
         let sig_ptr = write_data(&env, &sig);
@@ -1875,13 +1802,13 @@ mod tests {
 
     #[test]
     #[cfg(feature = "iterator")]
-    fn do_scan_unbound_works() {
+    fn do_db_scan_unbound_works() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
         leave_default_data(&env);
 
         // set up iterator over all space
-        let id = do_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
+        let id = do_db_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
         assert_eq!(1, id);
 
         let item = env
@@ -1902,13 +1829,13 @@ mod tests {
 
     #[test]
     #[cfg(feature = "iterator")]
-    fn do_scan_unbound_descending_works() {
+    fn do_db_scan_unbound_descending_works() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
         leave_default_data(&env);
 
         // set up iterator over all space
-        let id = do_scan(&env, 0, 0, Order::Descending.into()).unwrap();
+        let id = do_db_scan(&env, 0, 0, Order::Descending.into()).unwrap();
         assert_eq!(1, id);
 
         let item = env
@@ -1929,7 +1856,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "iterator")]
-    fn do_scan_bound_works() {
+    fn do_db_scan_bound_works() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
@@ -1938,7 +1865,7 @@ mod tests {
 
         leave_default_data(&env);
 
-        let id = do_scan(&env, start, end, Order::Ascending.into()).unwrap();
+        let id = do_db_scan(&env, start, end, Order::Ascending.into()).unwrap();
 
         let item = env
             .with_storage_from_context::<_, _>(|store| Ok(store.next(id)))
@@ -1953,14 +1880,14 @@ mod tests {
 
     #[test]
     #[cfg(feature = "iterator")]
-    fn do_scan_multiple_iterators() {
+    fn do_db_scan_multiple_iterators() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
         leave_default_data(&env);
 
         // unbounded, ascending and descending
-        let id1 = do_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
-        let id2 = do_scan(&env, 0, 0, Order::Descending.into()).unwrap();
+        let id1 = do_db_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
+        let id2 = do_db_scan(&env, 0, 0, Order::Descending.into()).unwrap();
         assert_eq!(id1, 1);
         assert_eq!(id2, 2);
 
@@ -1997,13 +1924,13 @@ mod tests {
 
     #[test]
     #[cfg(feature = "iterator")]
-    fn do_scan_errors_for_invalid_order_value() {
+    fn do_db_scan_errors_for_invalid_order_value() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
         leave_default_data(&env);
 
         // set up iterator over all space
-        let result = do_scan(&env, 0, 0, 42);
+        let result = do_db_scan(&env, 0, 0, 42);
         match result.unwrap_err() {
             VmError::CommunicationErr {
                 source: CommunicationError::InvalidOrder { .. },
@@ -2015,44 +1942,44 @@ mod tests {
 
     #[test]
     #[cfg(feature = "iterator")]
-    fn do_next_works() {
+    fn do_db_next_works() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
         leave_default_data(&env);
 
-        let id = do_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
+        let id = do_db_scan(&env, 0, 0, Order::Ascending.into()).unwrap();
 
         // Entry 1
-        let kv_region_ptr = do_next(&env, id).unwrap();
+        let kv_region_ptr = do_db_next(&env, id).unwrap();
         assert_eq!(
             force_read(&env, kv_region_ptr),
             [KEY1, b"\0\0\0\x03", VALUE1, b"\0\0\0\x06"].concat()
         );
 
         // Entry 2
-        let kv_region_ptr = do_next(&env, id).unwrap();
+        let kv_region_ptr = do_db_next(&env, id).unwrap();
         assert_eq!(
             force_read(&env, kv_region_ptr),
             [KEY2, b"\0\0\0\x04", VALUE2, b"\0\0\0\x05"].concat()
         );
 
         // End
-        let kv_region_ptr = do_next(&env, id).unwrap();
+        let kv_region_ptr = do_db_next(&env, id).unwrap();
         assert_eq!(force_read(&env, kv_region_ptr), b"\0\0\0\0\0\0\0\0");
         // API makes no guarantees for value_ptr in this case
     }
 
     #[test]
     #[cfg(feature = "iterator")]
-    fn do_next_fails_for_non_existent_id() {
+    fn do_db_next_fails_for_non_existent_id() {
         let api = MockApi::default();
         let (env, _instance) = make_instance(api);
 
         leave_default_data(&env);
 
         let non_existent_id = 42u32;
-        let result = do_next(&env, non_existent_id);
+        let result = do_db_next(&env, non_existent_id);
         match result.unwrap_err() {
             VmError::BackendErr {
                 source: BackendError::IteratorDoesNotExist { id, .. },

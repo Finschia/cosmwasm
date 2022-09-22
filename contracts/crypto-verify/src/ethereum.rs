@@ -1,7 +1,6 @@
 use cosmwasm_std::{Api, StdError, StdResult};
 use rlp::RlpStream;
 use sha3::{Digest, Keccak256};
-use std::convert::TryInto;
 
 #[allow(clippy::too_many_arguments)]
 pub fn verify_transaction(
@@ -167,7 +166,7 @@ mod tests {
             &api, from, to, nonce, gas_limit, gas_price, value, &data, chain_id, &r, &s, v,
         )
         .unwrap();
-        assert_eq!(valid, true);
+        assert!(valid);
     }
 
     #[test]

@@ -21,7 +21,7 @@ pub struct MigrateMsg {
     pub verifier: String,
 }
 
-/// SudoMsg is only exposed for internal lfb-sdk modules to call.
+/// SudoMsg is only exposed for internal lbm-sdk modules to call.
 /// This is showing how we can expose "admin" functionality than can not be called by
 /// external users or contracts, but only trusted (native/Go) code in the blockchain
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -39,12 +39,21 @@ pub enum SudoMsg {
 pub enum ExecuteMsg {
     /// Releasing all funds in the contract to the beneficiary. This is the only "proper" action of this demo contract.
     Release {},
+    /// Hashes some data. Uses CPU and memory, but no external calls.
+    Argon2 {
+        /// The amount of memory requested (KB).
+        mem_cost: u32,
+        /// The number of passes.
+        time_cost: u32,
+    },
     /// Infinite loop to burn cpu cycles (only run when metering is enabled)
     CpuLoop {},
     /// Infinite loop making storage calls (to test when their limit hits)
     StorageLoop {},
     /// Infinite loop reading and writing memory
     MemoryLoop {},
+    /// Infinite loop sending message to itself
+    MessageLoop {},
     /// Allocate large amounts of memory without consuming much gas
     AllocateLargeMemory { pages: u32 },
     /// Trigger a panic to ensure framework handles gracefully
@@ -67,6 +76,8 @@ pub enum QueryMsg {
     /// (`work` rounds of sha256 on contract).
     /// Now that we have Env, we can auto-calculate the address to recurse into
     Recurse { depth: u32, work: u32 },
+    /// GetInt returns a hardcoded u32 value
+    GetInt {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -78,4 +89,9 @@ pub struct VerifierResponse {
 pub struct RecurseResponse {
     /// hashed is the result of running sha256 "work+1" times on the contract's human address
     pub hashed: Binary,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct IntResponse {
+    pub int: u32,
 }

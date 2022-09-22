@@ -2,7 +2,7 @@
 name = "cw-voting-with-uuid"
 version = "0.10.0"
 authors = ["Jiyong Ha <jiyong.ha@linecorp.com>"]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
 description = "Simple CosmWasm contract for voting with using the UUID"
 
@@ -32,7 +32,7 @@ backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
 
 
 [dependencies]
-cosmwasm-std = { path = "../../packages/std" }
+cosmwasm-std = { path = "../../packages/std", features = ["iterator"] }
 cosmwasm-storage = { path = "../../packages/storage"}
 schemars = "0.8.1"
 serde = { version = "1.0.125", default-features = false, features = ["derive"] }
@@ -41,4 +41,4 @@ thiserror = { version = "1.0.23" }
 
 [dev-dependencies]
 cosmwasm-schema = { path = "../../packages/schema" }
-cosmwasm-vm = { path = "../../packages/vm", default-features = false }
+cosmwasm-vm = { path = "../../packages/vm", default-features = false, features = ["iterator"] }

@@ -5,11 +5,12 @@ use std::collections::HashSet;
 use crate::errors::{VmError, VmResult};
 use crate::features::required_features_from_module;
 use crate::limited::LimitedDisplay;
-use crate::static_analysis::{deserialize_wasm, exported_functions};
+use crate::static_analysis::{deserialize_wasm, ExportInfo};
 
 /// Lists all imports we provide upon instantiating the instance in Instance::from_module()
 /// This should be updated when new imports are added
 const SUPPORTED_IMPORTS: &[&str] = &[
+    "env.abort",
     "env.db_read",
     "env.db_write",
     "env.db_remove",
@@ -31,12 +32,21 @@ const SUPPORTED_IMPORTS: &[&str] = &[
 
 /// Lists all entry points we expect to be present when calling a contract.
 /// Other optional exports exist, e.g. "execute", "migrate" and "query".
+/// The marker export interface_version_* is checked separately.
 /// This is unlikely to change much, must be frozen at 1.0 to avoid breaking existing contracts
 const REQUIRED_EXPORTS: &[&str] = &[
-    "interface_version_5",
-    "instantiate",
+    // IO
     "allocate",
     "deallocate",
+    // Required entry points
+    "instantiate",
+];
+
+const INTERFACE_VERSION_PREFIX: &str = "interface_version_";
+const SUPPORTED_INTERFACE_VERSIONS: &[&str] = &[
+    "interface_version_8",
+    #[cfg(feature = "allow_interface_version_7")]
+    "interface_version_7",
 ];
 
 const MEMORY_LIMIT: u32 = 512; // in pages
@@ -45,6 +55,7 @@ const MEMORY_LIMIT: u32 = 512; // in pages
 pub fn check_wasm(wasm_code: &[u8], supported_features: &HashSet<String>) -> VmResult<()> {
     let module = deserialize_wasm(wasm_code)?;
     check_wasm_memories(&module)?;
+    check_interface_version(&module)?;
     check_wasm_exports(&module)?;
     check_wasm_imports(&module, SUPPORTED_IMPORTS)?;
     check_wasm_features(&module, supported_features)?;
@@ -87,12 +98,42 @@ fn check_wasm_memories(module: &Module) -> VmResult<()> {
     Ok(())
 }
 
+fn check_interface_version(module: &Module) -> VmResult<()> {
+    let mut interface_version_exports = module
+        .exported_function_names(Some(INTERFACE_VERSION_PREFIX))
+        .into_iter();
+    if let Some(first_interface_version_export) = interface_version_exports.next() {
+        if interface_version_exports.next().is_some() {
+            Err(VmError::static_validation_err(
+                "Wasm contract contains more than one marker export: interface_version_*",
+            ))
+        } else {
+            // Exactly one interface version found
+            let version_str = first_interface_version_export.as_str();
+            if SUPPORTED_INTERFACE_VERSIONS
+                .iter()
+                .any(|&v| v == version_str)
+            {
+                Ok(())
+            } else {
+                Err(VmError::static_validation_err(
+                        "Wasm contract has unknown interface_version_* marker export (see https://github.com/CosmWasm/cosmwasm/blob/main/packages/vm/README.md)",
+                ))
+            }
+        }
+    } else {
+        Err(VmError::static_validation_err(
+            "Wasm contract missing a required marker export: interface_version_*",
+        ))
+    }
+}
+
 fn check_wasm_exports(module: &Module) -> VmResult<()> {
-    let available_exports: HashSet<String> = exported_functions(module);
+    let available_exports: HashSet<String> = module.exported_function_names(None);
     for required_export in REQUIRED_EXPORTS {
         if !available_exports.contains(*required_export) {
             return Err(VmError::static_validation_err(format!(
-                "Wasm contract doesn't have required export: \"{}\". Exports required by VM: {:?}. Contract version too old for this VM?",
+                "Wasm contract doesn't have required export: \"{}\". Exports required by VM: {:?}.",
                 required_export, REQUIRED_EXPORTS
             )));
         }
@@ -141,7 +182,7 @@ fn check_wasm_features(module: &Module, supported_features: &HashSet<String>) ->
     let required_features = required_features_from_module(module);
     if !required_features.is_subset(supported_features) {
         // We switch to BTreeSet to get a sorted error message
-        let unsupported: BTreeSet<_> = required_features.difference(&supported_features).collect();
+        let unsupported: BTreeSet<_> = required_features.difference(supported_features).collect();
         return Err(VmError::static_validation_err(format!(
             "Wasm contract requires unsupported features: {}",
             unsupported.to_string_limited(200)
@@ -155,8 +196,10 @@ mod tests {
     use super::*;
     use crate::errors::VmError;
 
-    static CONTRACT_0_6: &[u8] = include_bytes!("../testdata/hackatom_0.6.wasm");
     static CONTRACT_0_7: &[u8] = include_bytes!("../testdata/hackatom_0.7.wasm");
+    static CONTRACT_0_12: &[u8] = include_bytes!("../testdata/hackatom_0.12.wasm");
+    static CONTRACT_0_14: &[u8] = include_bytes!("../testdata/hackatom_0.14.wasm");
+    static CONTRACT_0_15: &[u8] = include_bytes!("../testdata/hackatom_0.15.wasm");
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 
     fn default_features() -> HashSet<String> {
@@ -171,18 +214,38 @@ mod tests {
 
     #[test]
     fn check_wasm_old_contract() {
-        match check_wasm(CONTRACT_0_7, &default_features()) {
-            Err(VmError::StaticValidationErr { msg, .. }) => assert!(msg.starts_with(
-                "Wasm contract doesn't have required export: \"interface_version_5\""
-            )),
+        match check_wasm(CONTRACT_0_15, &default_features()) {
+            Err(VmError::StaticValidationErr { msg, .. }) => assert_eq!(
+                msg,
+                "Wasm contract has unknown interface_version_* marker export (see https://github.com/CosmWasm/cosmwasm/blob/main/packages/vm/README.md)"
+            ),
             Err(e) => panic!("Unexpected error {:?}", e),
             Ok(_) => panic!("This must not succeeed"),
         };
 
-        match check_wasm(CONTRACT_0_6, &default_features()) {
-            Err(VmError::StaticValidationErr { msg, .. }) => assert!(msg.starts_with(
-                "Wasm contract doesn't have required export: \"interface_version_5\""
-            )),
+        match check_wasm(CONTRACT_0_14, &default_features()) {
+            Err(VmError::StaticValidationErr { msg, .. }) => assert_eq!(
+                msg,
+                "Wasm contract has unknown interface_version_* marker export (see https://github.com/CosmWasm/cosmwasm/blob/main/packages/vm/README.md)"
+            ),
+            Err(e) => panic!("Unexpected error {:?}", e),
+            Ok(_) => panic!("This must not succeeed"),
+        };
+
+        match check_wasm(CONTRACT_0_12, &default_features()) {
+            Err(VmError::StaticValidationErr { msg, .. }) => assert_eq!(
+                msg,
+                "Wasm contract missing a required marker export: interface_version_*"
+            ),
+            Err(e) => panic!("Unexpected error {:?}", e),
+            Ok(_) => panic!("This must not succeeed"),
+        };
+
+        match check_wasm(CONTRACT_0_7, &default_features()) {
+            Err(VmError::StaticValidationErr { msg, .. }) => assert_eq!(
+                msg,
+                "Wasm contract missing a required marker export: interface_version_*"
+            ),
             Err(e) => panic!("Unexpected error {:?}", e),
             Ok(_) => panic!("This must not succeeed"),
         };
@@ -279,24 +342,184 @@ mod tests {
     }
 
     #[test]
-    fn check_wasm_exports_works() {
-        // this is invalid, as it doesn't contain all required exports
-        const WAT_MISSING_EXPORTS: &str = r#"
-            (module
-              (type $t0 (func (param i32) (result i32)))
-              (func $add_one (export "add_one") (type $t0) (param $p0 i32) (result i32)
-                get_local $p0
-                i32.const 1
-                i32.add))
-        "#;
-        let wasm_missing_exports = wat::parse_str(WAT_MISSING_EXPORTS).unwrap();
+    fn check_interface_version_works() {
+        // valid
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+                (export "interface_version_8" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        check_interface_version(&module).unwrap();
 
-        let module = deserialize_wasm(&wasm_missing_exports).unwrap();
+        #[cfg(feature = "allow_interface_version_7")]
+        {
+            // valid legacy version
+            let wasm = wat::parse_str(
+                r#"(module
+                    (type (func))
+                    (func (type 0) nop)
+                    (export "add_one" (func 0))
+                    (export "allocate" (func 0))
+                    (export "interface_version_7" (func 0))
+                    (export "deallocate" (func 0))
+                    (export "instantiate" (func 0))
+                )"#,
+            )
+            .unwrap();
+            let module = deserialize_wasm(&wasm).unwrap();
+            check_interface_version(&module).unwrap();
+        }
+
+        // missing
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        match check_interface_version(&module).unwrap_err() {
+            VmError::StaticValidationErr { msg, .. } => {
+                assert_eq!(
+                    msg,
+                    "Wasm contract missing a required marker export: interface_version_*"
+                );
+            }
+            err => panic!("Unexpected error {:?}", err),
+        }
+
+        // multiple
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+                (export "interface_version_8" (func 0))
+                (export "interface_version_9" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        match check_interface_version(&module).unwrap_err() {
+            VmError::StaticValidationErr { msg, .. } => {
+                assert_eq!(
+                    msg,
+                    "Wasm contract contains more than one marker export: interface_version_*"
+                );
+            }
+            err => panic!("Unexpected error {:?}", err),
+        }
+
+        // CosmWasm 0.15
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+                (export "interface_version_6" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        match check_interface_version(&module).unwrap_err() {
+            VmError::StaticValidationErr { msg, .. } => {
+                assert_eq!(msg, "Wasm contract has unknown interface_version_* marker export (see https://github.com/CosmWasm/cosmwasm/blob/main/packages/vm/README.md)");
+            }
+            err => panic!("Unexpected error {:?}", err),
+        }
+
+        // Unknown value
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+                (export "interface_version_broken" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        match check_interface_version(&module).unwrap_err() {
+            VmError::StaticValidationErr { msg, .. } => {
+                assert_eq!(msg, "Wasm contract has unknown interface_version_* marker export (see https://github.com/CosmWasm/cosmwasm/blob/main/packages/vm/README.md)");
+            }
+            err => panic!("Unexpected error {:?}", err),
+        }
+    }
+
+    #[test]
+    fn check_wasm_exports_works() {
+        // valid
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        check_wasm_exports(&module).unwrap();
+
+        // this is invalid, as it doesn't any required export
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
         match check_wasm_exports(&module) {
             Err(VmError::StaticValidationErr { msg, .. }) => {
-                assert!(msg.starts_with(
-                    "Wasm contract doesn't have required export: \"interface_version_5\""
-                ));
+                assert!(msg.starts_with("Wasm contract doesn't have required export: \"allocate\""));
+            }
+            Err(e) => panic!("Unexpected error {:?}", e),
+            Ok(_) => panic!("Didn't reject wasm with invalid api"),
+        }
+
+        // this is invalid, as it doesn't contain all required exports
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        match check_wasm_exports(&module) {
+            Err(VmError::StaticValidationErr { msg, .. }) => {
+                assert!(
+                    msg.starts_with("Wasm contract doesn't have required export: \"deallocate\"")
+                );
             }
             Err(e) => panic!("Unexpected error {:?}", e),
             Ok(_) => panic!("Didn't reject wasm with invalid api"),
@@ -308,9 +531,9 @@ mod tests {
         let module = deserialize_wasm(CONTRACT_0_7).unwrap();
         match check_wasm_exports(&module) {
             Err(VmError::StaticValidationErr { msg, .. }) => {
-                assert!(msg.starts_with(
-                    "Wasm contract doesn't have required export: \"interface_version_5\""
-                ));
+                assert!(
+                    msg.starts_with("Wasm contract doesn't have required export: \"instantiate\"")
+                )
             }
             Err(e) => panic!("Unexpected error {:?}", e),
             Ok(_) => panic!("Didn't reject wasm with invalid api"),

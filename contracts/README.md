@@ -17,41 +17,47 @@ reason, use the following commands:
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_burner",target=/code/contracts/burner/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/burner
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/burner
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_crypto_verify",target=/code/contracts/crypto-verify/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/crypto-verify
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/crypto-verify
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_floaty",target=/code/contracts/floaty/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/floaty
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_hackatom",target=/code/contracts/hackatom/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/hackatom
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/hackatom
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_ibc_reflect",target=/code/contracts/ibc-reflect/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/ibc-reflect
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/ibc-reflect
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_ibc_reflect_send",target=/code/contracts/ibc-reflect-send/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/ibc-reflect-send
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/ibc-reflect-send
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_queue",target=/code/contracts/queue/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/queue
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/queue
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_reflect",target=/code/contracts/reflect/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/reflect
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/reflect
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_staking",target=/code/contracts/staking/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+<<<<<<< HEAD
   cosmwasm/rust-optimizer:0.11.0 ./contracts/staking
 
 docker run --rm -v "$(pwd)":/code \
@@ -73,6 +79,14 @@ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_call_number",target=/code/contracts/call-number/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.11.0 ./contracts/call-number
+=======
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/staking
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_voting_with_uuid",target=/code/contracts/voting-with-uuid/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/voting-with-uuid
+>>>>>>> origin/main
 ```
 
 ## Entry points
@@ -80,6 +94,7 @@ docker run --rm -v "$(pwd)":/code \
 The development contracts in this folder contain a variety of different entry
 points in order to demonstrate and test the flexibility we have.
 
+<<<<<<< HEAD
 | Contract                | Macro                                         | Has `query` | Has `migrate` |
 | ----------------------- | --------------------------------------------- | ----------- | ------------- |
 | burner                  | `#[entry_point]`                              | no          | yes           |
@@ -100,3 +115,14 @@ points in order to demonstrate and test the flexibility we have.
   https://docs.rs/cosmwasm-std/0.13.0/cosmwasm_std/macro.create_entry_points_with_migration.html
 [cep]:
   https://docs.rs/cosmwasm-std/0.13.0/cosmwasm_std/macro.create_entry_points.html
+=======
+| Contract         | Has `query` | Has `migrate` |
+| ---------------- | ----------- | ------------- |
+| burner           | no          | yes           |
+| hackatom         | yes         | yes           |
+| ibc-reflect      | yes         | no            |
+| queue            | yes         | yes           |
+| reflect          | yes         | no            |
+| staking          | yes         | no            |
+| voting-with-uuid | yes         | no            |
+>>>>>>> origin/main
