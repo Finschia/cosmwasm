@@ -49,12 +49,7 @@ pub struct Instance<A: BackendApi, S: Storage, Q: Querier> {
     ///
     /// This instance should only be accessed via the Environment, which provides safe access.
     _inner: Box<WasmerInstance>,
-<<<<<<< HEAD
     pub env: Environment<A, S, Q>,
-    pub required_features: HashSet<String>,
-=======
-    env: Environment<A, S, Q>,
->>>>>>> origin/main
 }
 
 impl<A, S, Q> Instance<A, S, Q>
@@ -412,9 +407,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::sync::Arc;
-
     use super::*;
     use crate::backend::Storage;
     use crate::calls::{call_execute, call_instantiate, call_query};
@@ -466,54 +458,6 @@ mod tests {
         assert!(instance.required_features().contains("nutrients"));
         assert!(instance.required_features().contains("sun"));
         assert!(instance.required_features().contains("water"));
-    }
-
-    #[test]
-    fn extra_imports_get_added() {
-        let wasm = wat::parse_str(
-            r#"(module
-            (import "foo" "bar" (func $bar))
-            (func (export "main") (call $bar))
-            )"#,
-        )
-        .unwrap();
-
-        let backend = mock_backend(&[]);
-        let (instance_options, memory_limit) = mock_instance_options();
-        let module = compile(&wasm, memory_limit, &[]).unwrap();
-
-        #[derive(wasmer::WasmerEnv, Clone)]
-        struct MyEnv {
-            // This can be mutated across threads safely. We initialize it as `false`
-            // and let our imported fn switch it to `true` to confirm it works.
-            called: Arc<AtomicBool>,
-        }
-
-        let my_env = MyEnv {
-            called: Arc::new(AtomicBool::new(false)),
-        };
-
-        let fun = Function::new_native_with_env(module.store(), my_env.clone(), |env: &MyEnv| {
-            env.called.store(true, Ordering::Relaxed);
-        });
-        let mut exports = Exports::new();
-        exports.insert("bar", fun);
-        let mut extra_imports = HashMap::new();
-        extra_imports.insert("foo", exports);
-        let instance = Instance::from_module(
-            &module,
-            backend,
-            instance_options.gas_limit,
-            false,
-            Some(extra_imports),
-            None,
-        )
-        .unwrap();
-
-        let main = instance._inner.exports.get_function("main").unwrap();
-        main.call(&[]).unwrap();
-
-        assert!(my_env.called.load(Ordering::Relaxed));
     }
 
     #[test]

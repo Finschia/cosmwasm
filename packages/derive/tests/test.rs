@@ -73,6 +73,7 @@ fn specify_field() {
     assert_eq!(callee.get_address(), Addr::unchecked("bar"));
 }
 
+#[test]
 fn with_non_related_attribute() {
     #[derive(IntoEvent)]
     struct TransferEvent {
@@ -98,6 +99,7 @@ fn with_non_related_attribute() {
     let transfer_event: Event = transfer.into();
     assert_eq!(transfer_event, expected);
 }
+
 #[test]
 fn no_fields() {
     #[derive(IntoEvent)]
