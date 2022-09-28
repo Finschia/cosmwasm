@@ -345,7 +345,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         C: FnOnce(&FunctionMetadata) -> VmResult<R>,
     {
         match &self.callee_func_metadata {
-            Some(func_info) => callback(&func_info),
+            Some(func_info) => callback(func_info),
             None => Err(VmError::uninitialized_context_data("callee_func_metadata")),
         }
     }
@@ -357,7 +357,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             }
 
             let contract_env: Env = match &ctx.serialized_env {
-                Some(env) => from_slice(&env, DESERIALIZATION_LIMIT),
+                Some(env) => from_slice(env, DESERIALIZATION_LIMIT),
                 None => Err(VmError::uninitialized_context_data("serialized_env")),
             }?;
             match ctx
@@ -396,7 +396,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         self.with_context_data_mut(|self_ctx| {
             target.with_context_data_mut(|target_ctx| {
                 let target_contract_env: Env = match &target_ctx.serialized_env {
-                    Some(env) => from_slice(&env, DESERIALIZATION_LIMIT),
+                    Some(env) => from_slice(env, DESERIALIZATION_LIMIT),
                     None => Err(VmError::uninitialized_context_data("serialized_env")),
                 }?;
 
