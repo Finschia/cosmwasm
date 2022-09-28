@@ -49,7 +49,7 @@ sha2 = "0.9.1"
 thiserror = "1.0"
 wasmer = { version = "1.0.2", default-features = false, features = ["jit", "singlepass"] }
 wasmer-middlewares = { version = "1.0.2" }
-wasmer-types = { version = "1.0.2"}
+wasmer-types = { version = "1.0.2", features = ["enable-serde"] }
 
 # Wasmer git/local (used for quick local debugging or patching)
 # wasmer = { git = "https://github.com/wasmerio/wasmer", rev = "1.0.2", default-features = false, features = ["jit", "singlepass"] }

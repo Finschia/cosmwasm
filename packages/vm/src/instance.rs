@@ -7,7 +7,7 @@ use wasmer::{
 
 use crate::backend::{Backend, BackendApi, Querier, Storage};
 use crate::conversion::{ref_to_u32, to_u32};
-use crate::dynamic_link::dynamic_link;
+use crate::dynamic_link::{dynamic_link, native_validate_dynamic_link_interface};
 use crate::environment::Environment;
 use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::features::required_features_from_wasmer_instance;
@@ -210,6 +210,20 @@ where
         env_imports.insert(
             "db_next",
             Function::new_native_with_env(store, env.clone(), native_db_next),
+        );
+
+        // Validate specified contract have dynamic link functions
+        // with specified interfaces.
+        // Returns 0 if the interface is satisfied.
+        // Returns pointer of error message if the interface is not satisfied.
+        // The first arg is the contract address and the second arg is expected interfaces.
+        env_imports.insert(
+            "validate_dynamic_link_interface",
+            Function::new_native_with_env(
+                store,
+                env.clone(),
+                native_validate_dynamic_link_interface,
+            ),
         );
 
         import_obj.register("env", env_imports);

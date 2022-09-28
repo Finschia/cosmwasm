@@ -1,5 +1,6 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::ops::Deref;
+use wasmer_types::{ExportType, FunctionType};
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
@@ -118,6 +119,12 @@ pub trait Api {
     ) -> Result<bool, VerificationError>;
 
     fn sha1_calculate(&self, inputs: &[&[u8]]) -> Result<[u8; 20], HashCalculationError>;
+
+    fn validate_dynamic_link_interface(
+        &self,
+        contract: &Addr,
+        interface: &[ExportType<FunctionType>],
+    ) -> StdResult<()>;
 
     /// Emits a debugging message that is handled depending on the environment (typically printed to console or ignored).
     /// Those messages are not persisted to chain.
