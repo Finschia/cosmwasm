@@ -13,6 +13,7 @@ use crate::errors::{VmError, VmResult};
 use crate::serde::from_slice;
 
 pub const DYNAMIC_CALL_DEPTH_LIMIT_CNT: usize = 5;
+const DESERIALIZATION_LIMIT: usize = 20_000;
 
 /// Never can never be instantiated.
 /// Replace this with the [never primitive type](https://doc.rust-lang.org/std/primitive.never.html) when stable.
@@ -356,7 +357,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             }
 
             let contract_env: Env = match &ctx.serialized_env {
-                Some(env) => from_slice(&env),
+                Some(env) => from_slice(&env, DESERIALIZATION_LIMIT),
                 None => Err(VmError::uninitialized_context_data("serialized_env")),
             }?;
             match ctx
@@ -395,7 +396,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         self.with_context_data_mut(|self_ctx| {
             target.with_context_data_mut(|target_ctx| {
                 let target_contract_env: Env = match &target_ctx.serialized_env {
-                    Some(env) => from_slice(&env),
+                    Some(env) => from_slice(&env, DESERIALIZATION_LIMIT),
                     None => Err(VmError::uninitialized_context_data("serialized_env")),
                 }?;
 
@@ -941,7 +942,7 @@ mod tests {
         assert!(env.try_record_dynamic_call_trace().is_ok());
         env.with_context_data(|ctx| {
             let contract_env: Env = match &ctx.serialized_env {
-                Some(env) => from_slice(&env),
+                Some(env) => from_slice(&env, DESERIALIZATION_LIMIT),
                 None => Err(VmError::uninitialized_context_data("serialized_env")),
             }
             .unwrap();
