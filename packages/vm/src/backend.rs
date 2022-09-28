@@ -7,17 +7,10 @@ use cosmwasm_std::{Binary, ContractResult, SystemResult};
 #[cfg(feature = "iterator")]
 use cosmwasm_std::{Order, Record};
 
-<<<<<<< HEAD
 use crate::environment::Environment;
 use crate::{FunctionMetadata, WasmerVal};
 
-#[derive(Copy, Clone, Debug)]
-=======
-/// A structure that represents gas cost to be deducted from the remaining gas.
-/// This is always needed when computations are performed outside of
-/// Wasm execution, such as calling crypto APIs or calls into the blockchain.
 #[derive(Copy, Clone, Debug, PartialEq)]
->>>>>>> origin/main
 pub struct GasInfo {
     /// The gas cost of a computation that was executed already but not yet charged.
     ///
@@ -367,7 +360,7 @@ mod tests {
     fn backend_err_unknown() {
         let error = BackendError::unknown("broken");
         match error {
-            BackendError::Unknown { msg, .. } => assert_eq!(msg, "broken"),
+            BackendError::Unknown { msg, .. } => assert_eq!(msg.unwrap(), "broken"),
             e => panic!("Unexpected error: {:?}", e),
         }
     }
