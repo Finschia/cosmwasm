@@ -57,36 +57,32 @@ docker run --rm -v "$(pwd)":/code \
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_staking",target=/code/contracts/staking/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-<<<<<<< HEAD
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/staking
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/staking
+
+  docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_voting_with_uuid",target=/code/contracts/voting-with-uuid/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/voting-with-uuid
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_dynamic_callee_contract",target=/code/contracts/dynamic-callee-contract/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/dynamic-callee-contract
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/dynamic-callee-contract
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_dynamic_caller_contract",target=/code/contracts/dynamic-caller-contract/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/dynamic-caller-contract
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/dynamic-caller-contract
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_number",target=/code/contracts/number/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/number
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/number
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_call_number",target=/code/contracts/call-number/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.11.0 ./contracts/call-number
-=======
-  cosmwasm/rust-optimizer:0.12.5 ./contracts/staking
-
-docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="devcontract_cache_voting_with_uuid",target=/code/contracts/voting-with-uuid/target \
-  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.12.5 ./contracts/voting-with-uuid
->>>>>>> origin/main
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/call-number
 ```
 
 ## Entry points
@@ -94,7 +90,6 @@ docker run --rm -v "$(pwd)":/code \
 The development contracts in this folder contain a variety of different entry
 points in order to demonstrate and test the flexibility we have.
 
-<<<<<<< HEAD
 | Contract                | Macro                                         | Has `query` | Has `migrate` |
 | ----------------------- | --------------------------------------------- | ----------- | ------------- |
 | burner                  | `#[entry_point]`                              | no          | yes           |
@@ -103,6 +98,7 @@ points in order to demonstrate and test the flexibility we have.
 | queue                   | mixed<sup>1</sup>                             | yes         | yes           |
 | reflect                 | [`create_entry_points!`][cep]                 | yes         | no            |
 | staking                 | `#[entry_point]`                              | yes         | no            |
+| voting-with-uuid        | `#[entry_point]`                              | yes         | no            |
 | dynamic_callee_contract | `#[entry_point]`                              | no          | no            |
 | dynamic_caller_contract | `#[entry_point]`                              | no          | no            |
 | number                  | `#[entry_point]`                              | yes         | no            |
@@ -115,14 +111,3 @@ points in order to demonstrate and test the flexibility we have.
   https://docs.rs/cosmwasm-std/0.13.0/cosmwasm_std/macro.create_entry_points_with_migration.html
 [cep]:
   https://docs.rs/cosmwasm-std/0.13.0/cosmwasm_std/macro.create_entry_points.html
-=======
-| Contract         | Has `query` | Has `migrate` |
-| ---------------- | ----------- | ------------- |
-| burner           | no          | yes           |
-| hackatom         | yes         | yes           |
-| ibc-reflect      | yes         | no            |
-| queue            | yes         | yes           |
-| reflect          | yes         | no            |
-| staking          | yes         | no            |
-| voting-with-uuid | yes         | no            |
->>>>>>> origin/main
