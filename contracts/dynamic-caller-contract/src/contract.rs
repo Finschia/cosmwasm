@@ -157,7 +157,7 @@ mod tests {
     use cosmwasm_std::OwnedDeps;
 
     fn create_contract() -> (OwnedDeps<MockStorage, MockApi, MockQuerier>, MessageInfo) {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
         let info = mock_info("creator", &[]);
         let res = instantiate(
             deps.as_mut(),
@@ -180,7 +180,7 @@ mod tests {
             mock_env(),
             info,
             ExecuteMsg::Ping {
-                ping_num: Uint128(41),
+                ping_num: Uint128::new(41),
             },
         )
         .unwrap();
