@@ -39,7 +39,6 @@ pub use crate::calls::{
     call_ibc_packet_receive_raw, call_ibc_packet_timeout, call_ibc_packet_timeout_raw,
 };
 pub use crate::checksum::Checksum;
-pub use crate::checksum::Checksum;
 #[cfg(feature = "bench")]
 pub use crate::conversion::{ref_to_u32, to_u32};
 #[cfg(feature = "bench")]
@@ -52,11 +51,6 @@ pub use crate::errors::{
     CommunicationError, CommunicationResult, RegionValidationError, RegionValidationResult,
     VmError, VmResult,
 };
-pub use crate::errors::{
-    CommunicationError, CommunicationResult, RegionValidationError, RegionValidationResult,
-    VmError, VmResult,
-};
-pub use crate::features::features_from_csv;
 pub use crate::features::features_from_csv;
 pub use crate::instance::{GasReport, Instance, InstanceOptions};
 #[cfg(feature = "bench")]

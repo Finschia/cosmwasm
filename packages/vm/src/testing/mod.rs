@@ -16,7 +16,6 @@ pub use calls::{
     ibc_packet_timeout,
 };
 pub use contract::Contract;
-pub use contract::Contract;
 pub use environment::{read_data_from_mock_env, write_data_to_mock_env};
 pub use instance::{
     mock_instance, mock_instance_options, mock_instance_with_balances,
