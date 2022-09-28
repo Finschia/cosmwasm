@@ -1,7 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
-    AttributeArgs, Ident, ItemTrait, Lit, Meta, NestedMeta, Signature, TraitItem, TypeParamBound,
+    parse_quote, AttributeArgs, Ident, ItemTrait, Lit, Meta, NestedMeta, ReturnType, Signature,
+    TraitItem, TypeParamBound,
 };
 
 use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make_typed_return};
@@ -86,9 +87,16 @@ pub fn generate_import_contract_declaration(
         contract_struct_id,
         &signatures,
     );
+
+    let mut new_trait_def = trait_def.clone();
+    let method_validate_interface: TraitItem = parse_quote! {
+        fn validate_interface(&self, deps: cosmwasm_std::Deps) -> cosmwasm_std::StdResult<()>;
+    };
+    new_trait_def.items.push(method_validate_interface);
+
     if does_use_user_defined_mock {
         quote! {
-            #trait_def
+            #new_trait_def
 
             #[cfg(target_arch = "wasm32")]
             #extern_block
@@ -98,7 +106,7 @@ pub fn generate_import_contract_declaration(
         }
     } else {
         quote! {
-            #trait_def
+            #new_trait_def
 
             #extern_block
 
@@ -145,6 +153,30 @@ fn generate_extern_block(module_name: &str, methods: &[&Signature]) -> TokenStre
     }
 }
 
+fn generate_validate_interface_method(methods: &[&Signature]) -> TokenStream {
+    let interfaces = methods.iter().map(|sig| {
+        let name = sig.ident.to_string();
+        // -1 for &self and +1 for arg `env`, so equals to len()
+        let input_len = sig.inputs.len();
+        let result_len = match sig.output {
+            ReturnType::Default => 0_usize,
+            ReturnType::Type(..) => 1_usize,
+        };
+        quote! {
+            wasmer_types::ExportType::new(#name, ([wasmer_types::Type::I32; #input_len], [wasmer_types::Type::I32; #result_len]).into())
+        }
+    });
+    quote! {
+        fn validate_interface(&self, deps: cosmwasm_std::Deps) -> cosmwasm_std::StdResult<()> {
+            let address = self.get_address();
+            let expected_interface: Vec<wasmer_types::ExportType<wasmer_types::FunctionType>> = vec![
+                #(#interfaces,)*
+            ];
+            deps.api.validate_dynamic_link_interface(&address, &expected_interface)
+        }
+    }
+}
+
 fn generate_implements(
     module_name: &str,
     trait_id: &Ident,
@@ -154,9 +186,11 @@ fn generate_implements(
     let impl_funcs = methods
         .iter()
         .map(|sig| generate_serialization_func(module_name, sig));
+    let impl_validate_interface = generate_validate_interface_method(methods);
     quote! {
         impl #trait_id for #struct_id {
             #(#impl_funcs)*
+            #impl_validate_interface
         }
     }
 }
@@ -223,7 +257,7 @@ fn make_call_function_and_return(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use syn::{parse_quote, ItemTrait, Signature};
+    use syn::{ItemTrait, Signature};
 
     #[test]
     fn make_call_function_and_return_works() {
@@ -473,6 +507,16 @@ mod tests {
                         let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
                         cosmwasm_std::from_slice(&vec_result).unwrap()
                     }
+                }
+
+                fn validate_interface(&self, deps: cosmwasm_std::Deps) -> cosmwasm_std::StdResult<()> {
+                    let address = self.get_address();
+                    let expected_interface: Vec<wasmer_types::ExportType<wasmer_types::FunctionType>> = vec![
+                        wasmer_types::ExportType::new("foo",  ([wasmer_types::Type::I32; 3usize],  [wasmer_types::Type::I32; 1usize]).into()),
+                        wasmer_types::ExportType::new("bar",  ([wasmer_types::Type::I32; 1usize],  [wasmer_types::Type::I32; 0usize]).into()),
+                        wasmer_types::ExportType::new("foobar",  ([wasmer_types::Type::I32; 3usize],  [wasmer_types::Type::I32; 1usize]).into()),
+                    ];
+                    deps.api.validate_dynamic_link_interface(&address, &expected_interface)
                 }
             }
         };
