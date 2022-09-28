@@ -52,14 +52,14 @@ fn handle_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
         address: address.clone(),
     };
     contract.add(by);
-    let mut response = Response::default();
     let value_dyn = contract.number();
-    response.add_attribute("value_by_dynamic", value_dyn.to_string());
-
     let res: NumberResponse = deps
         .querier
         .query_wasm_smart(address, &QueryMsg::Number {})?;
-    response.add_attribute("value_by_query", res.value.to_string());
+
+    let response = Response::default()
+        .add_attribute("value_by_dynamic", value_dyn.to_string())
+        .add_attribute("value_by_query", res.value.to_string());
 
     Ok(response)
 }
@@ -70,14 +70,14 @@ fn handle_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
         address: address.clone(),
     };
     contract.sub(by);
-    let mut response = Response::default();
     let value_dyn = contract.number();
-    response.add_attribute("value_by_dynamic", value_dyn.to_string());
-
     let res: NumberResponse = deps
         .querier
         .query_wasm_smart(address, &QueryMsg::Number {})?;
-    response.add_attribute("value_by_query", res.value.to_string());
+
+    let response = Response::default()
+        .add_attribute("value_by_dynamic", value_dyn.to_string())
+        .add_attribute("value_by_query", res.value.to_string());
 
     Ok(response)
 }
@@ -88,14 +88,14 @@ fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
         address: address.clone(),
     };
     contract.mul(by);
-    let mut response = Response::default();
     let value_dyn = contract.number();
-    response.add_attribute("value_by_dynamic", value_dyn.to_string());
-
     let res: NumberResponse = deps
         .querier
         .query_wasm_smart(address, &QueryMsg::Number {})?;
-    response.add_attribute("value_by_query", res.value.to_string());
+
+    let response = Response::default()
+        .add_attribute("value_by_dynamic", value_dyn.to_string())
+        .add_attribute("value_by_query", res.value.to_string());
 
     Ok(response)
 }

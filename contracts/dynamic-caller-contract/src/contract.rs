@@ -110,21 +110,22 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
     let tuple_ret = contract.pong_with_tuple((String::from("hello"), 41));
     let tuple_ret2 = contract.pong_with_tuple_takes_2_args(String::from("hello"), 41);
 
-    let mut res = Response::default();
-    res.add_attribute("returned_pong", pong_ret.to_string());
-    res.add_attribute("returned_pong_with_struct", struct_ret.to_string());
-    res.add_attribute(
-        "returned_pong_with_tuple",
-        format!("({}, {})", tuple_ret.0, tuple_ret.1),
-    );
-    res.add_attribute(
-        "returned_pong_with_tuple_takes_2_args",
-        format!("({}, {})", tuple_ret2.0, tuple_ret2.1),
-    );
-    res.add_attribute(
-        "returned_contract_address",
-        contract.pong_env().contract.address.to_string(),
-    );
+    let res = Response::default()
+        .add_attribute("returned_pong", pong_ret.to_string())
+        .add_attribute("returned_pong_with_struct", struct_ret.to_string())
+        .add_attribute(
+            "returned_pong_with_tuple",
+            format!("({}, {})", tuple_ret.0, tuple_ret.1),
+        )
+        .add_attribute(
+            "returned_pong_with_tuple_takes_2_args",
+            format!("({}, {})", tuple_ret2.0, tuple_ret2.1),
+        )
+        .add_attribute(
+            "returned_contract_address",
+            contract.pong_env().contract.address.to_string(),
+        );
+
     Ok(res)
 }
 
