@@ -272,10 +272,7 @@ version = "1.0.0-0.6.0"
 dependencies = [
  "convert_case",
  "cosmwasm-std",
-<<<<<<< HEAD
  "proc-macro-error",
-=======
->>>>>>> origin/main
  "proc-macro2",
  "quote",
  "syn",

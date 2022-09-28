@@ -161,11 +161,8 @@ dependencies = [
 name = "cosmwasm-derive"
 version = "1.0.0-0.6.0"
 dependencies = [
-<<<<<<< HEAD
- "proc-macro-error",
-=======
  "convert_case",
->>>>>>> origin/main
+ "proc-macro-error",
  "proc-macro2",
  "quote",
  "syn",
