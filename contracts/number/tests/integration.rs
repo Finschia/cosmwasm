@@ -1,11 +1,11 @@
 use cosmwasm_std::to_vec;
 use cosmwasm_vm::testing::{
-    mock_backend, mock_env, write_data_to_mock_env, Contract, MockApi, MockInstanceOptions,
-    MockQuerier, MockStorage,
+    mock_env, write_data_to_mock_env, Contract, MockApi, MockInstanceOptions, MockQuerier,
+    MockStorage,
 };
 use cosmwasm_vm::Instance;
 use std::collections::HashMap;
-use wasmer_types::{FunctionType, Type};
+use wasmer::{FunctionType, Type};
 
 static CONTRACT: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/release/number.wasm");
 
@@ -20,9 +20,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
 
 fn make_number_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
     let options = MockInstanceOptions::default();
-    let backend = mock_backend(&[]);
-    let mut contract = Contract::from_code(CONTRACT, backend, options).unwrap();
-    let instance = contract.generate_instance().unwrap();
+    let api = MockApi::default();
+    let querier = MockQuerier::new(&[]);
+    let contract = Contract::from_code(CONTRACT, &options, None).unwrap();
+    let instance = contract.generate_instance(api, querier, &options).unwrap();
     instance
         .env
         .set_serialized_env(&to_vec(&mock_env()).unwrap());
@@ -33,8 +34,7 @@ fn make_number_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
 #[test]
 fn callable_point_export_works() {
     let options = MockInstanceOptions::default();
-    let backend = mock_backend(&[]);
-    let contract = Contract::from_code(CONTRACT, backend, options).unwrap();
+    let contract = Contract::from_code(CONTRACT, &options, None).unwrap();
 
     let export_function_map: HashMap<_, _> = contract
         .module

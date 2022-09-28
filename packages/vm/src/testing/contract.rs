@@ -14,7 +14,7 @@ use super::storage::MockStorage;
 
 #[derive(Clone)]
 pub struct Contract {
-    module: Module,
+    pub module: Module,
     storage: MockStorage,
 }
 

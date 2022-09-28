@@ -1,6 +1,6 @@
-use cosmwasm_vm::testing::{mock_backend, Contract, MockInstanceOptions};
+use cosmwasm_vm::testing::{Contract, MockInstanceOptions};
 use std::collections::HashMap;
-use wasmer_types::{FunctionType, Type};
+use wasmer::{FunctionType, Type};
 
 static CONTRACT_CALLER: &[u8] =
     include_bytes!("../target/wasm32-unknown-unknown/release/call_number.wasm");
@@ -33,8 +33,7 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
 #[test]
 fn dynamic_link_import_works() {
     let options = MockInstanceOptions::default();
-    let backend = mock_backend(&[]);
-    let contract = Contract::from_code(CONTRACT_CALLER, backend, options).unwrap();
+    let contract = Contract::from_code(CONTRACT_CALLER, &options, None).unwrap();
 
     let import_function_map: HashMap<_, _> = contract
         .module
