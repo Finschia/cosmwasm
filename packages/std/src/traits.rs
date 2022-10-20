@@ -120,6 +120,9 @@ pub trait Api {
 
     fn sha1_calculate(&self, inputs: &[&[u8]]) -> Result<[u8; 20], HashCalculationError>;
 
+    /// This calls the API to validate interface
+    /// Contract is the address of the contract to validate.
+    /// Interface is the arg for expected interface that the contract has.
     fn validate_dynamic_link_interface(
         &self,
         contract: &Addr,

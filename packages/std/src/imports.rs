@@ -348,6 +348,10 @@ impl Api for ExternalApi {
         }
     }
 
+    // this calls the API to validate interface
+    //
+    // contract is the address of the contract to validate.
+    // interface is the arg for expected interface that the contract has.
     fn validate_dynamic_link_interface(
         &self,
         contract: &Addr,

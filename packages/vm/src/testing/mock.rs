@@ -44,8 +44,8 @@ pub fn mock_backend_with_balances(
 
 type MockInstance = Instance<MockApi, MockStorage, MockQuerier>;
 thread_local! {
-    // INSTANCE_CACHE is intended to replace wasmvm's cache layer in the mock.
-    // Unlike wasmvm, you have to initialize it yourself in the place where you test the dynamic call.
+    // INSTANCE_CACHE and MODULE_CACHE are intended to replace wasmvm's cache layer in the mock.
+    // Unlike wasmvm, you have to initialize them yourself in the place where you test the dynamic call.
     pub static INSTANCE_CACHE: RwLock<HashMap<String, RefCell<MockInstance>>> = RwLock::new(HashMap::new());
     pub static MODULE_CACHE: RwLock<HashMap<String, RefCell<Module>>> = RwLock::new(HashMap::new());
 }

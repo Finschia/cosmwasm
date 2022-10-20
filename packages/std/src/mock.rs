@@ -187,7 +187,7 @@ impl Api for MockApi {
         println!("{}", message);
     }
 
-    // always true in mock
+    // always returning true in mock
     fn validate_dynamic_link_interface(
         &self,
         _contract: &Addr,

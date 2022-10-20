@@ -260,6 +260,7 @@ where
         exported_fns.insert(f.name().to_string(), f.ty().clone());
     }
 
+    // No gas fee for comparison now
     let mut err_msg = "The following functions are not implemented: ".to_string();
     let mut is_err = false;
     for expected_fn in expected_interface.iter() {
