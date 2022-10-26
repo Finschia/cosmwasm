@@ -508,4 +508,36 @@ mod tests {
             _ => panic!("Got unexpected error"),
         }
     }
+
+    #[test]
+    fn check_wasm_imports_fails_for_unsupported_import() {
+        let wasm = wat::parse_str(
+            r#"(module
+            (import "env" "db_read" (func (param i32 i32) (result i32)))
+            (import "env" "db_write" (func (param i32 i32) (result i32)))
+            (import "wasi_snapshot_preview1" "fd_filestat_get" (func (param i32) (result i32)))
+        )"#,
+        )
+        .unwrap();
+        let supported_imports: &[&str] = &[
+            "env.db_read",
+            "env.db_write",
+            "env.db_remove",
+            "env.addr_canonicalize",
+            "env.addr_humanize",
+            "env.debug",
+            "env.query_chain",
+        ];
+        let result = check_wasm_imports(&deserialize_wasm(&wasm).unwrap(), supported_imports);
+        match result.unwrap_err() {
+            VmError::StaticValidationErr { msg, .. } => {
+                println!("{}", msg);
+                assert_eq!(
+                    msg,
+                    r#"Wasm contract requires unsupported import: "wasi_snapshot_preview1.fd_filestat_get". Required imports: {"env.db_read", "env.db_write", "wasi_snapshot_preview1.fd_filestat_get"}. Available imports: ["env.db_read", "env.db_write", "env.db_remove", "env.addr_canonicalize", "env.addr_humanize", "env.debug", "env.query_chain"]."#
+                );
+            }
+            err => panic!("Unexpected error: {:?}", err),
+        }
+    }
 }
