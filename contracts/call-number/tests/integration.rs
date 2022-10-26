@@ -9,22 +9,22 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
     vec![
         (
             String::from("add"),
-            String::from("NumberContract"),
+            String::from("dynamiclinked_NumberContract"),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
             String::from("sub"),
-            String::from("NumberContract"),
+            String::from("dynamiclinked_NumberContract"),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
             String::from("mul"),
-            String::from("NumberContract"),
+            String::from("dynamiclinked_NumberContract"),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
             String::from("number"),
-            String::from("NumberContract"),
+            String::from("dynamiclinked_NumberContract"),
             ([Type::I32], [Type::I32]).into(),
         ),
     ]

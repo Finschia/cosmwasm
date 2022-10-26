@@ -9,32 +9,32 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
     vec![
         (
             String::from("pong"),
-            String::from("CalleeContract"),
+            String::from("dynamiclinked_CalleeContract"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_with_struct"),
-            String::from("CalleeContract"),
+            String::from("dynamiclinked_CalleeContract"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_with_tuple"),
-            String::from("CalleeContract"),
+            String::from("dynamiclinked_CalleeContract"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_with_tuple_takes_2_args"),
-            String::from("CalleeContract"),
+            String::from("dynamiclinked_CalleeContract"),
             ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_env"),
-            String::from("CalleeContract"),
+            String::from("dynamiclinked_CalleeContract"),
             ([Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("do_panic"),
-            String::from("CalleeContract"),
+            String::from("dynamiclinked_CalleeContract"),
             ([Type::I32], []).into(),
         ),
     ]
