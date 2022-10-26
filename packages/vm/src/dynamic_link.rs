@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::str;
 
 use crate::backend::{BackendApi, Querier, Storage};
 use crate::conversion::ref_to_u32;
@@ -8,8 +7,12 @@ use crate::environment::{process_gas_info, Environment};
 use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::imports::write_to_contract;
 use crate::memory::read_region;
-use wasmer::{Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val};
+use wasmer::{
+    ExportType, Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val,
+};
 use wasmer_types::ImportIndex;
+
+use cosmwasm_std::{from_slice, Addr};
 
 const MAX_REGIONS_LENGTH: usize = 100_000;
 
@@ -85,10 +88,9 @@ where
         ));
     };
     let address_region_ptr = ref_to_u32(&args[0])?;
-    let raw_contract_addr = read_region(&env.memory(), address_region_ptr, 64)?;
-    let contract_addr = str::from_utf8(&raw_contract_addr)
-        .map_err(|_| RuntimeError::new("Invalid stored callee contract address"))?
-        .trim_matches('"');
+    let contract_addr_binary = read_region(&env.memory(), address_region_ptr, 64)?;
+    let contract_addr: Addr = from_slice(&contract_addr_binary)
+        .map_err(|_| RuntimeError::new("Invalid callee contract address"))?;
     let func_args = &args[1..];
     with_trace_dynamic_call(env, || {
         let func_info = env
@@ -98,7 +100,7 @@ where
             .unwrap();
         let (call_result, gas_info) =
             env.api
-                .contract_call(env, contract_addr, &func_info, func_args);
+                .contract_call(env, contract_addr.as_str(), &func_info, func_args);
         process_gas_info::<A, S, Q>(env, gas_info)?;
         match call_result {
             Ok(ret) => Ok(ret.to_vec()),
@@ -232,6 +234,56 @@ where
     Q: Querier + 'static,
 {
     Ok(write_to_contract(env, value)?.into())
+}
+
+pub fn native_validate_dynamic_link_interface<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    address: u32,
+    interface: u32,
+) -> Result<u32, RuntimeError>
+where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+{
+    let contract_addr_raw = read_region(&env.memory(), address, 64)?;
+    let contract_addr: Addr = from_slice(&contract_addr_raw)
+        .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
+    let expected_interface_binary = read_region(&env.memory(), interface, MAX_REGIONS_LENGTH)?;
+    let expected_interface: Vec<ExportType<FunctionType>> = from_slice(&expected_interface_binary)
+        .map_err(|_| RuntimeError::new("Invalid expected interface"))?;
+    let (module_result, gas_info) = env.api.get_wasmer_module(contract_addr.as_str());
+    process_gas_info::<A, S, Q>(env, gas_info)?;
+    let module = module_result.map_err(|_| RuntimeError::new("Cannot get module"))?;
+    let mut exported_fns: HashMap<String, FunctionType> = HashMap::new();
+    for f in module.exports().functions() {
+        exported_fns.insert(f.name().to_string(), f.ty().clone());
+    }
+
+    // No gas fee for comparison now
+    let mut err_msg = "The following functions are not implemented: ".to_string();
+    let mut is_err = false;
+    for expected_fn in expected_interface.iter() {
+        // if not expected
+        if !exported_fns
+            .get(expected_fn.name())
+            .map_or(false, |t| t == expected_fn.ty())
+        {
+            if is_err {
+                err_msg.push_str(", ");
+            };
+            err_msg.push_str(&format!("{}: {}", expected_fn.name(), expected_fn.ty()));
+            is_err = true;
+        }
+    }
+
+    if is_err {
+        // not expected
+        Ok(write_to_contract::<A, S, Q>(env, err_msg.as_bytes())?)
+    } else {
+        // as expected
+        Ok(0)
+    }
 }
 
 #[cfg(test)]

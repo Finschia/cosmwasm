@@ -2,6 +2,7 @@ use serde::de::DeserializeOwned;
 #[cfg(feature = "stargate")]
 use serde::Serialize;
 use std::collections::HashMap;
+use wasmer_types::{ExportType, FunctionType};
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
@@ -184,6 +185,15 @@ impl Api for MockApi {
 
     fn debug(&self, message: &str) {
         println!("{}", message);
+    }
+
+    // always returning true in mock
+    fn validate_dynamic_link_interface(
+        &self,
+        _contract: &Addr,
+        _interface: &[ExportType<FunctionType>],
+    ) -> StdResult<()> {
+        Ok(())
     }
 }
 

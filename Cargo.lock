@@ -246,6 +246,7 @@ dependencies = [
  "serde-json-wasm",
  "thiserror",
  "uuid",
+ "wasmer-types",
 ]
 
 [[package]]

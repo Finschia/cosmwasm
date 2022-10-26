@@ -30,6 +30,7 @@ cosmwasm-storage = { path = "../../packages/storage", features = ["iterator"] }
 schemars = "0.8.1"
 serde = { version = "1.0.125", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.24" }
+wasmer-types = { version = "1.0.2", features = ["enable-serde"] }
 
 [dev-dependencies]
 cosmwasm-schema = { path = "../../packages/schema" }

@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::thread_local;
+use wasmer::Module;
 
 use super::querier::MockQuerier;
 use super::storage::MockStorage;
@@ -43,9 +44,10 @@ pub fn mock_backend_with_balances(
 
 type MockInstance = Instance<MockApi, MockStorage, MockQuerier>;
 thread_local! {
-    // INSTANCE_CACHE is intended to replace wasmvm's cache layer in the mock.
-    // Unlike wasmvm, you have to initialize it yourself in the place where you test the dynamic call.
+    // INSTANCE_CACHE and MODULE_CACHE are intended to replace wasmvm's cache layer in the mock.
+    // Unlike wasmvm, you have to initialize them yourself in the place where you test the dynamic call.
     pub static INSTANCE_CACHE: RwLock<HashMap<String, RefCell<MockInstance>>> = RwLock::new(HashMap::new());
+    pub static MODULE_CACHE: RwLock<HashMap<String, RefCell<Module>>> = RwLock::new(HashMap::new());
 }
 
 /// Zero-pads all human addresses to make them fit the canonical_length and
@@ -207,6 +209,20 @@ impl BackendApi for MockApi {
                 }
                 None => (
                     Err(BackendError::dynamic_link_err("cannot found contract")),
+                    gas_info,
+                ),
+            }
+        })
+    }
+
+    fn get_wasmer_module(&self, contract_addr: &str) -> BackendResult<Module> {
+        let gas_info = GasInfo::new(0, 0);
+        MODULE_CACHE.with(|lock| {
+            let cache = lock.read().unwrap();
+            match cache.get(contract_addr) {
+                Some(module) => (Ok(module.borrow().clone()), gas_info),
+                None => (
+                    Err(BackendError::dynamic_link_err("cannot found checksum")),
                     gas_info,
                 ),
             }

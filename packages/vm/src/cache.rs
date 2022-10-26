@@ -15,6 +15,8 @@ use crate::size::Size;
 use crate::static_analysis::{deserialize_wasm, has_ibc_entry_points};
 use crate::wasm_backend::{compile, make_runtime_store};
 
+use wasmer::Module;
+
 const WASM_DIR: &str = "wasm";
 const MODULES_DIR: &str = "modules";
 
@@ -229,35 +231,36 @@ where
         backend: Backend<A, S, Q>,
         options: InstanceOptions,
     ) -> VmResult<Instance<A, S, Q>> {
+        let module = self.get_module(checksum)?;
+        let instance =
+            Instance::from_module(&module, backend, options.gas_limit, options.print_debug)?;
+        Ok(instance)
+    }
+
+    /// Returns a Module tied to a previously saved Wasm.
+    /// Depending on availability, this is either generated from a cached instance, a cached module or Wasm code.
+    pub fn get_module(&self, checksum: &Checksum) -> VmResult<Module> {
         let mut cache = self.inner.lock().unwrap();
         // Try to get module from the pinned memory cache
         if let Some(module) = cache.pinned_memory_cache.load(checksum)? {
             cache.stats.hits_pinned_memory_cache += 1;
-            let instance =
-                Instance::from_module(&module, backend, options.gas_limit, options.print_debug)?;
-            return Ok(instance);
+            return Ok(module);
         }
 
         // Get module from memory cache
         if let Some(module) = cache.memory_cache.load(checksum)? {
             cache.stats.hits_memory_cache += 1;
-            let instance = Instance::from_module(
-                &module.module,
-                backend,
-                options.gas_limit,
-                options.print_debug,
-            )?;
-            return Ok(instance);
+            return Ok(module.module);
         }
 
         // Get module from file system cache
         let store = make_runtime_store(Some(cache.instance_memory_limit));
         if let Some((module, module_size)) = cache.fs_cache.load(checksum, &store)? {
             cache.stats.hits_fs_cache += 1;
-            let instance =
-                Instance::from_module(&module, backend, options.gas_limit, options.print_debug)?;
-            cache.memory_cache.store(checksum, module, module_size)?;
-            return Ok(instance);
+            cache
+                .memory_cache
+                .store(checksum, module.clone(), module_size)?;
+            return Ok(module);
         }
 
         // Re-compile module from wasm
@@ -268,11 +271,11 @@ where
         let wasm = self.load_wasm_with_path(&cache.wasm_path, checksum)?;
         cache.stats.misses += 1;
         let module = compile(&wasm, Some(cache.instance_memory_limit))?;
-        let instance =
-            Instance::from_module(&module, backend, options.gas_limit, options.print_debug)?;
         let module_size = cache.fs_cache.store(checksum, &module)?;
-        cache.memory_cache.store(checksum, module, module_size)?;
-        Ok(instance)
+        cache
+            .memory_cache
+            .store(checksum, module.clone(), module_size)?;
+        Ok(module)
     }
 }
 

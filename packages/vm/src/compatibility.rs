@@ -21,6 +21,7 @@ const SUPPORTED_IMPORTS: &[&str] = &[
     "env.ed25519_verify",
     "env.ed25519_batch_verify",
     "env.sha1_calculate",
+    "env.validate_dynamic_link_interface",
     "env.debug",
     "env.query_chain",
     #[cfg(feature = "iterator")]
@@ -332,6 +333,7 @@ mod tests {
             (import "env" "ed25519_verify" (func (param i32 i32 i32) (result i32)))
             (import "env" "ed25519_batch_verify" (func (param i32 i32 i32) (result i32)))
             (import "env" "sha1_calculate" (func (param i32) (result i64)))
+            (import "env" "validate_dynamic_link_interface" (func (param i32 i32) (result i32)))
         )"#,
         )
         .unwrap();

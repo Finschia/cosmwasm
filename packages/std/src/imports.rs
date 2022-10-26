@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 use std::vec::Vec;
+use wasmer_types::{ExportType, FunctionType};
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
@@ -7,12 +8,12 @@ use crate::errors::{
     HashCalculationError, RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
 };
 use crate::import_helpers::{from_high_half, from_low_half};
-use crate::memory::{alloc, build_region, consume_region, Region};
+use crate::memory::{alloc, build_region, consume_region, release_buffer, Region};
 use crate::results::SystemResult;
 #[cfg(feature = "iterator")]
 use crate::sections::decode_sections2;
 use crate::sections::encode_sections;
-use crate::serde::from_slice;
+use crate::serde::{from_slice, to_vec};
 use crate::traits::{Api, Querier, QuerierResult, Storage};
 #[cfg(feature = "iterator")]
 use crate::{
@@ -52,6 +53,7 @@ extern "C" {
     fn ed25519_verify(message_ptr: u32, signature_ptr: u32, public_key_ptr: u32) -> u32;
     fn ed25519_batch_verify(messages_ptr: u32, signatures_ptr: u32, public_keys_ptr: u32) -> u32;
     fn sha1_calculate(inputs_ptr: u32) -> u64;
+    fn validate_dynamic_link_interface(contract_ptr: u32, interface_ptr: u32) -> u32;
 
     fn debug(source_ptr: u32);
 
@@ -344,6 +346,30 @@ impl Api for ExternalApi {
             2 => Err(HashCalculationError::InputTooLonger),
             error_code => Err(HashCalculationError::unknown_err(error_code)),
         }
+    }
+
+    // this calls the API to validate interface
+    //
+    // contract is the address of the contract to validate.
+    // interface is the arg for expected interface that the contract has.
+    fn validate_dynamic_link_interface(
+        &self,
+        contract: &Addr,
+        interface: &[ExportType<FunctionType>],
+    ) -> StdResult<()> {
+        let contract_region = release_buffer(to_vec(contract)?);
+        let contract_ptr = contract_region as u32;
+        let interface_region = release_buffer(to_vec(interface)?);
+        let interface_ptr = interface_region as u32;
+        let result = unsafe { validate_dynamic_link_interface(contract_ptr, interface_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "dynamic_link_interface_validate errored: {}",
+                error
+            )));
+        };
+        Ok(())
     }
 
     fn debug(&self, message: &str) {

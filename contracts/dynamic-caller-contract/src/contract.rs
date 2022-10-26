@@ -67,6 +67,10 @@ impl Callee for CalleeContract {
     fn do_panic(&self) {
         panic!()
     }
+
+    fn validate_interface(&self, _deps: Deps) -> cosmwasm_std::StdResult<()> {
+        Ok(())
+    }
 }
 
 // Note, you can use StdResult in some functions where you do not
@@ -96,11 +100,13 @@ pub fn execute(
         ExecuteMsg::Ping { ping_num } => try_ping(deps, ping_num),
         ExecuteMsg::TryReEntrancy {} => try_re_entrancy(deps, env),
         ExecuteMsg::DoPanic {} => try_do_panic(deps, env),
+        ExecuteMsg::ValidateInterface {} => try_validate_interface(deps.as_ref(), env),
+        ExecuteMsg::ValidateInterfaceErr {} => try_validate_interface_err(deps.as_ref(), env),
     }
 }
 
 pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
-    let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").unwrap())?;
+    let address: Addr = from_slice(&deps.storage.get(b"dynamic_callee_contract").unwrap())?;
     let contract = CalleeContract { address };
     let pong_ret = contract.pong(ping_num.u128() as u64);
     let struct_ret = contract.pong_with_struct(ExampleStruct {
@@ -141,6 +147,26 @@ pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError>
     let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").unwrap())?;
     let contract = CalleeContract { address };
     contract.do_panic();
+    Ok(Response::default())
+}
+
+pub fn try_validate_interface(deps: Deps, _env: Env) -> Result<Response, ContractError> {
+    let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").unwrap())?;
+    let contract = CalleeContract { address };
+    contract.validate_interface(deps)?;
+    Ok(Response::default())
+}
+
+// should error
+pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, ContractError> {
+    let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").unwrap())?;
+    let err_interface: Vec<wasmer_types::ExportType<wasmer_types::FunctionType>> =
+        vec![wasmer_types::ExportType::new(
+            "not_exist",
+            ([wasmer_types::Type::I32], [wasmer_types::Type::I32]).into(),
+        )];
+    deps.api
+        .validate_dynamic_link_interface(&address, &err_interface)?;
     Ok(Response::default())
 }
 

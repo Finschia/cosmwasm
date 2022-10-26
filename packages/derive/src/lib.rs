@@ -125,6 +125,10 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 /// This macro implements functions to call dynamic linked function for attributed trait.
 ///
+/// To use this macro, the contract must declare the import
+/// `wasmer-types = { version = "1.0.2", features = ["enable-serde"] }`
+/// in Cargo.toml
+///
 /// This macro must take an attribute specifying a struct to implement the traits for.
 /// The trait must have `cosmwasm_std::Contract` as a supertrait and each
 /// methods of the trait must have `&self` receiver as its first argument.
@@ -138,7 +142,7 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// example usage:
 ///
 /// ```
-/// use cosmwasm_std::{Addr, Contract, dynamic_link};
+/// use cosmwasm_std::{Addr, Contract, Deps, StdResult, dynamic_link};
 ///
 /// #[derive(Contract)]
 /// struct ContractStruct {
@@ -156,6 +160,12 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// impl TraitName for ContractStruct {
 ///   fn callable_point_on_another_contract(&self, x: i32) -> i32 {
 ///     42
+///   }
+///
+///   // validate_interface is auto generated function from `dynamic_link` macro.
+///   // this function must be defined in the mock.
+///   fn validate_interface(&self, dep: Deps) -> StdResult<()> {
+///     Ok(())
 ///   }
 /// }
 /// ```
