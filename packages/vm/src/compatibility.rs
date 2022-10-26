@@ -115,7 +115,7 @@ fn check_wasm_imports(module: &Module, supported_imports: &[&str]) -> VmResult<(
         let full_name = full_import_name(&required_import);
         if !supported_imports.contains(&full_name.as_str()) {
             let split_name: Vec<&str> = full_name.split('.').collect();
-            if split_name.len() != 2 || split_name[0] == "env" {
+            if split_name.len() != 2 || !split_name[0].starts_with("dynamiclinked_") {
                 return Err(VmError::static_validation_err(format!(
                     "Wasm contract requires unsupported import: \"{}\". Required imports: {}. Available imports: {:?}.",
                     full_name, required_import_names.to_string_limited(200), supported_imports

@@ -79,7 +79,7 @@ pub fn generate_import_contract_declaration(
         }
     }
 
-    let module_name = &contract_struct_id.to_string();
+    let module_name = &format!("dynamiclinked_{}", &contract_struct_id.to_string());
     let extern_block = generate_extern_block(module_name, &signatures);
     let implement_block = generate_implements(
         module_name,
