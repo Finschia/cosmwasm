@@ -6,6 +6,7 @@ use thiserror::Error;
 use cosmwasm_std::{Binary, ContractResult, SystemResult};
 #[cfg(feature = "iterator")]
 use cosmwasm_std::{Order, Record};
+use wasmer::Module;
 
 use crate::environment::Environment;
 use crate::{FunctionMetadata, WasmerVal};
@@ -144,6 +145,7 @@ pub trait BackendApi: Copy + Clone + Send {
         A: BackendApi + 'static,
         S: Storage + 'static,
         Q: Querier + 'static;
+    fn get_wasmer_module(&self, contract_addr: &str) -> BackendResult<Module>;
 }
 
 pub trait Querier {

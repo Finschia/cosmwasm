@@ -203,6 +203,7 @@ dependencies = [
  "thiserror",
  "uint",
  "uuid",
+ "wasmer-types",
 ]
 
 [[package]]

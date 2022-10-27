@@ -19,6 +19,7 @@ use cosmwasm_vm::{
     InstanceOptions, Querier, Size, Storage, WasmerVal,
 };
 use std::cell::RefCell;
+use wasmer::Module;
 use wasmer_types::Type;
 
 // Instance
@@ -75,6 +76,13 @@ impl BackendApi for DummyApi {
         Q: Querier + 'static,
     {
         (Ok(Box::from([])), GasInfo::with_cost(0))
+    }
+
+    fn get_wasmer_module(&self, _contract_addr: &str) -> BackendResult<Module> {
+        (
+            Err(BackendError::unknown("not implemented")),
+            GasInfo::with_cost(0),
+        )
     }
 }
 

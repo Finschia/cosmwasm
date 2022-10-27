@@ -16,6 +16,8 @@ use crate::size::Size;
 use crate::static_analysis::{deserialize_wasm, has_ibc_entry_points};
 use crate::wasm_backend::{compile, make_runtime_store};
 
+use wasmer::Module;
+
 const STATE_DIR: &str = "state";
 // Things related to the state of the blockchain.
 const WASM_DIR: &str = "wasm";
@@ -272,7 +274,7 @@ where
     /// Returns a module tied to a previously saved Wasm.
     /// Depending on availability, this is either generated from a memory cache, file system cache or Wasm code.
     /// This is part of `get_instance` but pulled out to reduce the locking time.
-    fn get_module(&self, checksum: &Checksum) -> VmResult<wasmer::Module> {
+    pub fn get_module(&self, checksum: &Checksum) -> VmResult<Module> {
         let mut cache = self.inner.lock().unwrap();
         // Try to get module from the pinned memory cache
         if let Some(module) = cache.pinned_memory_cache.load(checksum)? {
