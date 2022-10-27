@@ -6,35 +6,36 @@ static CONTRACT_CALLER: &[u8] =
     include_bytes!("../target/wasm32-unknown-unknown/release/dynamic_caller_contract.wasm");
 
 fn required_imports() -> Vec<(String, String, FunctionType)> {
+    let module_name = String::from("dynamiclinked_CalleeContract");
     vec![
         (
             String::from("pong"),
-            String::from("CalleeContract"),
+            module_name.to_string(),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_with_struct"),
-            String::from("CalleeContract"),
+            module_name.to_string(),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_with_tuple"),
-            String::from("CalleeContract"),
+            module_name.to_string(),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_with_tuple_takes_2_args"),
-            String::from("CalleeContract"),
+            module_name.to_string(),
             ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("pong_env"),
-            String::from("CalleeContract"),
+            module_name.to_string(),
             ([Type::I32], [Type::I32]).into(),
         ),
         (
             String::from("do_panic"),
-            String::from("CalleeContract"),
+            module_name.to_string(),
             ([Type::I32], []).into(),
         ),
     ]

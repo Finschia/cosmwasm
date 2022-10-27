@@ -115,7 +115,7 @@ fn check_wasm_imports(module: &Module, supported_imports: &[&str]) -> VmResult<(
         let full_name = full_import_name(&required_import);
         if !supported_imports.contains(&full_name.as_str()) {
             let split_name: Vec<&str> = full_name.split('.').collect();
-            if split_name.len() != 2 || split_name[0] == "env" {
+            if split_name.len() != 2 || !split_name[0].starts_with("dynamiclinked_") {
                 return Err(VmError::static_validation_err(format!(
                     "Wasm contract requires unsupported import: \"{}\". Required imports: {}. Available imports: {:?}.",
                     full_name, required_import_names.to_string_limited(200), supported_imports
@@ -506,6 +506,38 @@ mod tests {
                 "Wasm contract requires unsupported features: {\"nutrients\", \"sun\", \"water\"}"
             ),
             _ => panic!("Got unexpected error"),
+        }
+    }
+
+    #[test]
+    fn check_wasm_imports_fails_for_unsupported_import() {
+        let wasm = wat::parse_str(
+            r#"(module
+            (import "env" "db_read" (func (param i32 i32) (result i32)))
+            (import "env" "db_write" (func (param i32 i32) (result i32)))
+            (import "wasi_snapshot_preview1" "fd_filestat_get" (func (param i32) (result i32)))
+        )"#,
+        )
+        .unwrap();
+        let supported_imports: &[&str] = &[
+            "env.db_read",
+            "env.db_write",
+            "env.db_remove",
+            "env.addr_canonicalize",
+            "env.addr_humanize",
+            "env.debug",
+            "env.query_chain",
+        ];
+        let result = check_wasm_imports(&deserialize_wasm(&wasm).unwrap(), supported_imports);
+        match result.unwrap_err() {
+            VmError::StaticValidationErr { msg, .. } => {
+                println!("{}", msg);
+                assert_eq!(
+                    msg,
+                    r#"Wasm contract requires unsupported import: "wasi_snapshot_preview1.fd_filestat_get". Required imports: {"env.db_read", "env.db_write", "wasi_snapshot_preview1.fd_filestat_get"}. Available imports: ["env.db_read", "env.db_write", "env.db_remove", "env.addr_canonicalize", "env.addr_humanize", "env.debug", "env.query_chain"]."#
+                );
+            }
+            err => panic!("Unexpected error: {:?}", err),
         }
     }
 }

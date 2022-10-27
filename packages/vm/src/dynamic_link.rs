@@ -140,7 +140,7 @@ pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
     for ((module_name, func_name, _), import_index) in module_info
         .imports
         .iter()
-        .filter(|((module_name, _, _), _)| module_name != "env")
+        .filter(|((module_name, _, _), _)| module_name.starts_with("dynamiclinked_"))
     {
         if let ImportIndex::Function(func_index) = import_index {
             let func_sig = module_info.signatures[module_info.functions[*func_index]].clone();
