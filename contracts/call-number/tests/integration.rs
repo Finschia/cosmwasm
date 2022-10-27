@@ -6,25 +6,26 @@ static CONTRACT_CALLER: &[u8] =
     include_bytes!("../target/wasm32-unknown-unknown/release/call_number.wasm");
 
 fn required_imports() -> Vec<(String, String, FunctionType)> {
+    let module_name = "dynamiclinked_NumberContract";
     vec![
         (
             String::from("add"),
-            String::from("dynamiclinked_NumberContract"),
+            module_name.to_string(),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
             String::from("sub"),
-            String::from("dynamiclinked_NumberContract"),
+            module_name.to_string(),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
             String::from("mul"),
-            String::from("dynamiclinked_NumberContract"),
+            module_name.to_string(),
             ([Type::I32, Type::I32], []).into(),
         ),
         (
             String::from("number"),
-            String::from("dynamiclinked_NumberContract"),
+            module_name.to_string(),
             ([Type::I32], [Type::I32]).into(),
         ),
     ]
