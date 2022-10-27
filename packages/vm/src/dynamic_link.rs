@@ -13,6 +13,9 @@ use wasmer_types::ImportIndex;
 
 const MAX_REGIONS_LENGTH: usize = 100_000;
 
+// The length of the address is 63 characters for strings and 65 characters with "" for []byte. Thus, 65<64*2 is used.
+const MAX_ADDRESS_LENGTH: usize = 64 * 2;
+
 pub type WasmerVal = Val;
 
 pub struct FunctionMetadata {
@@ -85,7 +88,7 @@ where
         ));
     };
     let address_region_ptr = ref_to_u32(&args[0])?;
-    let raw_contract_addr = read_region(&env.memory(), address_region_ptr, 64)?;
+    let raw_contract_addr = read_region(&env.memory(), address_region_ptr, MAX_ADDRESS_LENGTH)?;
     let contract_addr = str::from_utf8(&raw_contract_addr)
         .map_err(|_| RuntimeError::new("Invalid stored callee contract address"))?
         .trim_matches('"');
