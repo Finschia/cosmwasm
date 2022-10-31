@@ -19,7 +19,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_crypto-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-package_crypto-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build
@@ -48,7 +48,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -56,7 +56,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_derive-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-package_derive-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build
@@ -77,7 +77,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -85,7 +85,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_schema-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-package_schema-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build
@@ -106,7 +106,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -114,7 +114,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_std-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-package_std-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -160,7 +160,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -168,7 +168,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_storage-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-package_storage-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build library for native target
@@ -192,7 +192,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -200,7 +200,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-package_vm-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-package_vm-rust:1.57.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Build
@@ -227,7 +227,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -235,7 +235,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_burner-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_burner-rust:1.57.0-${{ hashFiles('contracts/burner/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -273,7 +273,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -281,7 +281,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_crypto_verify-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_crypto_verify-rust:1.57.0-${{ hashFiles('contracts/crypto-verify/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -319,7 +319,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -327,7 +327,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-hackatom_verify-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_hackatom-rust:1.57.0-${{ hashFiles('contracts/hackatom/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -365,7 +365,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -373,7 +373,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_ibc_reflect-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_ibc_reflect-rust:1.57.0-${{ hashFiles('contracts/ibc-reflect/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -411,7 +411,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -419,7 +419,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_ibc_reflect_send-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_ibc_reflect_send-rust:1.57.0-${{ hashFiles('contracts/ibc-reflect-send/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -457,7 +457,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -465,7 +465,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_queue-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_queue-rust:1.57.0-${{ hashFiles('contracts/queue/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -476,6 +476,56 @@ jobs:
       - name: Unit tests
         working-directory: ${{env.working-directory}}
         run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_query_queue:
+    name: contract_query_queue
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/query-queue
+      queue-directory: ./contracts/queue
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.57.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_query_queue-rust:1.57.0-${{ hashFiles('contracts/queue/Cargo.lock', 'contracts/query-queue/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Build queue wasm binary for integration tests
+        working-directory: ${{env.queue-directory}}
+        run: cargo wasm --locked
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
         run: cargo integration-test --locked --no-default-features
@@ -503,7 +553,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -511,7 +561,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_reflect-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_reflect-rust:1.57.0-${{ hashFiles('contracts/reflect/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -549,7 +599,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -557,7 +607,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_staking-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-contract_staking-rust:1.57.0-${{ hashFiles('contracts/staking/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -571,6 +621,52 @@ jobs:
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
         run: cargo integration-test --locked --no-default-features
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_voting_with_uuid:
+    name: contract_voting_with_uuid
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/voting-with-uuid
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.57.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_staking-rust:1.57.0-${{ hashFiles('contracts/voting-with-uuid/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test-for-ci --locked --no-default-features
       - name: Build and run schema generator
         working-directory: ${{env.working-directory}}
         run: cargo schema --locked
@@ -779,7 +875,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -787,7 +883,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-fmt-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-fmt-rust:1.57.0-${{ hashFiles('Cargo.lock', 'contracts/*/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add rustfmt component
@@ -808,6 +904,9 @@ jobs:
         run: cargo fmt -- --check
       - name: Check formatting of contract queue
         working-directory: ${{env.root-directory}}/queue
+        run: cargo fmt -- --check
+      - name: Check formatting of contract query-queue
+        working-directory: ${{env.root-directory}}/query-queue
         run: cargo fmt -- --check
       - name: Check formatting of contract staking
         working-directory: ${{env.root-directory}}/staking
@@ -831,7 +930,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -839,7 +938,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-clippy-rust:1.51.0-${{ hashFiles('Cargo.lock') }}
+          key: cargocache-v2-clippy-rust:1.57.0-${{ hashFiles('Cargo.lock', 'contracts/*/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add clippy component
@@ -906,6 +1005,12 @@ jobs:
         run: |
             mkdir -p target/wasm32-unknown-unknown/release
             touch target/wasm32-unknown-unknown/release/queue.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on query-queue
+        working-directory: ${{env.contracts}}/query-queue
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/query_queue.wasm
             cargo clippy --tests -- -D warnings
       - name: Clippy linting on reflect
         working-directory: ${{env.contracts}}/reflect

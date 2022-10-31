@@ -1,13 +1,10 @@
 name: Release
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-    types: [closed]
 
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}    
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -20,56 +17,55 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.51.0
+          toolchain: 1.57.0
           target: wasm32-unknown-unknown
           profile: minimal
-          override: true        
+          override: true
       - name: Get version
         id: get_version
         run: |
             VERSION=$(./devtools/get_version.sh)
-            echo ::set-output name=version::$VERSION
-        env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-      - name: Check version
-        id: tag_check
-        uses: dudo/tag_check@v1.1.1
-        with:
-          version: ${{ steps.get_version.outputs.version }}
-          git_tag_prefix: v
-          
+            echo ::set-output name=version::v$VERSION
+      - name: Get latest tag
+        id: get_latest_tag
+        uses: actions-ecosystem/action-get-latest-tag@v1
       - name: Create new tag
+        if: ${{ steps.get_version.outputs.version != steps.get_latest_tag.outputs.tag }}
         run: |
-          if [ -z "${{ steps.get_version.outputs.version }}" ]; then
-              git tag ${{ steps.get_version.outputs.version }}
-          fi
+          git tag ${{ steps.get_version.outputs.version }}
       - name: Install Docker client
+        if: ${{ steps.get_version.outputs.version != steps.get_latest_tag.outputs.tag }}
         run: |
           apk add docker-cli
       - name: Prepare volume with source code
+        if: ${{ steps.get_version.outputs.version != steps.get_latest_tag.outputs.tag }}
         run: |
           # create a dummy container which will hold a volume with config
           docker create -v /code --name with_code alpine /bin/true
           # copy a config file into this volume
           docker cp ./Cargo.toml with_code:/code
+          docker cp ./Cargo.lock with_code:/code
           docker cp ./contracts with_code:/code
           docker cp ./packages with_code:/code
       - name: Build development contracts
+        if: ${{ steps.get_version.outputs.version != steps.get_latest_tag.outputs.tag }}
         run: |
           echo "Building all contracts under ./contracts"
-          docker run --volumes-from with_code cosmwasm/rust-optimizer:0.11.0 ./contracts/*/
+          docker run --volumes-from with_code cosmwasm/rust-optimizer:0.12.5 ./contracts/*/
       - name: Check development contracts
+        if: ${{ steps.get_version.outputs.version != steps.get_latest_tag.outputs.tag }}
         working-directory: ./
         run: |
           echo "Checking all contracts under ./artifacts"
-          docker run --volumes-from with_code rust:1.51.0 /bin/bash -e -c 'cd ./code/packages/vm; ./examples/check_contract.sh ../../artifacts/*.wasm'
+          docker run --volumes-from with_code rust:1.57.0 /bin/bash -e -c 'cd ./code/packages/vm; export GLOBIGNORE=../../artifacts/floaty.wasm; ./examples/check_contract.sh ../../artifacts/*.wasm'
           docker cp with_code:/code/artifacts .
 
       - name: Create Release
+        if: ${{ steps.get_version.outputs.version != steps.get_latest_tag.outputs.tag }}
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
+          tag_name: ${{ steps.get_version.outputs.version }}
           body: ${{ github.event.pull_request.body }}
           files: |
             ./artifacts/*

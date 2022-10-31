@@ -18,14 +18,15 @@
 //! 4. Anywhere you see query(&deps, ...) you must replace it with query(&mut deps, ...)
 
 use cosmwasm_std::{
-    attr, coins, from_binary, to_vec, Addr, AllBalanceResponse, BankMsg, Binary, ContractResult,
-    Empty, Response,
+    coins, from_binary, to_vec, Addr, AllBalanceResponse, BankMsg, Binary, ContractResult, Empty,
+    Response, SubMsg,
 };
 use cosmwasm_vm::{
     call_execute, from_slice,
     testing::{
         execute, instantiate, migrate, mock_env, mock_info, mock_instance,
-        mock_instance_with_balances, query, sudo, test_io, MOCK_CONTRACT_ADDR,
+        mock_instance_with_balances, mock_instance_with_gas_limit, query, sudo, test_io,
+        MOCK_CONTRACT_ADDR,
     },
     Storage, VmError,
 };
@@ -34,6 +35,8 @@ use hackatom::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SudoMsg};
 use hackatom::state::{State, CONFIG_KEY};
 
 static WASM: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/release/hackatom.wasm");
+
+const DESERIALIZATION_LIMIT: usize = 20_000;
 
 fn make_init_msg() -> (InstantiateMsg, String) {
     let verifier = String::from("verifies");
@@ -51,7 +54,7 @@ fn make_init_msg() -> (InstantiateMsg, String) {
 #[test]
 fn proper_initialization() {
     let mut deps = mock_instance(WASM, &[]);
-    assert_eq!(deps.required_features.len(), 0);
+    assert_eq!(deps.required_features().len(), 0);
 
     let verifier = String::from("verifies");
     let beneficiary = String::from("benefits");
@@ -69,9 +72,7 @@ fn proper_initialization() {
     let info = mock_info(&creator, &coins(1000, "earth"));
     let res: Response = instantiate(&mut deps, mock_env(), info, msg).unwrap();
     assert_eq!(res.messages.len(), 0);
-    assert_eq!(res.attributes.len(), 1);
-    assert_eq!(res.attributes[0].key, "Let the");
-    assert_eq!(res.attributes[0].value, "hacking begin");
+    assert_eq!(res.attributes, [("Let the", "hacking begin")]);
 
     // it worked, let's check the state
     let state: State = deps
@@ -81,7 +82,7 @@ fn proper_initialization() {
                 .0
                 .expect("error reading db")
                 .expect("no data stored");
-            from_slice(&data)
+            from_slice(&data, DESERIALIZATION_LIMIT)
         })
         .unwrap();
     assert_eq!(state, expected_state);
@@ -171,7 +172,7 @@ fn sudo_can_steal_tokens() {
     let res: Response = sudo(&mut deps, mock_env(), sys_msg).unwrap();
     assert_eq!(1, res.messages.len());
     let msg = res.messages.get(0).expect("no message");
-    assert_eq!(msg, &BankMsg::Send { to_address, amount }.into(),);
+    assert_eq!(msg, &SubMsg::new(BankMsg::Send { to_address, amount }));
 }
 
 #[test]
@@ -240,15 +241,14 @@ fn execute_release_works() {
     let msg = execute_res.messages.get(0).expect("no message");
     assert_eq!(
         msg,
-        &BankMsg::Send {
+        &SubMsg::new(BankMsg::Send {
             to_address: beneficiary,
             amount: coins(1000, "earth"),
-        }
-        .into(),
+        }),
     );
     assert_eq!(
         execute_res.attributes,
-        vec![attr("action", "release"), attr("destination", "benefits")],
+        vec![("action", "release"), ("destination", "benefits")],
     );
     assert_eq!(execute_res.data, Some(vec![0xF0, 0x0B, 0xAA].into()));
 }
@@ -296,7 +296,7 @@ fn execute_release_fails_for_wrong_sender() {
                 .expect("no data stored"))
         })
         .unwrap();
-    let state: State = from_slice(&data).unwrap();
+    let state: State = from_slice(&data, DESERIALIZATION_LIMIT).unwrap();
     assert_eq!(
         state,
         State {
@@ -305,6 +305,35 @@ fn execute_release_fails_for_wrong_sender() {
             funder: Addr::unchecked(&creator),
         }
     );
+}
+
+#[test]
+fn execute_argon2() {
+    let mut deps = mock_instance_with_gas_limit(WASM, 100_000_000_000_000);
+
+    let (instantiate_msg, creator) = make_init_msg();
+    let init_info = mock_info(creator.as_str(), &[]);
+    let init_res: Response =
+        instantiate(&mut deps, mock_env(), init_info, instantiate_msg).unwrap();
+    assert_eq!(0, init_res.messages.len());
+
+    let gas_before = deps.get_gas_left();
+    let _execute_res: Response = execute(
+        &mut deps,
+        mock_env(),
+        mock_info(creator.as_str(), &[]),
+        ExecuteMsg::Argon2 {
+            mem_cost: 256,
+            time_cost: 5,
+        },
+    )
+    .unwrap();
+    let gas_used = gas_before - deps.get_gas_left();
+    // Note: the exact gas usage depends on the Rust version used to compile Wasm,
+    // which we only fix when using rust-optimizer, not integration tests.
+    let expected = 15428758650000; // +/- 20%
+    assert!(gas_used > expected * 80 / 100, "Gas used: {}", gas_used);
+    assert!(gas_used < expected * 120 / 100, "Gas used: {}", gas_used);
 }
 
 #[test]
@@ -404,9 +433,9 @@ fn execute_allocate_large_memory() {
     );
     let gas_used = gas_before - deps.get_gas_left();
     // Gas consumption is relatively small
-    // Note: the exact gas usage depends on the Rust version used to compile WASM,
-    // which we only fix when using cosmwasm-opt, not integration tests.
-    let expected = 27880; // +/- 20%
+    // Note: the exact gas usage depends on the Rust version used to compile Wasm,
+    // which we only fix when using rust-optimizer, not integration tests.
+    let expected = 4413600000; // +/- 20%
     assert!(gas_used > expected * 80 / 100, "Gas used: {}", gas_used);
     assert!(gas_used < expected * 120 / 100, "Gas used: {}", gas_used);
     let used = deps.memory_pages();
@@ -425,9 +454,9 @@ fn execute_allocate_large_memory() {
     assert_eq!(result.unwrap_err(), "Generic error: memory.grow failed");
     let gas_used = gas_before - deps.get_gas_left();
     // Gas consumption is relatively small
-    // Note: the exact gas usage depends on the Rust version used to compile WASM,
-    // which we only fix when using cosmwasm-opt, not integration tests.
-    let expected = 31076; // +/- 20%
+    // Note: the exact gas usage depends on the Rust version used to compile Wasm,
+    // which we only fix when using rust-optimizer, not integration tests.
+    let expected = 4859700000; // +/- 20%
     assert!(gas_used > expected * 80 / 100, "Gas used: {}", gas_used);
     assert!(gas_used < expected * 120 / 100, "Gas used: {}", gas_used);
     let used = deps.memory_pages();
@@ -454,7 +483,13 @@ fn execute_panic() {
         &to_vec(&ExecuteMsg::Panic {}).unwrap(),
     );
     match execute_res.unwrap_err() {
-        VmError::RuntimeErr { .. } => {}
+        VmError::RuntimeErr { msg, .. } => {
+            assert!(
+                msg.contains("Aborted: panicked at 'This page intentionally faulted'"),
+                "Must contain panic message"
+            );
+            assert!(msg.contains("contract.rs:"), "Must contain file and line");
+        }
         err => panic!("Unexpected error: {:?}", err),
     }
 }

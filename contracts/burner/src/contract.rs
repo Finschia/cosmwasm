@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    attr, entry_point, BankMsg, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
+    entry_point, BankMsg, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult,
 };
 
 use crate::msg::{InstantiateMsg, MigrateMsg};
@@ -38,23 +38,24 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
 
     let data_msg = format!("burnt {} keys", count).into_bytes();
 
-    Ok(Response {
-        submessages: vec![],
-        messages: vec![send.into()],
-        attributes: vec![attr("action", "burn"), attr("payout", msg.payout)],
-        data: Some(data_msg.into()),
-    })
+    Ok(Response::new()
+        .add_message(send)
+        .add_attribute("action", "burn")
+        .add_attribute("payout", msg.payout)
+        .set_data(data_msg))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, StdError, Storage};
+    use cosmwasm_std::testing::{
+        mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
+    };
+    use cosmwasm_std::{coins, StdError, Storage, SubMsg};
 
     #[test]
     fn instantiate_fails() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {};
         let info = mock_info("creator", &coins(1000, "earth"));
@@ -70,7 +71,7 @@ mod tests {
 
     #[test]
     fn migrate_cleans_up_data() {
-        let mut deps = mock_dependencies(&coins(123456, "gold"));
+        let mut deps = mock_dependencies_with_balance(&coins(123456, "gold"));
 
         // store some sample data
         deps.storage.set(b"foo", b"bar");
@@ -90,11 +91,10 @@ mod tests {
         let msg = res.messages.get(0).expect("no message");
         assert_eq!(
             msg,
-            &BankMsg::Send {
+            &SubMsg::new(BankMsg::Send {
                 to_address: payout,
                 amount: coins(123456, "gold"),
-            }
-            .into(),
+            })
         );
 
         // check there is no data in storage

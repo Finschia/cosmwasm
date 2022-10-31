@@ -111,7 +111,7 @@ pub fn withdraw_voting_tokens(
     let sender_address_raw = info.sender.as_str().as_bytes();
 
     if let Some(mut token_manager) = bank_read(deps.storage).may_load(sender_address_raw)? {
-        let largest_staked = locked_amount(&sender_address_raw, deps.storage);
+        let largest_staked = locked_amount(sender_address_raw, deps.storage);
         let withdraw_amount = amount.unwrap_or(token_manager.token_balance);
         if largest_staked + withdraw_amount > token_manager.token_balance {
             let max_amount = token_manager.token_balance.checked_sub(largest_staked)?;
@@ -208,19 +208,17 @@ pub fn create_poll(
     };
     poll(deps.storage).save(poll_id.as_slice(), &new_poll)?;
 
-    let r = Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![
-            attr("action", "create_poll"),
-            attr("creator", new_poll.creator),
-            attr("poll_id", poll_id.to_string()),
-            attr("quorum_percentage", quorum_percentage.unwrap_or(0)),
-            attr("end_height", new_poll.end_height),
-            attr("start_height", start_height.unwrap_or(0)),
-        ],
-        data: Some(to_binary(&CreatePollResponse { poll_id })?),
-    };
+    let r = Response::new()
+        .add_attribute("action", "create_poll")
+        .add_attribute("creator", new_poll.creator)
+        .add_attribute("poll_id", poll_id.to_string())
+        .add_attribute(
+            "quorum_percentage",
+            quorum_percentage.unwrap_or(0).to_string(),
+        )
+        .add_attribute("end_height", new_poll.end_height.to_string())
+        .add_attribute("start_height", start_height.unwrap_or(0).to_string())
+        .set_data(to_binary(&CreatePollResponse { poll_id })?);
     Ok(r)
 }
 
@@ -316,16 +314,10 @@ pub fn end_poll(
         attr("action", "end_poll"),
         attr("poll_id", poll_id.to_string()),
         attr("rejected_reason", rejected_reason),
-        attr("passed", &passed),
+        attr("passed", &passed.to_string()),
     ];
 
-    let r = Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes,
-        data: None,
-    };
-    Ok(r)
+    Ok(Response::new().add_attributes(attributes))
 }
 
 // unlock voter's tokens in a given poll
@@ -401,41 +393,29 @@ pub fn cast_vote(
     let attributes = vec![
         attr("action", "vote_casted"),
         attr("poll_id", poll_id.to_string()),
-        attr("weight", &weight),
+        attr("weight", &weight.to_string()),
         attr("voter", &info.sender),
     ];
 
-    let r = Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes,
-        data: None,
-    };
-    Ok(r)
+    Ok(Response::new().add_attributes(attributes))
 }
 
 fn send_tokens(to_address: &Addr, amount: Vec<Coin>, action: &str) -> Response {
     let attributes = vec![attr("action", action), attr("to", to_address.clone())];
 
-    Response {
-        submessages: vec![],
-        messages: vec![CosmosMsg::Bank(BankMsg::Send {
+    Response::new()
+        .add_message(CosmosMsg::Bank(BankMsg::Send {
             to_address: to_address.to_string(),
             amount,
-        })],
-        attributes,
-        data: None,
-    }
+        }))
+        .add_attributes(attributes)
 }
 
 pub fn make_uuid(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let uuid = new_uuid(&env, deps.storage, deps.api)?;
-    let r = Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "make_uuid"), attr("uuid", uuid.to_string())],
-        data: None,
-    };
+    let r = Response::new()
+        .add_attribute("action", "make_uuid")
+        .add_attribute("uuid", uuid.to_string());
     Ok(r)
 }
 
@@ -446,12 +426,9 @@ pub fn make_seq_id(
 ) -> Result<Response, ContractError> {
     let seq_id: u64 = 0;
 
-    let r = Response {
-        submessages: vec![],
-        messages: vec![],
-        attributes: vec![attr("action", "make_seq_id"), attr("uuid", seq_id)],
-        data: None,
-    };
+    let r = Response::new()
+        .add_attribute("action", "make_seq_id")
+        .add_attribute("uuid", seq_id.to_string());
     Ok(r)
 }
 

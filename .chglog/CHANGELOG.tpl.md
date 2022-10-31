@@ -5,10 +5,9 @@
 
 {{ range .CommitGroups -}}
 ### {{ .Title }}
+{{ range .Commits -}}{{ if regexMatch `^.+\(\[#[1-9][0-9]*\]\(https://github.com/line/cosmwasm/issues/[1-9][0-9]*\)\)$` .Subject }}
+* {{ if .Scope }}**{{ .Scope }}:** {{ end }}{{ mustRegexReplaceAll `issues/([1-9][0-9]*)\)\)$` .Subject `pull/${1}))` }}{{ end }}{{ end }}
 
-{{ range .Commits -}}
-* {{ if .Scope }}**{{ .Scope }}:** {{ end }}{{ .Subject }}
-{{ end }}
 {{ end -}}
 
 {{- if .NoteGroups -}}

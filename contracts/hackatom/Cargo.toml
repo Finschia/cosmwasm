@@ -2,8 +2,9 @@
 name = "hackatom"
 version = "0.0.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 publish = false
+license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -22,15 +23,16 @@ incremental = false
 overflow-checks = true
 
 [features]
-# Change this to [] if you don't need Windows support and want faster integration tests.
-default = ["cranelift"]
-# Use cranelift backend instead of singlepass. This is required for development on Windows.
+# Add feature "cranelift" to default if you need 32 bit or ARM support
+default = []
+# Use cranelift backend instead of singlepass. This is required for development on 32 bit or ARM machines.
 cranelift = ["cosmwasm-vm/cranelift"]
 # For quicker tests, cargo test --lib. for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
 
 [dependencies]
-cosmwasm-std = { path = "../../packages/std" }
+cosmwasm-std = { path = "../../packages/std", default-features = false, features = ["abort"] }
+rust-argon2 = "0.8"
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 sha2 = "0.9.1"
@@ -38,5 +40,5 @@ thiserror = "1.0"
 
 [dev-dependencies]
 cosmwasm-schema = { path = "../../packages/schema" }
-cosmwasm-storage = { path = "../../packages/storage" }
+cosmwasm-storage = { path = "../../packages/storage", default-features = false }
 cosmwasm-vm = { path = "../../packages/vm", default-features = false }

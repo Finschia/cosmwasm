@@ -17,7 +17,7 @@ use super::storage::MockStorage;
 /// This gas limit is used in integration tests and should be high enough to allow a reasonable
 /// number of contract executions and queries on one instance. For this reason it is significatly
 /// higher than the limit for a single execution that we have in the production setup.
-const DEFAULT_GAS_LIMIT: u64 = 5_000_000;
+const DEFAULT_GAS_LIMIT: u64 = 500_000_000_000; // ~0.5ms
 const DEFAULT_MEMORY_LIMIT: Option<Size> = Some(Size::mebi(16));
 const DEFAULT_PRINT_DEBUG: bool = true;
 
@@ -93,14 +93,12 @@ pub struct MockInstanceOptions<'a> {
 }
 
 impl MockInstanceOptions<'_> {
-    #[cfg(feature = "stargate")]
     fn default_features() -> HashSet<String> {
-        features_from_csv("staking,stargate")
-    }
-
-    #[cfg(not(feature = "stargate"))]
-    fn default_features() -> HashSet<String> {
-        features_from_csv("staking")
+        #[allow(unused_mut)]
+        let mut out = features_from_csv("iterator,staking");
+        #[cfg(feature = "stargate")]
+        out.insert("stargate".to_string());
+        out
     }
 }
 

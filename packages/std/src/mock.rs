@@ -2,6 +2,7 @@ use serde::de::DeserializeOwned;
 #[cfg(feature = "stargate")]
 use serde::Serialize;
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use wasmer_types::{ExportType, FunctionType};
 
 use crate::addresses::{Addr, CanonicalAddr};
@@ -12,7 +13,11 @@ use crate::errors::{
     HashCalculationError, RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
 };
 #[cfg(feature = "stargate")]
-use crate::ibc::{IbcChannel, IbcEndpoint, IbcOrder, IbcPacket, IbcTimeoutBlock};
+use crate::ibc::{
+    IbcAcknowledgement, IbcChannel, IbcChannelCloseMsg, IbcChannelConnectMsg, IbcChannelOpenMsg,
+    IbcEndpoint, IbcOrder, IbcPacket, IbcPacketAckMsg, IbcPacketReceiveMsg, IbcPacketTimeoutMsg,
+    IbcTimeoutBlock,
+};
 use crate::query::{
     AllBalanceResponse, BalanceResponse, BankQuery, CustomQuery, QueryRequest, WasmQuery,
 };
@@ -26,24 +31,35 @@ use crate::serde::{from_slice, to_binary};
 use crate::storage::MemoryStorage;
 use crate::timestamp::Timestamp;
 use crate::traits::{Api, Querier, QuerierResult};
-use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo};
+use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo, TransactionInfo};
+use crate::Attribute;
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 
-/// All external requirements that can be injected for unit tests.
-/// It sets the given balance for the contract itself, nothing else
-pub fn mock_dependencies(
-    contract_balance: &[Coin],
-) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
+/// Creates all external requirements that can be injected for unit tests.
+///
+/// See also [`mock_dependencies_with_balance`] and [`mock_dependencies_with_balances`]
+/// if you want to start with some initial balances.
+pub fn mock_dependencies() -> OwnedDeps<MockStorage, MockApi, MockQuerier, Empty> {
     OwnedDeps {
         storage: MockStorage::default(),
         api: MockApi::default(),
-        querier: MockQuerier::new(&[(MOCK_CONTRACT_ADDR, contract_balance)]),
+        querier: MockQuerier::default(),
+        custom_query_type: PhantomData,
     }
 }
 
+/// Creates all external requirements that can be injected for unit tests.
+///
+/// It sets the given balance for the contract itself, nothing else.
+pub fn mock_dependencies_with_balance(
+    contract_balance: &[Coin],
+) -> OwnedDeps<MockStorage, MockApi, MockQuerier, Empty> {
+    mock_dependencies_with_balances(&[(MOCK_CONTRACT_ADDR, contract_balance)])
+}
+
 /// Initializes the querier along with the mock_dependencies.
-/// Sets all balances provided (yoy must explicitly set contract balance if desired)
+/// Sets all balances provided (you must explicitly set contract balance if desired).
 pub fn mock_dependencies_with_balances(
     balances: &[(&str, &[Coin])],
 ) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
@@ -51,12 +67,21 @@ pub fn mock_dependencies_with_balances(
         storage: MockStorage::default(),
         api: MockApi::default(),
         querier: MockQuerier::new(balances),
+        custom_query_type: PhantomData,
     }
 }
 
 // Use MemoryStorage implementation (which is valid in non-testcode)
 // We can later make simplifications here if needed
 pub type MockStorage = MemoryStorage;
+
+/// Length of canonical addresses created with this API. Contracts should not make any assumtions
+/// what this value is.
+/// The value here must be restorable with `SHUFFLES_ENCODE` + `SHUFFLES_DECODE` in-shuffles.
+const CANONICAL_LENGTH: usize = 54;
+
+const SHUFFLES_ENCODE: usize = 18;
+const SHUFFLES_DECODE: usize = 2;
 
 // MockPrecompiles zero pads all human addresses to make them fit the canonical_length
 // it trims off zeros for the reverse operation.
@@ -65,37 +90,47 @@ pub type MockStorage = MemoryStorage;
 pub struct MockApi {
     /// Length of canonical addresses created with this API. Contracts should not make any assumtions
     /// what this value is.
-    pub canonical_length: usize,
+    canonical_length: usize,
 }
 
 impl Default for MockApi {
     fn default() -> Self {
         MockApi {
-            canonical_length: 24,
+            canonical_length: CANONICAL_LENGTH,
         }
     }
 }
 
 impl Api for MockApi {
-    fn addr_validate(&self, human: &str) -> StdResult<Addr> {
-        self.addr_canonicalize(human).map(|_canonical| ())?;
-        Ok(Addr::unchecked(human))
+    fn addr_validate(&self, input: &str) -> StdResult<Addr> {
+        let canonical = self.addr_canonicalize(input)?;
+        let normalized = self.addr_humanize(&canonical)?;
+        if input != normalized {
+            return Err(StdError::generic_err(
+                "Invalid input: address not normalized",
+            ));
+        }
+
+        Ok(Addr::unchecked(input))
     }
 
-    fn addr_canonicalize(&self, human: &str) -> StdResult<CanonicalAddr> {
+    fn addr_canonicalize(&self, input: &str) -> StdResult<CanonicalAddr> {
         // Dummy input validation. This is more sophisticated for formats like bech32, where format and checksum are validated.
-        if human.len() < 3 {
+        if input.len() < 3 {
             return Err(StdError::generic_err(
                 "Invalid input: human address too short",
             ));
         }
-        if human.len() > self.canonical_length {
+        if input.len() > self.canonical_length {
             return Err(StdError::generic_err(
                 "Invalid input: human address too long",
             ));
         }
 
-        let mut out = Vec::from(human);
+        // mimicks formats like hex or bech32 where different casings are valid for one address
+        let normalized = input.to_lowercase();
+
+        let mut out = Vec::from(normalized);
 
         // pad to canonical length with NULL bytes
         out.resize(self.canonical_length, 0x00);
@@ -103,7 +138,7 @@ impl Api for MockApi {
         // the most obvious structure (https://github.com/CosmWasm/cosmwasm/issues/552)
         let rotate_by = digit_sum(&out) % self.canonical_length;
         out.rotate_left(rotate_by);
-        for _ in 0..18 {
+        for _ in 0..SHUFFLES_ENCODE {
             out = riffle_shuffle(&out);
         }
         Ok(out.into())
@@ -118,7 +153,7 @@ impl Api for MockApi {
 
         let mut tmp: Vec<u8> = canonical.clone().into();
         // Shuffle two more times which restored the original value (24 elements are back to original after 20 rounds)
-        for _ in 0..2 {
+        for _ in 0..SHUFFLES_DECODE {
             tmp = riffle_shuffle(&tmp);
         }
         // Rotate back
@@ -209,6 +244,7 @@ pub fn mock_env() -> Env {
             time: Timestamp::from_nanos(1_571_797_419_879_305_533),
             chain_id: "cosmos-testnet-14002".to_string(),
         },
+        transaction: Some(TransactionInfo { index: 3 }),
         contract: ContractInfo {
             address: Addr::unchecked(MOCK_CONTRACT_ADDR),
         },
@@ -224,9 +260,9 @@ pub fn mock_info(sender: &str, funds: &[Coin]) -> MessageInfo {
     }
 }
 
-#[cfg(feature = "stargate")]
 /// Creates an IbcChannel for testing. You set a few key parameters for handshaking,
 /// If you want to set more, use this as a default and mutate other fields
+#[cfg(feature = "stargate")]
 pub fn mock_ibc_channel(my_channel_id: &str, order: IbcOrder, version: &str) -> IbcChannel {
     IbcChannel {
         endpoint: IbcEndpoint {
@@ -239,39 +275,105 @@ pub fn mock_ibc_channel(my_channel_id: &str, order: IbcOrder, version: &str) -> 
         },
         order,
         version: version.to_string(),
-        counterparty_version: Some(version.to_string()),
         connection_id: "connection-2".to_string(),
     }
 }
 
+/// Creates a IbcChannelOpenMsg::OpenInit for testing ibc_channel_open.
 #[cfg(feature = "stargate")]
-/// Creates a IbcPacket for testing ibc_packet_receive. You set a few key parameters that are
-/// often parsed. If you want to set more, use this as a default and mutate other fields
-pub fn mock_ibc_packet_recv<T: Serialize>(my_channel_id: &str, data: &T) -> StdResult<IbcPacket> {
-    Ok(IbcPacket {
-        data: to_binary(data)?,
-        src: IbcEndpoint {
-            port_id: "their-port".to_string(),
-            channel_id: "channel-1234".to_string(),
-        },
-        dest: IbcEndpoint {
-            port_id: "our-port".to_string(),
-            channel_id: my_channel_id.into(),
-        },
-        sequence: 27,
-        timeout: IbcTimeoutBlock {
-            revision: 1,
-            height: 12345678,
-        }
-        .into(),
-    })
+pub fn mock_ibc_channel_open_init(
+    my_channel_id: &str,
+    order: IbcOrder,
+    version: &str,
+) -> IbcChannelOpenMsg {
+    IbcChannelOpenMsg::new_init(mock_ibc_channel(my_channel_id, order, version))
 }
 
+/// Creates a IbcChannelOpenMsg::OpenTry for testing ibc_channel_open.
 #[cfg(feature = "stargate")]
+pub fn mock_ibc_channel_open_try(
+    my_channel_id: &str,
+    order: IbcOrder,
+    version: &str,
+) -> IbcChannelOpenMsg {
+    IbcChannelOpenMsg::new_try(mock_ibc_channel(my_channel_id, order, version), version)
+}
+
+/// Creates a IbcChannelConnectMsg::ConnectAck for testing ibc_channel_connect.
+#[cfg(feature = "stargate")]
+pub fn mock_ibc_channel_connect_ack(
+    my_channel_id: &str,
+    order: IbcOrder,
+    version: &str,
+) -> IbcChannelConnectMsg {
+    IbcChannelConnectMsg::new_ack(mock_ibc_channel(my_channel_id, order, version), version)
+}
+
+/// Creates a IbcChannelConnectMsg::ConnectConfirm for testing ibc_channel_connect.
+#[cfg(feature = "stargate")]
+pub fn mock_ibc_channel_connect_confirm(
+    my_channel_id: &str,
+    order: IbcOrder,
+    version: &str,
+) -> IbcChannelConnectMsg {
+    IbcChannelConnectMsg::new_confirm(mock_ibc_channel(my_channel_id, order, version))
+}
+
+/// Creates a IbcChannelCloseMsg::CloseInit for testing ibc_channel_close.
+#[cfg(feature = "stargate")]
+pub fn mock_ibc_channel_close_init(
+    my_channel_id: &str,
+    order: IbcOrder,
+    version: &str,
+) -> IbcChannelCloseMsg {
+    IbcChannelCloseMsg::new_init(mock_ibc_channel(my_channel_id, order, version))
+}
+
+/// Creates a IbcChannelCloseMsg::CloseConfirm for testing ibc_channel_close.
+#[cfg(feature = "stargate")]
+pub fn mock_ibc_channel_close_confirm(
+    my_channel_id: &str,
+    order: IbcOrder,
+    version: &str,
+) -> IbcChannelCloseMsg {
+    IbcChannelCloseMsg::new_confirm(mock_ibc_channel(my_channel_id, order, version))
+}
+
+/// Creates a IbcPacketReceiveMsg for testing ibc_packet_receive. You set a few key parameters that are
+/// often parsed. If you want to set more, use this as a default and mutate other fields
+#[cfg(feature = "stargate")]
+pub fn mock_ibc_packet_recv(
+    my_channel_id: &str,
+    data: &impl Serialize,
+) -> StdResult<IbcPacketReceiveMsg> {
+    Ok(IbcPacketReceiveMsg::new(
+        IbcPacket {
+            data: to_binary(data)?,
+            src: IbcEndpoint {
+                port_id: "their-port".to_string(),
+                channel_id: "channel-1234".to_string(),
+            },
+            dest: IbcEndpoint {
+                port_id: "our-port".to_string(),
+                channel_id: my_channel_id.into(),
+            },
+            sequence: 27,
+            timeout: IbcTimeoutBlock {
+                revision: 1,
+                height: 12345678,
+            }
+            .into(),
+        },
+        #[cfg(feature = "ibc3")]
+        Addr::unchecked("relayer"),
+    ))
+}
+
 /// Creates a IbcPacket for testing ibc_packet_{ack,timeout}. You set a few key parameters that are
 /// often parsed. If you want to set more, use this as a default and mutate other fields.
-/// The difference between mock_ibc_packet_recv is if `my_channel_id` is src or dest.
-pub fn mock_ibc_packet_ack<T: Serialize>(my_channel_id: &str, data: &T) -> StdResult<IbcPacket> {
+/// The difference from mock_ibc_packet_recv is if `my_channel_id` is src or dest.
+#[cfg(feature = "stargate")]
+fn mock_ibc_packet(my_channel_id: &str, data: &impl Serialize) -> StdResult<IbcPacket> {
     Ok(IbcPacket {
         data: to_binary(data)?,
         src: IbcEndpoint {
@@ -291,18 +393,52 @@ pub fn mock_ibc_packet_ack<T: Serialize>(my_channel_id: &str, data: &T) -> StdRe
     })
 }
 
+/// Creates a IbcPacketAckMsg for testing ibc_packet_ack. You set a few key parameters that are
+/// often parsed. If you want to set more, use this as a default and mutate other fields.
+/// The difference from mock_ibc_packet_recv is if `my_channel_id` is src or dest.
+#[cfg(feature = "stargate")]
+pub fn mock_ibc_packet_ack(
+    my_channel_id: &str,
+    data: &impl Serialize,
+    ack: IbcAcknowledgement,
+) -> StdResult<IbcPacketAckMsg> {
+    let packet = mock_ibc_packet(my_channel_id, data)?;
+
+    Ok(IbcPacketAckMsg::new(
+        ack,
+        packet,
+        #[cfg(feature = "ibc3")]
+        Addr::unchecked("relayer"),
+    ))
+}
+
+/// Creates a IbcPacketTimeoutMsg for testing ibc_packet_timeout. You set a few key parameters that are
+/// often parsed. If you want to set more, use this as a default and mutate other fields.
+/// The difference from mock_ibc_packet_recv is if `my_channel_id` is src or dest./
+#[cfg(feature = "stargate")]
+pub fn mock_ibc_packet_timeout(
+    my_channel_id: &str,
+    data: &impl Serialize,
+) -> StdResult<IbcPacketTimeoutMsg> {
+    let packet = mock_ibc_packet(my_channel_id, data)?;
+    Ok(IbcPacketTimeoutMsg::new(
+        packet,
+        #[cfg(feature = "ibc3")]
+        Addr::unchecked("relayer"),
+    ))
+}
+
 /// The same type as cosmwasm-std's QuerierResult, but easier to reuse in
 /// cosmwasm-vm. It might diverge from QuerierResult at some point.
 pub type MockQuerierCustomHandlerResult = SystemResult<ContractResult<Binary>>;
 
 /// MockQuerier holds an immutable table of bank balances
-/// TODO: also allow querying contracts
+/// and configurable handlers for Wasm queries and custom queries.
 pub struct MockQuerier<C: DeserializeOwned = Empty> {
     bank: BankQuerier,
     #[cfg(feature = "staking")]
     staking: StakingQuerier,
-    // placeholder to add support later
-    wasm: NoWasmQuerier,
+    wasm: WasmQuerier,
     /// A handler to handle custom queries. This is set to a dummy handler that
     /// always errors by default. Update it via `with_custom_handler`.
     ///
@@ -316,7 +452,7 @@ impl<C: DeserializeOwned> MockQuerier<C> {
             bank: BankQuerier::new(balances),
             #[cfg(feature = "staking")]
             staking: StakingQuerier::default(),
-            wasm: NoWasmQuerier {},
+            wasm: WasmQuerier::default(),
             // strange argument notation suggested as a workaround here: https://github.com/rust-lang/rust/issues/41078#issuecomment-294296365
             custom_handler: Box::from(|_: &_| -> MockQuerierCustomHandlerResult {
                 SystemResult::Err(SystemError::UnsupportedRequest {
@@ -327,9 +463,9 @@ impl<C: DeserializeOwned> MockQuerier<C> {
     }
 
     // set a new balance for the given address and return the old balance
-    pub fn update_balance<U: Into<String>>(
+    pub fn update_balance(
         &mut self,
-        addr: U,
+        addr: impl Into<String>,
         balance: Vec<Coin>,
     ) -> Option<Vec<Coin>> {
         self.bank.balances.insert(addr.into(), balance)
@@ -345,12 +481,26 @@ impl<C: DeserializeOwned> MockQuerier<C> {
         self.staking = StakingQuerier::new(denom, validators, delegations);
     }
 
+    pub fn update_wasm<WH: 'static>(&mut self, handler: WH)
+    where
+        WH: Fn(&WasmQuery) -> QuerierResult,
+    {
+        self.wasm.update_handler(handler)
+    }
+
+    #[must_use]
     pub fn with_custom_handler<CH: 'static>(mut self, handler: CH) -> Self
     where
         CH: Fn(&C) -> MockQuerierCustomHandlerResult,
     {
         self.custom_handler = Box::from(handler);
         self
+    }
+}
+
+impl Default for MockQuerier {
+    fn default() -> Self {
+        MockQuerier::new(&[])
     }
 }
 
@@ -389,19 +539,43 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
     }
 }
 
-#[derive(Clone, Default)]
-struct NoWasmQuerier {
-    // FIXME: actually provide a way to call out
+struct WasmQuerier {
+    /// A handler to handle Wasm queries. This is set to a dummy handler that
+    /// always errors by default. Update it via `with_custom_handler`.
+    ///
+    /// Use box to avoid the need of generic type.
+    handler: Box<dyn for<'a> Fn(&'a WasmQuery) -> QuerierResult>,
 }
 
-impl NoWasmQuerier {
+impl WasmQuerier {
+    fn new(handler: Box<dyn for<'a> Fn(&'a WasmQuery) -> QuerierResult>) -> Self {
+        Self { handler }
+    }
+
+    fn update_handler<WH: 'static>(&mut self, handler: WH)
+    where
+        WH: Fn(&WasmQuery) -> QuerierResult,
+    {
+        self.handler = Box::from(handler)
+    }
+
     fn query(&self, request: &WasmQuery) -> QuerierResult {
-        let addr = match request {
-            WasmQuery::Smart { contract_addr, .. } => contract_addr,
-            WasmQuery::Raw { contract_addr, .. } => contract_addr,
-        }
-        .clone();
-        SystemResult::Err(SystemError::NoSuchContract { addr })
+        (*self.handler)(request)
+    }
+}
+
+impl Default for WasmQuerier {
+    fn default() -> Self {
+        let handler = Box::from(|request: &WasmQuery| -> QuerierResult {
+            let addr = match request {
+                WasmQuery::Smart { contract_addr, .. } => contract_addr,
+                WasmQuery::Raw { contract_addr, .. } => contract_addr,
+                WasmQuery::ContractInfo { contract_addr, .. } => contract_addr,
+            }
+            .clone();
+            SystemResult::Err(SystemError::NoSuchContract { addr })
+        });
+        Self::new(handler)
     }
 }
 
@@ -524,6 +698,49 @@ impl StakingQuerier {
 ///
 /// https://en.wikipedia.org/wiki/Riffle_shuffle_permutation#Perfect_shuffles
 /// https://en.wikipedia.org/wiki/In_shuffle
+///
+/// The number of shuffles required to restore the original order are listed in
+/// https://oeis.org/A002326, e.g.:
+///
+/// ```ignore
+/// 2: 2
+/// 4: 4
+/// 6: 3
+/// 8: 6
+/// 10: 10
+/// 12: 12
+/// 14: 4
+/// 16: 8
+/// 18: 18
+/// 20: 6
+/// 22: 11
+/// 24: 20
+/// 26: 18
+/// 28: 28
+/// 30: 5
+/// 32: 10
+/// 34: 12
+/// 36: 36
+/// 38: 12
+/// 40: 20
+/// 42: 14
+/// 44: 12
+/// 46: 23
+/// 48: 21
+/// 50: 8
+/// 52: 52
+/// 54: 20
+/// 56: 18
+/// 58: 58
+/// 60: 60
+/// 62: 6
+/// 64: 12
+/// 66: 66
+/// 68: 22
+/// 70: 35
+/// 72: 9
+/// 74: 20
+/// ```
 pub fn riffle_shuffle<T: Clone>(input: &[T]) -> Vec<T> {
     assert!(
         input.len() % 2 == 0,
@@ -543,13 +760,23 @@ pub fn digit_sum(input: &[u8]) -> usize {
     input.iter().fold(0, |sum, val| sum + (*val as usize))
 }
 
+/// Only for test code. This bypasses assertions in new, allowing us to create _*
+/// Attributes to simulate responses from the blockchain
+pub fn mock_wasmd_attr(key: impl Into<String>, value: impl Into<String>) -> Attribute {
+    Attribute {
+        key: key.into(),
+        value: value.into(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{coin, coins, from_binary};
+    use crate::{coin, coins, from_binary, to_binary, ContractInfoResponse, Response};
     #[cfg(feature = "staking")]
     use crate::{Decimal, Delegation};
     use hex_literal::hex;
+    use serde::Deserialize;
 
     const SECP256K1_MSG_HASH_HEX: &str =
         "5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0";
@@ -577,13 +804,47 @@ mod tests {
     }
 
     #[test]
+    fn addr_validate_works() {
+        let api = MockApi::default();
+
+        // valid
+        let addr = api.addr_validate("foobar123").unwrap();
+        assert_eq!(addr, "foobar123");
+
+        // invalid: too short
+        api.addr_validate("").unwrap_err();
+        // invalid: not normalized
+        api.addr_validate("Foobar123").unwrap_err();
+        api.addr_validate("FOOBAR123").unwrap_err();
+    }
+
+    #[test]
+    fn addr_canonicalize_works() {
+        let api = MockApi::default();
+
+        api.addr_canonicalize("foobar123").unwrap();
+
+        // is case insensitive
+        let data1 = api.addr_canonicalize("foo123").unwrap();
+        let data2 = api.addr_canonicalize("FOO123").unwrap();
+        assert_eq!(data1, data2);
+    }
+
+    #[test]
     fn canonicalize_and_humanize_restores_original() {
         let api = MockApi::default();
 
+        // simple
         let original = String::from("shorty");
         let canonical = api.addr_canonicalize(&original).unwrap();
         let recovered = api.addr_humanize(&canonical).unwrap();
         assert_eq!(recovered, original);
+
+        // normalizes input
+        let original = String::from("CosmWasmChef");
+        let canonical = api.addr_canonicalize(&original).unwrap();
+        let recovered = api.addr_humanize(&canonical).unwrap();
+        assert_eq!(recovered, "cosmwasmchef");
     }
 
     #[test]
@@ -598,19 +859,9 @@ mod tests {
     #[should_panic(expected = "address too long")]
     fn addr_canonicalize_max_input_length() {
         let api = MockApi::default();
-        let human = String::from("some-extremely-long-address-not-supported-by-this-api");
+        let human =
+            String::from("some-extremely-long-address-not-supported-by-this-api-longer-than-54");
         let _ = api.addr_canonicalize(&human).unwrap();
-    }
-
-    #[test]
-    fn addr_canonicalize_works_with_string_inputs() {
-        let api = MockApi::default();
-
-        let input = String::from("foobar123");
-        api.addr_canonicalize(&input).unwrap();
-
-        let input = "foobar456";
-        api.addr_canonicalize(&input).unwrap();
     }
 
     #[test]
@@ -818,8 +1069,8 @@ mod tests {
         let signature = hex::decode(ED25519_SIG_HEX).unwrap();
         let public_key: Vec<u8> = vec![0u8; 0];
 
-        let msgs: Vec<&[u8]> = vec![&msg.as_slice()];
-        let signatures: Vec<&[u8]> = vec![&signature.as_slice()];
+        let msgs: Vec<&[u8]> = vec![msg.as_slice()];
+        let signatures: Vec<&[u8]> = vec![signature.as_slice()];
         let public_keys: Vec<&[u8]> = vec![&public_key];
 
         let res = api.ed25519_batch_verify(&msgs, &signatures, &public_keys);
@@ -975,9 +1226,9 @@ mod tests {
 
     #[cfg(feature = "staking")]
     // gets delegators from query or panic
-    fn get_all_delegators<U: Into<String>>(
+    fn get_all_delegators(
         staking: &StakingQuerier,
-        delegator: U,
+        delegator: impl Into<String>,
     ) -> Vec<Delegation> {
         let raw = staking
             .query(&StakingQuery::AllDelegations {
@@ -991,10 +1242,10 @@ mod tests {
 
     #[cfg(feature = "staking")]
     // gets full delegators from query or panic
-    fn get_delegator<U: Into<String>, V: Into<String>>(
+    fn get_delegator(
         staking: &StakingQuerier,
-        delegator: U,
-        validator: V,
+        delegator: impl Into<String>,
+        validator: impl Into<String>,
     ) -> Option<FullDelegation> {
         let raw = staking
             .query(&StakingQuery::Delegation {
@@ -1090,6 +1341,158 @@ mod tests {
         assert_eq!(dels, None);
         let dels = get_delegator(&staking, user_c, val2);
         assert_eq!(dels, Some(del2c));
+    }
+
+    #[test]
+    fn wasm_querier_works() {
+        let mut querier = WasmQuerier::default();
+
+        let any_addr = "foo".to_string();
+
+        // Query WasmQuery::Raw
+        let system_err = querier
+            .query(&WasmQuery::Raw {
+                contract_addr: any_addr.clone(),
+                key: b"the key".into(),
+            })
+            .unwrap_err();
+        match system_err {
+            SystemError::NoSuchContract { addr } => assert_eq!(addr, any_addr),
+            err => panic!("Unexpected error: {:?}", err),
+        }
+
+        // Query WasmQuery::Smart
+        let system_err = querier
+            .query(&WasmQuery::Smart {
+                contract_addr: any_addr.clone(),
+                msg: b"{}".into(),
+            })
+            .unwrap_err();
+        match system_err {
+            SystemError::NoSuchContract { addr } => assert_eq!(addr, any_addr),
+            err => panic!("Unexpected error: {:?}", err),
+        }
+
+        // Query WasmQuery::ContractInfo
+        let system_err = querier
+            .query(&WasmQuery::ContractInfo {
+                contract_addr: any_addr.clone(),
+            })
+            .unwrap_err();
+        match system_err {
+            SystemError::NoSuchContract { addr } => assert_eq!(addr, any_addr),
+            err => panic!("Unexpected error: {:?}", err),
+        }
+
+        querier.update_handler(|request| {
+            let constract1 = Addr::unchecked("contract1");
+            let mut storage1 = HashMap::<Binary, Binary>::default();
+            storage1.insert(b"the key".into(), b"the value".into());
+
+            match request {
+                WasmQuery::Raw { contract_addr, key } => {
+                    if *contract_addr == constract1 {
+                        if let Some(value) = storage1.get(key) {
+                            SystemResult::Ok(ContractResult::Ok(value.clone()))
+                        } else {
+                            SystemResult::Ok(ContractResult::Ok(Binary::default()))
+                        }
+                    } else {
+                        SystemResult::Err(SystemError::NoSuchContract {
+                            addr: contract_addr.clone(),
+                        })
+                    }
+                }
+                WasmQuery::Smart { contract_addr, msg } => {
+                    if *contract_addr == constract1 {
+                        #[derive(Deserialize)]
+                        struct MyMsg {}
+                        let _msg: MyMsg = match from_binary(msg) {
+                            Ok(msg) => msg,
+                            Err(err) => {
+                                return SystemResult::Ok(ContractResult::Err(err.to_string()))
+                            }
+                        };
+                        let response: Response = Response::new().set_data(b"good");
+                        SystemResult::Ok(ContractResult::Ok(to_binary(&response).unwrap()))
+                    } else {
+                        SystemResult::Err(SystemError::NoSuchContract {
+                            addr: contract_addr.clone(),
+                        })
+                    }
+                }
+                WasmQuery::ContractInfo { contract_addr } => {
+                    if *contract_addr == constract1 {
+                        let response = ContractInfoResponse {
+                            code_id: 4,
+                            creator: "lalala".into(),
+                            admin: None,
+                            pinned: false,
+                            ibc_port: None,
+                        };
+                        SystemResult::Ok(ContractResult::Ok(to_binary(&response).unwrap()))
+                    } else {
+                        SystemResult::Err(SystemError::NoSuchContract {
+                            addr: contract_addr.clone(),
+                        })
+                    }
+                }
+            }
+        });
+
+        // WasmQuery::Raw
+        let result = querier.query(&WasmQuery::Raw {
+            contract_addr: "contract1".into(),
+            key: b"the key".into(),
+        });
+        match result {
+            SystemResult::Ok(ContractResult::Ok(value)) => assert_eq!(value, b"the value" as &[u8]),
+            res => panic!("Unexpected result: {:?}", res),
+        }
+        let result = querier.query(&WasmQuery::Raw {
+            contract_addr: "contract1".into(),
+            key: b"other key".into(),
+        });
+        match result {
+            SystemResult::Ok(ContractResult::Ok(value)) => assert_eq!(value, b"" as &[u8]),
+            res => panic!("Unexpected result: {:?}", res),
+        }
+
+        // WasmQuery::Smart
+        let result = querier.query(&WasmQuery::Smart {
+            contract_addr: "contract1".into(),
+            msg: b"{}".into(),
+        });
+        match result {
+            SystemResult::Ok(ContractResult::Ok(value)) => assert_eq!(
+                value,
+                br#"{"messages":[],"attributes":[],"events":[],"data":"Z29vZA=="}"# as &[u8]
+            ),
+            res => panic!("Unexpected result: {:?}", res),
+        }
+        let result = querier.query(&WasmQuery::Smart {
+            contract_addr: "contract1".into(),
+            msg: b"a broken request".into(),
+        });
+        match result {
+            SystemResult::Ok(ContractResult::Err(err)) => {
+                assert_eq!(err, "Error parsing into type cosmwasm_std::mock::tests::wasm_querier_works::{{closure}}::MyMsg: Invalid type")
+            }
+            res => panic!("Unexpected result: {:?}", res),
+        }
+
+        // WasmQuery::ContractInfo
+        let result = querier.query(&WasmQuery::ContractInfo {
+            contract_addr: "contract1".into(),
+        });
+        match result {
+            SystemResult::Ok(ContractResult::Ok(value)) => assert_eq!(
+                value,
+                br#"{"code_id":4,"creator":"lalala","admin":null,"pinned":false,"ibc_port":null}"#
+                    as &[u8]
+            ),
+            res => panic!("Unexpected result: {:?}", res),
+        }
     }
 
     #[test]

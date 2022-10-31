@@ -16,6 +16,9 @@ use cosmwasm_std::{from_slice, Addr};
 
 const MAX_REGIONS_LENGTH: usize = 100_000;
 
+// The length of the address is 63 characters for strings and 65 characters with "" for []byte. Thus, 65<64*2 is used.
+const MAX_ADDRESS_LENGTH: usize = 64 * 2;
+
 pub type WasmerVal = Val;
 
 pub struct FunctionMetadata {
@@ -88,7 +91,7 @@ where
         ));
     };
     let address_region_ptr = ref_to_u32(&args[0])?;
-    let contract_addr_binary = read_region(&env.memory(), address_region_ptr, 64)?;
+    let contract_addr_binary = read_region(&env.memory(), address_region_ptr, MAX_ADDRESS_LENGTH)?;
     let contract_addr: Addr = from_slice(&contract_addr_binary)
         .map_err(|_| RuntimeError::new("Invalid callee contract address"))?;
     let func_args = &args[1..];
@@ -424,7 +427,7 @@ mod tests {
             r#"(module
                 (memory 3)
                 (export "memory" (memory 0))
-                (export "interface_version_5" (func 0))
+                (export "interface_version_8" (func 0))
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))

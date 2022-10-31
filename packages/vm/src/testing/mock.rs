@@ -1,5 +1,7 @@
 use cosmwasm_std::testing::{digit_sum, riffle_shuffle};
-use cosmwasm_std::{Addr, BlockInfo, Coin, ContractInfo, Env, MessageInfo, Timestamp};
+use cosmwasm_std::{
+    Addr, BlockInfo, Coin, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo,
+};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -49,6 +51,13 @@ thread_local! {
     pub static INSTANCE_CACHE: RwLock<HashMap<String, RefCell<MockInstance>>> = RwLock::new(HashMap::new());
     pub static MODULE_CACHE: RwLock<HashMap<String, RefCell<Module>>> = RwLock::new(HashMap::new());
 }
+/// Length of canonical addresses created with this API. Contracts should not make any assumtions
+/// what this value is.
+/// The value here must be restorable with `SHUFFLES_ENCODE` + `SHUFFLES_DECODE` in-shuffles.
+const CANONICAL_LENGTH: usize = 54;
+
+const SHUFFLES_ENCODE: usize = 18;
+const SHUFFLES_DECODE: usize = 2;
 
 /// Zero-pads all human addresses to make them fit the canonical_length and
 /// trims off zeros for the reverse operation.
@@ -57,11 +66,11 @@ thread_local! {
 pub struct MockApi {
     /// Length of canonical addresses created with this API. Contracts should not make any assumtions
     /// what this value is.
-    pub canonical_length: usize,
+    canonical_length: usize,
     /// `canonicalize_cost` is consumed gas value when the contract all api `canonical_address`
-    pub canonicalize_cost: u64,
+    canonicalize_cost: u64,
     /// `humanize_cost` is consumed gas value when the contract all api `human_address`
-    pub humanize_cost: u64,
+    humanize_cost: u64,
     /// When set, all calls to the API fail with BackendError::Unknown containing this message
     backend_error: Option<&'static str>,
 }
@@ -76,6 +85,21 @@ impl MockApi {
         }
     }
 
+    /// Read-only getter for `canonical_length`, which must not be changed by the caller.
+    pub fn canonical_length(&self) -> usize {
+        self.canonical_length
+    }
+
+    /// Read-only getter for `canonical_length`, which must not be changed by the caller.
+    pub fn canonicalize_cost(&self) -> u64 {
+        self.canonicalize_cost
+    }
+
+    /// Read-only getter for `canonical_length`, which must not be changed by the caller.
+    pub fn humanize_cost(&self) -> u64 {
+        self.humanize_cost
+    }
+
     pub fn new_failing(backend_error: &'static str) -> Self {
         MockApi {
             backend_error: Some(backend_error),
@@ -87,7 +111,7 @@ impl MockApi {
 impl Default for MockApi {
     fn default() -> Self {
         MockApi {
-            canonical_length: 24,
+            canonical_length: CANONICAL_LENGTH,
             canonicalize_cost: DEFAULT_GAS_COST_CANONICALIZE,
             humanize_cost: DEFAULT_GAS_COST_HUMANIZE,
             backend_error: None,
@@ -96,7 +120,10 @@ impl Default for MockApi {
 }
 
 impl BackendApi for MockApi {
-    fn canonical_address(&self, human: &str) -> BackendResult<Vec<u8>> {
+    fn canonical_address(&self, input: &str) -> BackendResult<Vec<u8>> {
+        // mimicks formats like hex or bech32 where different casings are valid for one address
+        let normalized = input.to_lowercase();
+
         let gas_info = GasInfo::with_cost(self.canonicalize_cost);
 
         if let Some(backend_error) = self.backend_error {
@@ -104,7 +131,7 @@ impl BackendApi for MockApi {
         }
 
         // Dummy input validation. This is more sophisticated for formats like bech32, where format and checksum are validated.
-        if human.len() < 3 {
+        if normalized.len() < 3 {
             return (
                 Err(BackendError::user_err(
                     "Invalid input: human address too short",
@@ -112,7 +139,7 @@ impl BackendApi for MockApi {
                 gas_info,
             );
         }
-        if human.len() > self.canonical_length {
+        if normalized.len() > self.canonical_length {
             return (
                 Err(BackendError::user_err(
                     "Invalid input: human address too long",
@@ -121,14 +148,14 @@ impl BackendApi for MockApi {
             );
         }
 
-        let mut out = Vec::from(human);
+        let mut out = Vec::from(normalized);
         // pad to canonical length with NULL bytes
         out.resize(self.canonical_length, 0x00);
         // content-dependent rotate followed by shuffle to destroy
         // the most obvious structure (https://github.com/CosmWasm/cosmwasm/issues/552)
         let rotate_by = digit_sum(&out) % self.canonical_length;
         out.rotate_left(rotate_by);
-        for _ in 0..18 {
+        for _ in 0..SHUFFLES_ENCODE {
             out = riffle_shuffle(&out);
         }
         (Ok(out), gas_info)
@@ -152,7 +179,7 @@ impl BackendApi for MockApi {
 
         let mut tmp: Vec<u8> = canonical.into();
         // Shuffle two more times which restored the original value (24 elements are back to original after 20 rounds)
-        for _ in 0..2 {
+        for _ in 0..SHUFFLES_DECODE {
             tmp = riffle_shuffle(&tmp);
         }
         // Rotate back
@@ -242,6 +269,7 @@ pub fn mock_env() -> Env {
             time: Timestamp::from_nanos(1_571_797_419_879_305_533),
             chain_id: "cosmos-testnet-14002".to_string(),
         },
+        transaction: Some(TransactionInfo { index: 3 }),
         contract: ContractInfo {
             address: Addr::unchecked(MOCK_CONTRACT_ADDR),
         },
@@ -279,13 +307,32 @@ mod test {
     }
 
     #[test]
+    fn canonical_address_works() {
+        let api = MockApi::default();
+
+        api.canonical_address("foobar123").0.unwrap();
+
+        // is case insensitive
+        let data1 = api.canonical_address("foo123").0.unwrap();
+        let data2 = api.canonical_address("FOO123").0.unwrap();
+        assert_eq!(data1, data2);
+    }
+
+    #[test]
     fn canonicalize_and_humanize_restores_original() {
         let api = MockApi::default();
 
+        // simple
         let original = "shorty";
         let canonical = api.canonical_address(original).0.unwrap();
         let (recovered, _gas_cost) = api.human_address(&canonical);
         assert_eq!(recovered.unwrap(), original);
+
+        // normalizes input
+        let original = String::from("CosmWasmChef");
+        let canonical = api.canonical_address(&original).0.unwrap();
+        let recovered = api.human_address(&canonical).0.unwrap();
+        assert_eq!(recovered, "cosmwasmchef");
     }
 
     #[test]
@@ -312,7 +359,7 @@ mod test {
     #[test]
     fn canonical_address_max_input_length() {
         let api = MockApi::default();
-        let human = "longer-than-the-address-length-supported-by-this-api";
+        let human = "longer-than-the-address-length-supported-by-this-api-longer-than-54";
         match api.canonical_address(human).0.unwrap_err() {
             BackendError::UserErr { .. } => {}
             err => panic!("Unexpected error: {:?}", err),
@@ -324,7 +371,7 @@ mod test {
         let api = MockApi::default();
 
         let original = "alice";
-        let (canonical_res, gas_cost) = api.canonical_address(&original);
+        let (canonical_res, gas_cost) = api.canonical_address(original);
         assert_eq!(gas_cost.cost, DEFAULT_GAS_COST_CANONICALIZE);
         assert_eq!(gas_cost.externally_used, 0);
         let canonical = canonical_res.unwrap();
@@ -336,13 +383,13 @@ mod test {
     #[test]
     fn test_specified_gas_cost() {
         let canonicalize_cost: u64 = 42;
-        let humanize_cost: u64 = 10101010;
+        let humanize_cost: u64 = 101010;
         assert_ne!(canonicalize_cost, DEFAULT_GAS_COST_CANONICALIZE);
         assert_ne!(humanize_cost, DEFAULT_GAS_COST_HUMANIZE);
         let api = MockApi::new_with_gas_cost(canonicalize_cost, humanize_cost);
 
         let original = "bob";
-        let (canonical_res, gas_cost) = api.canonical_address(&original);
+        let (canonical_res, gas_cost) = api.canonical_address(original);
         assert_eq!(gas_cost.cost, canonicalize_cost);
         assert_eq!(gas_cost.externally_used, 0);
         let canonical = canonical_res.unwrap();

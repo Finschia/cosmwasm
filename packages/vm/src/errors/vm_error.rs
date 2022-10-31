@@ -11,6 +11,12 @@ use crate::backend::BackendError;
 #[derive(Error, Debug)]
 #[non_exhaustive]
 pub enum VmError {
+    #[error("Aborted: {}", msg)]
+    Aborted {
+        msg: String,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
     #[error("Error calling into the VM's backend: {}", source)]
     BackendErr {
         source: BackendError,
@@ -81,6 +87,14 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[error("Data too long for deserialization. Got: {length} bytes; limit: {max_length} bytes")]
+    DeserializationLimitExceeded {
+        /// the target type that was attempted
+        length: usize,
+        max_length: usize,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
     #[error("Error serializing type {source_type}: {msg}")]
     SerializeErr {
         /// the source type that was attempted
@@ -145,6 +159,14 @@ pub enum VmError {
 }
 
 impl VmError {
+    pub(crate) fn aborted(msg: impl Into<String>) -> Self {
+        VmError::Aborted {
+            msg: msg.into(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
     pub(crate) fn backend_err(original: BackendError) -> Self {
         VmError::BackendErr {
             source: original,
@@ -153,7 +175,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn cache_err<S: Into<String>>(msg: S) -> Self {
+    pub(crate) fn cache_err(msg: impl Into<String>) -> Self {
         VmError::CacheErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -161,7 +183,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn compile_err<S: Into<String>>(msg: S) -> Self {
+    pub(crate) fn compile_err(msg: impl Into<String>) -> Self {
         VmError::CompileErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -169,10 +191,10 @@ impl VmError {
         }
     }
 
-    pub(crate) fn conversion_err<S: Into<String>, T: Into<String>, U: Into<String>>(
-        from_type: S,
-        to_type: T,
-        input: U,
+    pub(crate) fn conversion_err(
+        from_type: impl Into<String>,
+        to_type: impl Into<String>,
+        input: impl Into<String>,
     ) -> Self {
         VmError::ConversionErr {
             from_type: from_type.into(),
@@ -198,7 +220,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn generic_err<S: Into<String>>(msg: S) -> Self {
+    pub(crate) fn generic_err(msg: impl Into<String>) -> Self {
         VmError::GenericErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -206,7 +228,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn instantiation_err<S: Into<String>>(msg: S) -> Self {
+    pub(crate) fn instantiation_err(msg: impl Into<String>) -> Self {
         VmError::InstantiationErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -221,7 +243,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn parse_err<T: Into<String>, M: Display>(target: T, msg: M) -> Self {
+    pub(crate) fn parse_err(target: impl Into<String>, msg: impl Display) -> Self {
         VmError::ParseErr {
             target_type: target.into(),
             msg: msg.to_string(),
@@ -230,7 +252,16 @@ impl VmError {
         }
     }
 
-    pub(crate) fn serialize_err<S: Into<String>, M: Display>(source: S, msg: M) -> Self {
+    pub(crate) fn deserialization_limit_exceeded(length: usize, max_length: usize) -> Self {
+        VmError::DeserializationLimitExceeded {
+            length,
+            max_length,
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub(crate) fn serialize_err(source: impl Into<String>, msg: impl Display) -> Self {
         VmError::SerializeErr {
             source_type: source.into(),
             msg: msg.to_string(),
@@ -239,7 +270,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn resolve_err<S: Into<String>>(msg: S) -> Self {
+    pub(crate) fn resolve_err(msg: impl Into<String>) -> Self {
         VmError::ResolveErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -247,8 +278,8 @@ impl VmError {
         }
     }
 
-    pub(crate) fn result_mismatch<S: Into<String>>(
-        function_name: S,
+    pub(crate) fn result_mismatch(
+        function_name: impl Into<String>,
         expected: usize,
         actual: usize,
     ) -> Self {
@@ -261,7 +292,10 @@ impl VmError {
         }
     }
 
-    pub(crate) fn runtime_err<S: Into<String>>(msg: S) -> Self {
+    // Creates a runtime error with the given message.
+    // This is private since it is only needed when converting wasmer::RuntimeError
+    // to VmError.
+    fn runtime_err(msg: impl Into<String>) -> Self {
         VmError::RuntimeErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -269,7 +303,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn static_validation_err<S: Into<String>>(msg: S) -> Self {
+    pub(crate) fn static_validation_err(msg: impl Into<String>) -> Self {
         VmError::StaticValidationErr {
             msg: msg.into(),
             #[cfg(feature = "backtraces")]
@@ -277,7 +311,7 @@ impl VmError {
         }
     }
 
-    pub(crate) fn uninitialized_context_data<S: Into<String>>(kind: S) -> Self {
+    pub(crate) fn uninitialized_context_data(kind: impl Into<String>) -> Self {
         VmError::UninitializedContextData {
             kind: kind.into(),
             #[cfg(feature = "backtraces")]
@@ -341,7 +375,19 @@ impl From<wasmer::DeserializeError> for VmError {
 
 impl From<wasmer::RuntimeError> for VmError {
     fn from(original: wasmer::RuntimeError) -> Self {
-        VmError::runtime_err(format!("Wasmer runtime error: {}", original))
+        // Do not use the Display implementation or to_string() of `RuntimeError`
+        // because it can contain a system specific stack trace, which can
+        // lead to non-deterministic execution.
+        //
+        // Implementation follows https://github.com/wasmerio/wasmer/blob/2.0.0/lib/engine/src/trap/error.rs#L215
+        let message = format!("RuntimeError: {}", original.message());
+        debug_assert!(
+            original.to_string().starts_with(&message),
+            "The error message we created is not a prefix of the error message from Wasmer. Our message: '{}'. Wasmer messsage: '{}'",
+            &message,
+            original.to_string()
+        );
+        VmError::runtime_err(format!("Wasmer runtime error: {}", &message))
     }
 }
 

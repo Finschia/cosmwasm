@@ -15,7 +15,6 @@ const GAS_COST_QUERY_REQUEST_MULTIPLIER: u64 = 0;
 const GAS_COST_QUERY_RESPONSE_MULTIPLIER: u64 = 100;
 
 /// MockQuerier holds an immutable table of bank balances
-/// TODO: also allow querying contracts
 pub struct MockQuerier<C: CustomQuery + DeserializeOwned = Empty> {
     querier: StdMockQuerier<C>,
 }
@@ -28,9 +27,9 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
     }
 
     // set a new balance for the given address and return the old balance
-    pub fn update_balance<U: Into<String>>(
+    pub fn update_balance(
         &mut self,
-        addr: U,
+        addr: impl Into<String>,
         balance: Vec<Coin>,
     ) -> Option<Vec<Coin>> {
         self.querier.update_balance(addr, balance)
@@ -46,6 +45,14 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
         self.querier.update_staking(denom, validators, delegations);
     }
 
+    pub fn update_wasm<WH: 'static>(&mut self, handler: WH)
+    where
+        WH: Fn(&cosmwasm_std::WasmQuery) -> cosmwasm_std::QuerierResult,
+    {
+        self.querier.update_wasm(handler)
+    }
+
+    #[must_use]
     pub fn with_custom_handler<CH: 'static>(mut self, handler: CH) -> Self
     where
         CH: Fn(&C) -> MockQuerierCustomHandlerResult,

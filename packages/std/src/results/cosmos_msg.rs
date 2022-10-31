@@ -11,14 +11,17 @@ use crate::serde::to_binary;
 
 use super::Empty;
 
+/// Like CustomQuery for better type clarity.
+/// Also makes it shorter to use as a trait bound.
+pub trait CustomMsg: Serialize + Clone + fmt::Debug + PartialEq + JsonSchema {}
+
+impl CustomMsg for Empty {}
+
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 // See https://github.com/serde-rs/serde/issues/1296 why we cannot add De-Serialize trait bounds to T
-pub enum CosmosMsg<T = Empty>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+pub enum CosmosMsg<T = Empty> {
     Bank(BankMsg),
     // by default we use RawMsg, but a contract can override that
     // to call into more app-specific code (whatever they define)
@@ -37,18 +40,20 @@ where
     #[cfg(feature = "stargate")]
     Ibc(IbcMsg),
     Wasm(WasmMsg),
+    #[cfg(feature = "stargate")]
+    Gov(GovMsg),
 }
 
 /// The message types of the bank module.
 ///
-/// See https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankMsg {
     /// Sends native tokens from the contract to the given address.
     ///
-    /// This is translated to a MsgSend in https://github.com/line/lfb-sdk/blob/main/proto/lfb/bank/v1beta1/tx.proto.
+    /// This is translated to a MsgSend in https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto.
     /// `from_address` is automatically filled with the current contract's address.
     Send {
         to_address: String,
@@ -62,19 +67,19 @@ pub enum BankMsg {
 
 /// The message types of the staking module.
 ///
-/// See https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
 #[cfg(feature = "staking")]
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StakingMsg {
-    /// This is translated to a MsgDelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
+    /// This is translated to a MsgDelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Delegate { validator: String, amount: Coin },
-    /// This is translated to a MsgUndelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
+    /// This is translated to a MsgUndelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Undelegate { validator: String, amount: Coin },
-    /// This is translated to a MsgBeginRedelegate in https://github.com/line/lfb-sdk/blob/main/proto/lfb/staking/v1beta1/tx.proto.
+    /// This is translated to a MsgBeginRedelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
     /// `delegator_address` is automatically filled with the current contract's address.
     Redelegate {
         src_validator: String,
@@ -107,31 +112,31 @@ pub enum DistributionMsg {
 
 /// The message types of the wasm module.
 ///
-/// See https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WasmMsg {
     /// Dispatches a call to another contract at a known address (with known ABI).
     ///
-    /// This is translated to a MsgExecuteContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a MsgExecuteContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Execute {
         contract_addr: String,
         /// msg is the json-encoded ExecuteMsg struct (as raw Binary)
         msg: Binary,
-        send: Vec<Coin>,
+        funds: Vec<Coin>,
     },
     /// Instantiates a new contracts from previously uploaded Wasm code.
     ///
-    /// This is translated to a MsgInstantiateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a MsgInstantiateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Instantiate {
         admin: Option<String>,
         code_id: u64,
         /// msg is the JSON-encoded InstantiateMsg struct (as raw Binary)
         msg: Binary,
-        send: Vec<Coin>,
+        funds: Vec<Coin>,
         /// A human-readbale label for the contract
         label: String,
     },
@@ -140,7 +145,7 @@ pub enum WasmMsg {
     ///
     /// Only the contract admin (as defined in wasmd), if any, is able to make this call.
     ///
-    /// This is translated to a MsgMigrateContract in https://github.com/line/lfb-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a MsgMigrateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
     /// `sender` is automatically filled with the current contract's address.
     Migrate {
         contract_addr: String,
@@ -160,87 +165,94 @@ pub enum WasmMsg {
     ClearAdmin { contract_addr: String },
 }
 
+#[cfg(feature = "stargate")]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GovMsg {
+    /// This maps directly to [MsgVote](https://github.com/cosmos/cosmos-sdk/blob/v0.42.5/proto/cosmos/gov/v1beta1/tx.proto#L46-L56) in the Cosmos SDK with voter set to the contract address.
+    Vote { proposal_id: u64, vote: VoteOption },
+}
+
+#[cfg(feature = "stargate")]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VoteOption {
+    Yes,
+    No,
+    Abstain,
+    NoWithVeto,
+}
+
 /// Shortcut helper as the construction of WasmMsg::Instantiate can be quite verbose in contract code.
 ///
 /// When using this, `admin` is always unset. If you need more flexibility, create the message directly.
-pub fn wasm_instantiate<T>(
+pub fn wasm_instantiate(
     code_id: u64,
-    msg: &T,
-    send: Vec<Coin>,
+    msg: &impl Serialize,
+    funds: Vec<Coin>,
     label: String,
-) -> StdResult<WasmMsg>
-where
-    T: Serialize,
-{
+) -> StdResult<WasmMsg> {
     let payload = to_binary(msg)?;
     Ok(WasmMsg::Instantiate {
         admin: None,
         code_id,
         msg: payload,
-        send,
+        funds,
         label,
     })
 }
 
 /// Shortcut helper as the construction of WasmMsg::Instantiate can be quite verbose in contract code
-pub fn wasm_execute<T, U>(contract_addr: T, msg: &U, send: Vec<Coin>) -> StdResult<WasmMsg>
-where
-    T: Into<String>,
-    U: Serialize,
-{
+pub fn wasm_execute(
+    contract_addr: impl Into<String>,
+    msg: &impl Serialize,
+    funds: Vec<Coin>,
+) -> StdResult<WasmMsg> {
     let payload = to_binary(msg)?;
     Ok(WasmMsg::Execute {
         contract_addr: contract_addr.into(),
         msg: payload,
-        send,
+        funds,
     })
 }
 
-impl<T> From<BankMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<BankMsg> for CosmosMsg<T> {
     fn from(msg: BankMsg) -> Self {
         CosmosMsg::Bank(msg)
     }
 }
 
 #[cfg(feature = "staking")]
-impl<T> From<StakingMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<StakingMsg> for CosmosMsg<T> {
     fn from(msg: StakingMsg) -> Self {
         CosmosMsg::Staking(msg)
     }
 }
 
 #[cfg(feature = "staking")]
-impl<T> From<DistributionMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<DistributionMsg> for CosmosMsg<T> {
     fn from(msg: DistributionMsg) -> Self {
         CosmosMsg::Distribution(msg)
     }
 }
 
-impl<T> From<WasmMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<WasmMsg> for CosmosMsg<T> {
     fn from(msg: WasmMsg) -> Self {
         CosmosMsg::Wasm(msg)
     }
 }
 
 #[cfg(feature = "stargate")]
-impl<T> From<IbcMsg> for CosmosMsg<T>
-where
-    T: Clone + fmt::Debug + PartialEq + JsonSchema,
-{
+impl<T> From<IbcMsg> for CosmosMsg<T> {
     fn from(msg: IbcMsg) -> Self {
         CosmosMsg::Ibc(msg)
+    }
+}
+
+#[cfg(feature = "stargate")]
+impl<T> From<GovMsg> for CosmosMsg<T> {
+    fn from(msg: GovMsg) -> Self {
+        CosmosMsg::Gov(msg)
     }
 }
 

@@ -63,7 +63,7 @@ mod tests {
     use wasmer::{imports, Instance as WasmerInstance};
     use wasmer_middlewares::metering::set_remaining_points;
 
-    const TESTING_GAS_LIMIT: u64 = 5_000;
+    const TESTING_GAS_LIMIT: u64 = 500_000_000;
 
     #[test]
     fn pinned_memory_cache_run() {
@@ -87,7 +87,7 @@ mod tests {
         assert!(cache_entry.is_none());
 
         // Compile module
-        let original = compile(&wasm, None).unwrap();
+        let original = compile(&wasm, None, &[]).unwrap();
 
         // Ensure original module can be executed
         {
@@ -131,18 +131,18 @@ mod tests {
         .unwrap();
         let checksum = Checksum::generate(&wasm);
 
-        assert_eq!(cache.has(&checksum), false);
+        assert!(!cache.has(&checksum));
 
         // Add
-        let original = compile(&wasm, None).unwrap();
+        let original = compile(&wasm, None, &[]).unwrap();
         cache.store(&checksum, original, 0).unwrap();
 
-        assert_eq!(cache.has(&checksum), true);
+        assert!(cache.has(&checksum));
 
         // Remove
         cache.remove(&checksum).unwrap();
 
-        assert_eq!(cache.has(&checksum), false);
+        assert!(!cache.has(&checksum));
     }
 
     #[test]
@@ -165,7 +165,7 @@ mod tests {
         assert_eq!(cache.len(), 0);
 
         // Add
-        let original = compile(&wasm, None).unwrap();
+        let original = compile(&wasm, None, &[]).unwrap();
         cache.store(&checksum, original, 0).unwrap();
 
         assert_eq!(cache.len(), 1);
@@ -207,12 +207,12 @@ mod tests {
         assert_eq!(cache.size(), 0);
 
         // Add 1
-        let original = compile(&wasm1, None).unwrap();
+        let original = compile(&wasm1, None, &[]).unwrap();
         cache.store(&checksum1, original, 500).unwrap();
         assert_eq!(cache.size(), 500);
 
         // Add 2
-        let original = compile(&wasm2, None).unwrap();
+        let original = compile(&wasm2, None, &[]).unwrap();
         cache.store(&checksum2, original, 300).unwrap();
         assert_eq!(cache.size(), 800);
 

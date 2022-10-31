@@ -1,5 +1,30 @@
 # Changelog
 
+
+## [[0.16.3-0.5.1](https://github.com/line/cosmwasm/compare/v0.16.3-0.5.0...0.16.3-0.5.1)] - 2022-03-03
+
+### Fixes
+
+* downgrade wasmer version 2.0.0 ([#166](https://github.com/line/cosmwasm/issues/166))
+* copy with cargo.lock in release CD ([#168](https://github.com/line/cosmwasm/pull/168))
+
+## [[0.16.3-0.5.0](https://github.com/line/cosmwasm/compare/v0.14.0-0.4.0...0.16.3-0.5.0)] - 2022-03-02
+
+### Features
+
+* Add derive macro "IntoEvent" ([#161](https://github.com/line/cosmwasm/pull/161))
+* merge original version 0.16.3 ([#148](https://github.com/line/cosmwasm/pull/148))
+* support Uuid type and sha1_calculate API ([#145](https://github.com/line/cosmwasm/pull/145))
+* Add release automation config ([#108](https://github.com/line/cosmwasm/pull/108))
+
+### Fixes
+
+* exclude floaty from release checking ([#165](https://github.com/line/cosmwasm/pull/165))
+* update rust version in release.yml ([#163](https://github.com/line/cosmwasm/pull/163))
+  - change the MSRV (Minimum Supported Rust Version) to 1.57.0
+* export vm::testing::contract::Contract ([#147](https://github.com/line/cosmwasm/pull/147))
+* export DivideByZeroError to pub ([#140](https://github.com/line/cosmwasm/pull/140))
+
 ## [[v0.14.0-0.4.0](https://github.com/line/cosmwasm/compare/v0.14.0-0.3.0...v0.14.0-0.4.0)] - 2021-06-28
 
 ### Changes

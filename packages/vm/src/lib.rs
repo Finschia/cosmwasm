@@ -10,13 +10,10 @@ mod dynamic_link;
 mod environment;
 mod errors;
 mod features;
-#[cfg(feature = "stargate")]
-mod ibc_calls;
 mod imports;
 mod instance;
 mod limited;
 mod memory;
-mod middleware;
 mod modules;
 mod sections;
 mod serde;
@@ -34,6 +31,13 @@ pub use crate::calls::{
     call_migrate_raw, call_query, call_query_raw, call_reply, call_reply_raw, call_sudo,
     call_sudo_raw,
 };
+#[cfg(feature = "stargate")]
+pub use crate::calls::{
+    call_ibc_channel_close, call_ibc_channel_close_raw, call_ibc_channel_connect,
+    call_ibc_channel_connect_raw, call_ibc_channel_open, call_ibc_channel_open_raw,
+    call_ibc_packet_ack, call_ibc_packet_ack_raw, call_ibc_packet_receive,
+    call_ibc_packet_receive_raw, call_ibc_packet_timeout, call_ibc_packet_timeout_raw,
+};
 pub use crate::checksum::Checksum;
 #[cfg(feature = "bench")]
 pub use crate::conversion::{ref_to_u32, to_u32};
@@ -48,13 +52,6 @@ pub use crate::errors::{
     VmError, VmResult,
 };
 pub use crate::features::features_from_csv;
-#[cfg(feature = "stargate")]
-pub use crate::ibc_calls::{
-    call_ibc_channel_close, call_ibc_channel_close_raw, call_ibc_channel_connect,
-    call_ibc_channel_connect_raw, call_ibc_channel_open, call_ibc_channel_open_raw,
-    call_ibc_packet_ack, call_ibc_packet_ack_raw, call_ibc_packet_receive,
-    call_ibc_packet_receive_raw, call_ibc_packet_timeout, call_ibc_packet_timeout_raw,
-};
 pub use crate::instance::{GasReport, Instance, InstanceOptions};
 #[cfg(feature = "bench")]
 pub use crate::memory::{read_region, write_region};
@@ -69,5 +66,6 @@ pub mod internals {
     //! they might change frequently or be removed in the future.
 
     pub use crate::compatibility::check_wasm;
+    pub use crate::instance::instance_from_module;
     pub use crate::wasm_backend::{compile, make_runtime_store};
 }

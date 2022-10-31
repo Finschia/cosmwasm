@@ -1,4 +1,5 @@
 use serde::{de::DeserializeOwned, Serialize};
+use std::marker::PhantomData;
 use std::ops::Deref;
 use wasmer_types::{ExportType, FunctionType};
 
@@ -9,7 +10,7 @@ use crate::errors::{
     HashCalculationError, RecoverPubkeyError, StdError, StdResult, VerificationError,
 };
 #[cfg(feature = "iterator")]
-use crate::iterator::{Order, Pair};
+use crate::iterator::{Order, Record};
 use crate::query::{
     AllBalanceResponse, BalanceResponse, BankQuery, CustomQuery, QueryRequest, WasmQuery,
 };
@@ -42,9 +43,10 @@ pub trait Storage {
         start: Option<&[u8]>,
         end: Option<&[u8]>,
         order: Order,
-    ) -> Box<dyn Iterator<Item = Pair> + 'a>;
+    ) -> Box<dyn Iterator<Item = Record> + 'a>;
 
     fn set(&mut self, key: &[u8], value: &[u8]);
+
     /// Removes a database entry at `key`.
     ///
     /// The current interface does not allow to differentiate between a key that existed
@@ -67,8 +69,18 @@ pub trait Storage {
 /// We can use feature flags to opt-in to non-essential methods
 /// for backwards compatibility in systems that don't have them all.
 pub trait Api {
-    /// Takes a human readable address and validates if it's correctly formatted.
-    /// If it succeeds, a Addr is returned.
+    /// Takes a human readable address and validates if it is valid.
+    /// If it the validation succeeds, a `Addr` containing the same data as the input is returned.
+    ///
+    /// This validation checks two things:
+    /// 1. The address is valid in the sense that it can be converted to a canonical representation by the backend.
+    /// 2. The address is normalized, i.e. `humanize(canonicalize(input)) == input`.
+    ///
+    /// Check #2 is typically needed for upper/lower case representations of the same
+    /// address that are both valid according to #1. This way we ensure uniqueness
+    /// of the human readable address. Clients should perform the normalization before sending
+    /// the addresses to the CosmWasm stack. But please note that the definition of normalized
+    /// depends on the backend.
     ///
     /// ## Examples
     ///
@@ -87,7 +99,9 @@ pub trait Api {
     fn addr_canonicalize(&self, human: &str) -> StdResult<CanonicalAddr>;
 
     /// Takes a canonical address and returns a human readble address.
-    /// This is the inverse of [addr_canonicalize].
+    /// This is the inverse of [`addr_canonicalize`].
+    ///
+    /// [`addr_canonicalize`]: Api::addr_canonicalize
     fn addr_humanize(&self, canonical: &CanonicalAddr) -> StdResult<Addr>;
 
     fn secp256k1_verify(
@@ -155,41 +169,42 @@ pub trait Contract {
     fn set_address(&mut self, address: Addr);
 }
 
-#[derive(Copy, Clone)]
-pub struct QuerierWrapper<'a>(&'a dyn Querier);
+#[derive(Clone)]
+pub struct QuerierWrapper<'a, C: CustomQuery = Empty> {
+    querier: &'a dyn Querier,
+    custom_query_type: PhantomData<C>,
+}
+
+// Use custom implementation on order to implement Copy in case `C` is not `Copy`.
+// See "There is a small difference between the two: the derive strategy will also
+// place a Copy bound on type parameters, which isn’t always desired."
+// https://doc.rust-lang.org/std/marker/trait.Copy.html
+impl<'a, C: CustomQuery> Copy for QuerierWrapper<'a, C> {}
 
 /// This allows us to use self.raw_query to access the querier.
 /// It also allows external callers to access the querier easily.
-impl<'a> Deref for QuerierWrapper<'a> {
+impl<'a, C: CustomQuery> Deref for QuerierWrapper<'a, C> {
     type Target = dyn Querier + 'a;
 
     fn deref(&self) -> &Self::Target {
-        self.0
+        self.querier
     }
 }
 
-impl<'a> QuerierWrapper<'a> {
+impl<'a, C: CustomQuery> QuerierWrapper<'a, C> {
     pub fn new(querier: &'a dyn Querier) -> Self {
-        QuerierWrapper(querier)
+        QuerierWrapper {
+            querier,
+            custom_query_type: PhantomData,
+        }
     }
 
-    /// query is a shorthand for custom_query when we are not using a custom type,
-    /// this allows us to avoid specifying "Empty" in all the type definitions.
-    pub fn query<T: DeserializeOwned>(&self, request: &QueryRequest<Empty>) -> StdResult<T> {
-        self.custom_query(request)
-    }
-
-    /// Makes the query and parses the response. Also handles custom queries,
-    /// so you need to specify the custom query type in the function parameters.
-    /// If you are no using a custom query, just use `query` for easier interface.
+    /// Makes the query and parses the response.
     ///
     /// Any error (System Error, Error or called contract, or Parse Error) are flattened into
     /// one level. Only use this if you don't need to check the SystemError
     /// eg. If you don't differentiate between contract missing and contract returned error
-    pub fn custom_query<C: CustomQuery, U: DeserializeOwned>(
-        &self,
-        request: &QueryRequest<C>,
-    ) -> StdResult<U> {
+    pub fn query<U: DeserializeOwned>(&self, request: &QueryRequest<C>) -> StdResult<U> {
         let raw = to_vec(request).map_err(|serialize_err| {
             StdError::generic_err(format!("Serializing QueryRequest: {}", serialize_err))
         })?;
@@ -205,10 +220,10 @@ impl<'a> QuerierWrapper<'a> {
         }
     }
 
-    pub fn query_balance<U: Into<String>, V: Into<String>>(
+    pub fn query_balance(
         &self,
-        address: U,
-        denom: V,
+        address: impl Into<String>,
+        denom: impl Into<String>,
     ) -> StdResult<Coin> {
         let request = BankQuery::Balance {
             address: address.into(),
@@ -219,7 +234,7 @@ impl<'a> QuerierWrapper<'a> {
         Ok(res.amount)
     }
 
-    pub fn query_all_balances<U: Into<String>>(&self, address: U) -> StdResult<Vec<Coin>> {
+    pub fn query_all_balances(&self, address: impl Into<String>) -> StdResult<Vec<Coin>> {
         let request = BankQuery::AllBalances {
             address: address.into(),
         }
@@ -230,10 +245,10 @@ impl<'a> QuerierWrapper<'a> {
 
     // this queries another wasm contract. You should know a priori the proper types for T and U
     // (response and request) based on the contract API
-    pub fn query_wasm_smart<T: DeserializeOwned, U: Serialize, V: Into<String>>(
+    pub fn query_wasm_smart<T: DeserializeOwned>(
         &self,
-        contract_addr: V,
-        msg: &U,
+        contract_addr: impl Into<String>,
+        msg: &impl Serialize,
     ) -> StdResult<T> {
         let request = WasmQuery::Smart {
             contract_addr: contract_addr.into(),
@@ -250,10 +265,10 @@ impl<'a> QuerierWrapper<'a> {
     //
     // Similar return value to Storage.get(). Returns Some(val) or None if the data is there.
     // It only returns error on some runtime issue, not on any data cases.
-    pub fn query_wasm_raw<T: Into<String>, U: Into<Binary>>(
+    pub fn query_wasm_raw(
         &self,
-        contract_addr: T,
-        key: U,
+        contract_addr: impl Into<String>,
+        key: impl Into<Binary>,
     ) -> StdResult<Option<Vec<u8>>> {
         let request: QueryRequest<Empty> = WasmQuery::Raw {
             contract_addr: contract_addr.into(),
@@ -291,7 +306,7 @@ impl<'a> QuerierWrapper<'a> {
     }
 
     #[cfg(feature = "staking")]
-    pub fn query_validator<U: Into<String>>(&self, address: U) -> StdResult<Option<Validator>> {
+    pub fn query_validator(&self, address: impl Into<String>) -> StdResult<Option<Validator>> {
         let request = StakingQuery::Validator {
             address: address.into(),
         }
@@ -308,9 +323,9 @@ impl<'a> QuerierWrapper<'a> {
     }
 
     #[cfg(feature = "staking")]
-    pub fn query_all_delegations<U: Into<String>>(
+    pub fn query_all_delegations(
         &self,
-        delegator: U,
+        delegator: impl Into<String>,
     ) -> StdResult<Vec<Delegation>> {
         let request = StakingQuery::AllDelegations {
             delegator: delegator.into(),
@@ -321,10 +336,10 @@ impl<'a> QuerierWrapper<'a> {
     }
 
     #[cfg(feature = "staking")]
-    pub fn query_delegation<U: Into<String>, V: Into<String>>(
+    pub fn query_delegation(
         &self,
-        delegator: U,
-        validator: V,
+        delegator: impl Into<String>,
+        validator: impl Into<String>,
     ) -> StdResult<Option<FullDelegation>> {
         let request = StakingQuery::Delegation {
             delegator: delegator.into(),
@@ -351,7 +366,7 @@ mod tests {
     #[test]
     fn use_querier_wrapper_as_querier() {
         let querier: MockQuerier<Empty> = MockQuerier::new(&[]);
-        let wrapper = QuerierWrapper::new(&querier);
+        let wrapper = QuerierWrapper::<Empty>::new(&querier);
 
         // call with deref shortcut
         let res = demo_helper(&*wrapper);
@@ -366,7 +381,7 @@ mod tests {
     fn auto_deref_raw_query() {
         let acct = String::from("foobar");
         let querier: MockQuerier<Empty> = MockQuerier::new(&[(&acct, &coins(5, "BTC"))]);
-        let wrapper = QuerierWrapper::new(&querier);
+        let wrapper = QuerierWrapper::<Empty>::new(&querier);
         let query = QueryRequest::<Empty>::Bank(BankQuery::Balance {
             address: acct,
             denom: "BTC".to_string(),
@@ -377,6 +392,6 @@ mod tests {
             .unwrap()
             .unwrap();
         let balance: BalanceResponse = from_slice(&raw).unwrap();
-        assert_eq!(balance.amount.amount, Uint128(5));
+        assert_eq!(balance.amount.amount, Uint128::new(5));
     }
 }

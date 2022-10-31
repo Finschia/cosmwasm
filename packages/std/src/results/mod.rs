@@ -1,33 +1,25 @@
 //! This module contains the messages that are sent from the contract to the VM as an execution result
 
-mod attribute;
-mod context;
 mod contract_result;
 mod cosmos_msg;
 mod empty;
+mod events;
 mod query;
 mod response;
-mod subcall;
+mod submessages;
 mod system_result;
 
-pub use attribute::{attr, Attribute};
-#[allow(deprecated)]
-pub use context::Context;
 pub use contract_result::ContractResult;
-pub use cosmos_msg::{wasm_execute, wasm_instantiate, BankMsg, CosmosMsg, WasmMsg};
+pub use cosmos_msg::{wasm_execute, wasm_instantiate, BankMsg, CosmosMsg, CustomMsg, WasmMsg};
 #[cfg(feature = "staking")]
 pub use cosmos_msg::{DistributionMsg, StakingMsg};
+#[cfg(feature = "stargate")]
+pub use cosmos_msg::{GovMsg, VoteOption};
 pub use empty::Empty;
+pub use events::{attr, Attribute, Event};
 pub use query::QueryResponse;
 pub use response::Response;
-pub use subcall::{Event, Reply, ReplyOn, SubMsg, SubcallResponse};
+#[allow(deprecated)]
+pub use submessages::SubMsgExecutionResponse;
+pub use submessages::{Reply, ReplyOn, SubMsg, SubMsgResponse, SubMsgResult};
 pub use system_result::SystemResult;
-
-#[deprecated(since = "0.14.0-0.4.0", note = "Renamed to Response.")]
-pub type InitResponse<T = Empty> = Response<T>;
-
-#[deprecated(since = "0.14.0-0.4.0", note = "Renamed to Response.")]
-pub type HandleResponse<T = Empty> = Response<T>;
-
-#[deprecated(since = "0.14.0-0.4.0", note = "Renamed to Response.")]
-pub type MigrateResponse<T = Empty> = Response<T>;

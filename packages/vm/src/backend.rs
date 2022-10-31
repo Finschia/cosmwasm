@@ -5,15 +5,21 @@ use thiserror::Error;
 
 use cosmwasm_std::{Binary, ContractResult, SystemResult};
 #[cfg(feature = "iterator")]
-use cosmwasm_std::{Order, Pair};
+use cosmwasm_std::{Order, Record};
 use wasmer::Module;
 
 use crate::environment::Environment;
 use crate::{FunctionMetadata, WasmerVal};
 
-#[derive(Copy, Clone, Debug)]
+/// A structure that represents gas cost to be deducted from the remaining gas.
+/// This is always needed when computations are performed outside of
+/// Wasm execution, such as calling crypto APIs or calls into the blockchain.
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GasInfo {
-    /// The gas cost of a computation that was executed already but not yet charged
+    /// The gas cost of a computation that was executed already but not yet charged.
+    ///
+    /// This could be renamed to `internally_used` for consistency because it is used inside
+    /// of the `cosmwasm_vm`.
     pub cost: u64,
     /// Gas that was used and charged externally. This is needed to
     /// adjust the VM's gas limit but does not affect the gas usage.
@@ -57,7 +63,7 @@ impl AddAssign for GasInfo {
     fn add_assign(&mut self, other: Self) {
         *self = GasInfo {
             cost: self.cost + other.cost,
-            externally_used: self.externally_used + other.cost,
+            externally_used: self.externally_used + other.externally_used,
         };
     }
 }
@@ -108,7 +114,7 @@ pub trait Storage {
     /// This call must not change data in the storage, but incrementing an iterator can be a mutating operation on
     /// the Storage implementation.
     #[cfg(feature = "iterator")]
-    fn next(&mut self, iterator_id: u32) -> BackendResult<Option<Pair>>;
+    fn next(&mut self, iterator_id: u32) -> BackendResult<Option<Record>>;
 
     fn set(&mut self, key: &[u8], value: &[u8]) -> BackendResult<()>;
 
@@ -167,7 +173,8 @@ pub trait Querier {
 /// attached.
 pub type BackendResult<T> = (core::result::Result<T, BackendError>, GasInfo);
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum BackendError {
     #[error("Panic in FFI call")]
     ForeignPanic {},
@@ -217,15 +224,8 @@ impl BackendError {
         }
     }
 
-    /// Use `::unknown(msg: S)` if possible
-    pub fn unknown_without_message() -> Self {
-        BackendError::Unknown { msg: None }
-    }
-
-    pub fn user_err<S: ToString>(msg: S) -> Self {
-        BackendError::UserErr {
-            msg: msg.to_string(),
-        }
+    pub fn user_err(msg: impl Into<String>) -> Self {
+        BackendError::UserErr { msg: msg.into() }
     }
 }
 
@@ -260,10 +260,73 @@ mod tests {
         assert_eq!(gas_info.externally_used, 0);
     }
 
+    #[test]
+    fn gas_info_implements_add_assign() {
+        let mut a = GasInfo::new(0, 0);
+        a += GasInfo::new(0, 0);
+        assert_eq!(
+            a,
+            GasInfo {
+                cost: 0,
+                externally_used: 0
+            }
+        );
+
+        let mut a = GasInfo::new(0, 0);
+        a += GasInfo::new(12, 0);
+        assert_eq!(
+            a,
+            GasInfo {
+                cost: 12,
+                externally_used: 0
+            }
+        );
+
+        let mut a = GasInfo::new(10, 0);
+        a += GasInfo::new(3, 0);
+        assert_eq!(
+            a,
+            GasInfo {
+                cost: 13,
+                externally_used: 0
+            }
+        );
+
+        let mut a = GasInfo::new(0, 0);
+        a += GasInfo::new(0, 7);
+        assert_eq!(
+            a,
+            GasInfo {
+                cost: 0,
+                externally_used: 7
+            }
+        );
+
+        let mut a = GasInfo::new(0, 8);
+        a += GasInfo::new(0, 9);
+        assert_eq!(
+            a,
+            GasInfo {
+                cost: 0,
+                externally_used: 17
+            }
+        );
+
+        let mut a = GasInfo::new(100, 200);
+        a += GasInfo::new(1, 2);
+        assert_eq!(
+            a,
+            GasInfo {
+                cost: 101,
+                externally_used: 202
+            }
+        );
+    }
+
     // constructors
 
     #[test]
-    fn ffi_error_foreign_panic() {
+    fn backend_err_foreign_panic() {
         let error = BackendError::foreign_panic();
         match error {
             BackendError::ForeignPanic { .. } => {}
@@ -272,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn ffi_error_bad_argument() {
+    fn backend_err_bad_argument() {
         let error = BackendError::bad_argument();
         match error {
             BackendError::BadArgument { .. } => {}
@@ -290,7 +353,7 @@ mod tests {
     }
 
     #[test]
-    fn ffi_error_out_of_gas() {
+    fn backend_err_out_of_gas() {
         let error = BackendError::out_of_gas();
         match error {
             BackendError::OutOfGas { .. } => {}
@@ -299,7 +362,7 @@ mod tests {
     }
 
     #[test]
-    fn ffi_error_unknown() {
+    fn backend_err_unknown() {
         let error = BackendError::unknown("broken");
         match error {
             BackendError::Unknown { msg, .. } => assert_eq!(msg.unwrap(), "broken"),
@@ -308,16 +371,7 @@ mod tests {
     }
 
     #[test]
-    fn ffi_error_unknown_without_message() {
-        let error = BackendError::unknown_without_message();
-        match error {
-            BackendError::Unknown { msg, .. } => assert!(msg.is_none()),
-            e => panic!("Unexpected error: {:?}", e),
-        }
-    }
-
-    #[test]
-    fn ffi_error_user_err() {
+    fn backend_err_user_err() {
         let error = BackendError::user_err("invalid input");
         match error {
             BackendError::UserErr { msg, .. } => assert_eq!(msg, "invalid input"),
