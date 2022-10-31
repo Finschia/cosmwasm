@@ -11,6 +11,9 @@ use wasmer::Module;
 use crate::environment::Environment;
 use crate::{FunctionMetadata, WasmerVal};
 
+/// A structure that represents gas cost to be deducted from the remaining gas.
+/// This is always needed when computations are performed outside of
+/// Wasm execution, such as calling crypto APIs or calls into the blockchain.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GasInfo {
     /// The gas cost of a computation that was executed already but not yet charged.
