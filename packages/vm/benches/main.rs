@@ -343,7 +343,7 @@ fn bench_dynamic_link(c: &mut Criterion) {
                 r#"(module
                 (memory 3)
                 (export "memory" (memory 0))
-                (export "interface_version_5" (func 0))
+                (export "interface_version_8" (func 0))
                 (export "instantiate" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
