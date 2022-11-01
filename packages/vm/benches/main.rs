@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
 
 use rand::Rng;
 use std::sync::Arc;
@@ -9,8 +9,7 @@ use tempfile::TempDir;
 use cosmwasm_std::{coins, to_vec, Addr, Empty};
 use cosmwasm_vm::testing::{
     mock_backend, mock_env, mock_info, mock_instance, mock_instance_options,
-    mock_instance_with_options, write_data_to_mock_env, MockApi, MockInstanceOptions, MockQuerier,
-    MockStorage, INSTANCE_CACHE,
+    write_data_to_mock_env, MockApi, MockInstanceOptions, MockQuerier, MockStorage, INSTANCE_CACHE,
 };
 use cosmwasm_vm::{
     call_execute, call_instantiate, features_from_csv, native_dynamic_link_trampoline_for_bench,
@@ -362,39 +361,38 @@ fn bench_dynamic_link(c: &mut Criterion) {
                 );
                 cache.insert(
                     CALLER_NAME_ADDR.to_string(),
-                    RefCell::new(mock_instance_with_options(
-                        &CONTRACT,
-                        MockInstanceOptions {
-                            // enough gas for bench iterations
-                            gas_limit: 500_000_000_000_000_000,
-                            ..MockInstanceOptions::default()
-                        },
-                    )),
+                    RefCell::new(mock_instance(&CONTRACT, &[])),
                 );
             });
 
             INSTANCE_CACHE.with(|lock| {
-                let cache = lock.read().unwrap();
-                let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
-                let mut caller_env = &mut caller_instance.borrow_mut().env;
-                let target_func_info = FunctionMetadata {
-                    module_name: CALLER_NAME_ADDR.to_string(),
-                    name: "foo".to_string(),
-                    signature: ([Type::I32], []).into(),
+                let setup = || {
+                    let cache = lock.read().unwrap();
+                    let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
+                    let mut caller_env = &mut caller_instance.borrow_mut().env;
+                    caller_env.set_gas_left(HIGH_GAS_LIMIT);
+                    let target_func_info = FunctionMetadata {
+                        module_name: CALLER_NAME_ADDR.to_string(),
+                        name: "foo".to_string(),
+                        signature: ([Type::I32], []).into(),
+                    };
+                    let address_region = prepare_dynamic_call_data(
+                        Addr::unchecked(CALLEE_NAME_ADDR),
+                        target_func_info,
+                        &mut caller_env,
+                    );
+                    (caller_env.clone(), address_region.clone())
                 };
-                let address_region = prepare_dynamic_call_data(
-                    Addr::unchecked(CALLEE_NAME_ADDR),
-                    target_func_info,
-                    &mut caller_env,
-                );
 
-                b.iter(|| {
+                let routine = |(caller_env, address_region)| {
                     let _ = native_dynamic_link_trampoline_for_bench(
                         &caller_env,
                         &[WasmerVal::I32(address_region as i32)],
                     )
                     .unwrap();
-                })
+                };
+
+                b.iter_batched(setup, routine, BatchSize::SmallInput)
             });
         },
     );
