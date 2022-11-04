@@ -188,8 +188,8 @@ pub enum BackendError {
     OutOfGas {},
     #[error("Error in dynamic link: {msg:?}")]
     DynamicLinkErr { msg: String },
-    #[error("Unknown error during call into backend: {msg:?}")]
-    Unknown { msg: Option<String> },
+    #[error("Unknown error during call into backend: {msg}")]
+    Unknown { msg: String },
     // This is the only error case of BackendError that is reported back to the contract.
     #[error("User error during call into backend: {msg}")]
     UserErr { msg: String },
@@ -218,10 +218,8 @@ impl BackendError {
         }
     }
 
-    pub fn unknown<S: ToString>(msg: S) -> Self {
-        BackendError::Unknown {
-            msg: Some(msg.to_string()),
-        }
+    pub fn unknown(msg: impl Into<String>) -> Self {
+        BackendError::Unknown { msg: msg.into() }
     }
 
     pub fn user_err(msg: impl Into<String>) -> Self {
@@ -365,7 +363,7 @@ mod tests {
     fn backend_err_unknown() {
         let error = BackendError::unknown("broken");
         match error {
-            BackendError::Unknown { msg, .. } => assert_eq!(msg.unwrap(), "broken"),
+            BackendError::Unknown { msg, .. } => assert_eq!(msg, "broken"),
             e => panic!("Unexpected error: {:?}", e),
         }
     }
