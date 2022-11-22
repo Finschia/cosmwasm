@@ -41,10 +41,10 @@
   ],
   "definitions": {
     "BankMsg": {
-      "description": "The message types of the bank module.\n\nSee https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto.",
+      "description": "The message types of the bank module.\n\nSee https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmos/bank/v1beta1/tx.proto.",
       "oneOf": [
         {
-          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a MsgSend in https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto. `from_address` is automatically filled with the current contract's address.",
+          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a [MsgSend](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmos/bank/v1beta1/tx.proto#L19-L28). `from_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "send"
@@ -125,10 +125,10 @@
       "type": "string"
     },
     "WasmMsg": {
-      "description": "The message types of the wasm module.\n\nSee https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.",
+      "description": "The message types of the wasm module.\n\nSee https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmwasm/wasm/v1/tx.proto.",
       "oneOf": [
         {
-          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a MsgExecuteContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a [MsgExecuteContract](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmwasm/wasm/v1/tx.proto#L71-L82). `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "execute"
@@ -165,7 +165,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThis is translated to a MsgInstantiateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThis is translated to a [MsgInstantiateContract](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmwasm/wasm/v1/tx.proto#L45-L62). `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "instantiate"
@@ -215,7 +215,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a MsgMigrateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto. `sender` is automatically filled with the current contract's address.",
+          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a [MsgMigrateContract](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmwasm/wasm/v1/tx.proto#L90-L100). `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "migrate"
