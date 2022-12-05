@@ -249,7 +249,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
-    let contract_addr_raw = read_region(&env.memory(), address, 64)?;
+    let contract_addr_raw = read_region(&env.memory(), address, MAX_ADDRESS_LENGTH)?;
     let contract_addr: Addr = from_slice(&contract_addr_raw)
         .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
     let expected_interface_binary = read_region(&env.memory(), interface, MAX_REGIONS_LENGTH)?;
