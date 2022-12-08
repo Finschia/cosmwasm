@@ -46,14 +46,14 @@ pub enum CosmosMsg<T = Empty> {
 
 /// The message types of the bank module.
 ///
-/// See https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmos/bank/v1beta1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/bank/v1beta1/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankMsg {
     /// Sends native tokens from the contract to the given address.
     ///
-    /// This is translated to a [MsgSend](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmos/bank/v1beta1/tx.proto#L19-L28).
+    /// This is translated to a [MsgSend](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/bank/v1beta1/tx.proto#L19-L28).
     /// `from_address` is automatically filled with the current contract's address.
     Send {
         to_address: String,
@@ -67,19 +67,19 @@ pub enum BankMsg {
 
 /// The message types of the staking module.
 ///
-/// See https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmos/staking/v1beta1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto.
 #[cfg(feature = "staking")]
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StakingMsg {
-    /// This is translated to a [MsgDelegate](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmos/staking/v1beta1/tx.proto#L79-L88).
+    /// This is translated to a [MsgDelegate](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L79-L88).
     /// `delegator_address` is automatically filled with the current contract's address.
     Delegate { validator: String, amount: Coin },
-    /// This is translated to a [MsgUndelegate](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmos/staking/v1beta1/tx.proto#L110-L119).
+    /// This is translated to a [MsgUndelegate](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L110-L119).
     /// `delegator_address` is automatically filled with the current contract's address.
     Undelegate { validator: String, amount: Coin },
-    /// This is translated to a [MsgBeginRedelegate](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmos/staking/v1beta1/tx.proto#L93-L103).
+    /// This is translated to a [MsgBeginRedelegate](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L93-L103).
     /// `delegator_address` is automatically filled with the current contract's address.
     Redelegate {
         src_validator: String,
@@ -112,14 +112,14 @@ pub enum DistributionMsg {
 
 /// The message types of the wasm module.
 ///
-/// See https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmwasm/wasm/v1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto.
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum WasmMsg {
     /// Dispatches a call to another contract at a known address (with known ABI).
     ///
-    /// This is translated to a [MsgExecuteContract](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmwasm/wasm/v1/tx.proto#L71-L82).
+    /// This is translated to a [MsgExecuteContract](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L71-L82).
     /// `sender` is automatically filled with the current contract's address.
     Execute {
         contract_addr: String,
@@ -129,7 +129,7 @@ pub enum WasmMsg {
     },
     /// Instantiates a new contracts from previously uploaded Wasm code.
     ///
-    /// This is translated to a [MsgInstantiateContract](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmwasm/wasm/v1/tx.proto#L45-L62).
+    /// This is translated to a [MsgInstantiateContract](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L45-L62).
     /// `sender` is automatically filled with the current contract's address.
     Instantiate {
         admin: Option<String>,
@@ -145,7 +145,7 @@ pub enum WasmMsg {
     ///
     /// Only the contract admin (as defined in wasmd), if any, is able to make this call.
     ///
-    /// This is translated to a [MsgMigrateContract](https://github.com/line/lbm-sdk/blob/v0.46.0-rc9/proto/cosmwasm/wasm/v1/tx.proto#L90-L100).
+    /// This is translated to a [MsgMigrateContract](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L90-L100).
     /// `sender` is automatically filled with the current contract's address.
     Migrate {
         contract_addr: String,
