@@ -52,6 +52,7 @@ pub struct Uint256(#[schemars(with = "String")] U256);
 
 impl Uint256 {
     pub const MAX: Uint256 = Uint256(U256::MAX);
+    pub const MIN: Uint256 = Uint256(U256::zero());
 
     /// Creates a Uint256(value) from a big endian representation. It's just an alias for
     /// [`Uint256::from_be_bytes`].
@@ -62,8 +63,18 @@ impl Uint256 {
     }
 
     /// Creates a Uint256(0)
+    #[inline]
     pub const fn zero() -> Self {
         Uint256(U256::zero())
+    }
+
+    /// Creates a Uint256(1)
+    #[inline]
+    pub const fn one() -> Self {
+        Self::from_be_bytes([
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 1,
+        ])
     }
 
     pub const fn from_be_bytes(data: [u8; 32]) -> Self {
@@ -152,7 +163,10 @@ impl Uint256 {
         Self(res)
     }
 
-    /// Returns `self * numerator / denominator`
+    /// Returns `self * numerator / denominator`.
+    ///
+    /// Due to the nature of the integer division involved, the result is always floored.
+    /// E.g. 5 * 99/100 = 4.
     pub fn multiply_ratio<A: Into<Uint256>, B: Into<Uint256>>(
         &self,
         numerator: A,
@@ -167,7 +181,10 @@ impl Uint256 {
         }
     }
 
-    /// Returns `self * numerator / denominator`
+    /// Returns `self * numerator / denominator`.
+    ///
+    /// Due to the nature of the integer division involved, the result is always floored.
+    /// E.g. 5 * 99/100 = 4.
     pub fn checked_multiply_ratio<A: Into<Uint256>, B: Into<Uint256>>(
         &self,
         numerator: A,
@@ -226,6 +243,13 @@ impl Uint256 {
             .ok_or_else(|| OverflowError::new(OverflowOperation::Mul, self, other))
     }
 
+    pub fn checked_pow(self, exp: u32) -> Result<Self, OverflowError> {
+        self.0
+            .checked_pow(exp.into())
+            .map(Self)
+            .ok_or_else(|| OverflowError::new(OverflowOperation::Pow, self, exp))
+    }
+
     pub fn checked_div(self, other: Self) -> Result<Self, DivideByZeroError> {
         self.0
             .checked_div(other.0)
@@ -233,18 +257,15 @@ impl Uint256 {
             .ok_or_else(|| DivideByZeroError::new(self))
     }
 
+    pub fn checked_div_euclid(self, other: Self) -> Result<Self, DivideByZeroError> {
+        self.checked_div(other)
+    }
+
     pub fn checked_rem(self, other: Self) -> Result<Self, DivideByZeroError> {
         self.0
             .checked_rem(other.0)
             .map(Self)
             .ok_or_else(|| DivideByZeroError::new(self))
-    }
-
-    pub fn checked_pow(self, exp: u32) -> Result<Self, OverflowError> {
-        self.0
-            .checked_pow(exp.into())
-            .map(Self)
-            .ok_or_else(|| OverflowError::new(OverflowOperation::Pow, self, exp))
     }
 
     pub fn checked_shr(self, other: u32) -> Result<Self, OverflowError> {
@@ -263,6 +284,30 @@ impl Uint256 {
         Ok(Self(self.0.shl(other)))
     }
 
+    #[inline]
+    pub fn wrapping_add(self, other: Self) -> Self {
+        let (value, _did_overflow) = self.0.overflowing_add(other.0);
+        Self(value)
+    }
+
+    #[inline]
+    pub fn wrapping_sub(self, other: Self) -> Self {
+        let (value, _did_overflow) = self.0.overflowing_sub(other.0);
+        Self(value)
+    }
+
+    #[inline]
+    pub fn wrapping_mul(self, other: Self) -> Self {
+        let (value, _did_overflow) = self.0.overflowing_mul(other.0);
+        Self(value)
+    }
+
+    #[inline]
+    pub fn wrapping_pow(self, other: u32) -> Self {
+        let (value, _did_overflow) = self.0.overflowing_pow(other.into());
+        Self(value)
+    }
+
     #[must_use]
     pub fn saturating_add(self, other: Self) -> Self {
         Self(self.0.saturating_add(other.0))
@@ -276,6 +321,21 @@ impl Uint256 {
     #[must_use]
     pub fn saturating_mul(self, other: Self) -> Self {
         Self(self.0.saturating_mul(other.0))
+    }
+
+    pub fn saturating_pow(self, exp: u32) -> Self {
+        match self.checked_pow(exp) {
+            Ok(value) => value,
+            Err(_) => Self::MAX,
+        }
+    }
+
+    pub fn abs_diff(self, other: Self) -> Self {
+        if self < other {
+            other - self
+        } else {
+            self - other
+        }
     }
 }
 
@@ -594,13 +654,25 @@ where
     }
 }
 
+impl PartialEq<&Uint256> for Uint256 {
+    fn eq(&self, rhs: &&Uint256) -> bool {
+        self == *rhs
+    }
+}
+
+impl PartialEq<Uint256> for &Uint256 {
+    fn eq(&self, rhs: &Uint256) -> bool {
+        *self == rhs
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{from_slice, to_vec};
 
     #[test]
-    fn uint256_construct() {
+    fn uint256_new_works() {
         let num = Uint256::new([1; 32]);
         let a: [u8; 32] = num.to_be_bytes();
         assert_eq!(a, [1; 32]);
@@ -612,6 +684,30 @@ mod tests {
         let num = Uint256::new(be_bytes);
         let resulting_bytes: [u8; 32] = num.to_be_bytes();
         assert_eq!(be_bytes, resulting_bytes);
+    }
+
+    #[test]
+    fn uint256_zero_works() {
+        let zero = Uint256::zero();
+        assert_eq!(
+            zero.to_be_bytes(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0
+            ]
+        );
+    }
+
+    #[test]
+    fn uin256_one_works() {
+        let one = Uint256::one();
+        assert_eq!(
+            one.to_be_bytes(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1,
+            ]
+        );
     }
 
     #[test]
@@ -1111,6 +1207,43 @@ mod tests {
     }
 
     #[test]
+    fn uint256_wrapping_methods() {
+        // wrapping_add
+        assert_eq!(
+            Uint256::from(2u32).wrapping_add(Uint256::from(2u32)),
+            Uint256::from(4u32)
+        ); // non-wrapping
+        assert_eq!(
+            Uint256::MAX.wrapping_add(Uint256::from(1u32)),
+            Uint256::from(0u32)
+        ); // wrapping
+
+        // wrapping_sub
+        assert_eq!(
+            Uint256::from(7u32).wrapping_sub(Uint256::from(5u32)),
+            Uint256::from(2u32)
+        ); // non-wrapping
+        assert_eq!(
+            Uint256::from(0u32).wrapping_sub(Uint256::from(1u32)),
+            Uint256::MAX
+        ); // wrapping
+
+        // wrapping_mul
+        assert_eq!(
+            Uint256::from(3u32).wrapping_mul(Uint256::from(2u32)),
+            Uint256::from(6u32)
+        ); // non-wrapping
+        assert_eq!(
+            Uint256::MAX.wrapping_mul(Uint256::from(2u32)),
+            Uint256::MAX - Uint256::one()
+        ); // wrapping
+
+        // wrapping_pow
+        assert_eq!(Uint256::from(2u32).wrapping_pow(3), Uint256::from(8u32)); // non-wrapping
+        assert_eq!(Uint256::MAX.wrapping_pow(2), Uint256::from(1u32)); // wrapping
+    }
+
+    #[test]
     fn uint256_json() {
         let orig = Uint256::from(1234567890987654321u128);
         let serialized = to_vec(&orig).unwrap();
@@ -1359,10 +1492,10 @@ mod tests {
         ];
         let expected = Uint256::from(762u32);
 
-        let sum_as_ref = nums.iter().sum();
+        let sum_as_ref: Uint256 = nums.iter().sum();
         assert_eq!(expected, sum_as_ref);
 
-        let sum_as_owned = nums.into_iter().sum();
+        let sum_as_owned: Uint256 = nums.into_iter().sum();
         assert_eq!(expected, sum_as_owned);
     }
 
@@ -1410,6 +1543,18 @@ mod tests {
             Ok(Uint256::from(3u32)),
         );
         assert!(matches!(
+            Uint256::MAX.checked_div_euclid(Uint256::from(0u32)),
+            Err(DivideByZeroError { .. })
+        ));
+        assert_eq!(
+            Uint256::from(6u32).checked_div_euclid(Uint256::from(2u32)),
+            Ok(Uint256::from(3u32)),
+        );
+        assert_eq!(
+            Uint256::from(7u32).checked_div_euclid(Uint256::from(2u32)),
+            Ok(Uint256::from(3u32)),
+        );
+        assert!(matches!(
             Uint256::MAX.checked_rem(Uint256::from(0u32)),
             Err(DivideByZeroError { .. })
         ));
@@ -1427,6 +1572,11 @@ mod tests {
             Uint256::MAX.saturating_mul(Uint256::from(2u32)),
             Uint256::MAX
         );
+        assert_eq!(
+            Uint256::from(4u32).saturating_pow(2u32),
+            Uint256::from(16u32)
+        );
+        assert_eq!(Uint256::MAX.saturating_pow(2u32), Uint256::MAX);
     }
 
     #[test]
@@ -1485,5 +1635,31 @@ mod tests {
         let b = Uint256::from(6u32);
         a %= &b;
         assert_eq!(a, Uint256::from(1u32));
+    }
+
+    #[test]
+    fn uint256_abs_diff_works() {
+        let a = Uint256::from(42u32);
+        let b = Uint256::from(5u32);
+        let expected = Uint256::from(37u32);
+        assert_eq!(a.abs_diff(b), expected);
+        assert_eq!(b.abs_diff(a), expected);
+    }
+
+    #[test]
+    fn uint256_partial_eq() {
+        let test_cases = [(1, 1, true), (42, 42, true), (42, 24, false), (0, 0, true)]
+            .into_iter()
+            .map(|(lhs, rhs, expected): (u64, u64, bool)| {
+                (Uint256::from(lhs), Uint256::from(rhs), expected)
+            });
+
+        #[allow(clippy::op_ref)]
+        for (lhs, rhs, expected) in test_cases {
+            assert_eq!(lhs == rhs, expected);
+            assert_eq!(&lhs == rhs, expected);
+            assert_eq!(lhs == &rhs, expected);
+            assert_eq!(&lhs == &rhs, expected);
+        }
     }
 }

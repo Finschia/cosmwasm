@@ -10,27 +10,27 @@ static CONFIG_KEY: &[u8] = b"config";
 static POLL_KEY: &[u8] = b"polls";
 static BANK_KEY: &[u8] = b"bank";
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct State {
     pub denom: String,
     pub owner: Addr,
     pub staked_tokens: Uint128,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TokenManager {
     pub token_balance: Uint128,              // total staked balance
     pub locked_tokens: Vec<(Uuid, Uint128)>, //maps poll_id to weight voted
     pub participated_polls: Vec<Uuid>,       // poll_id
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct Voter {
     pub vote: String,
     pub weight: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub enum PollStatus {
     InProgress,
     Tally,
@@ -38,7 +38,7 @@ pub enum PollStatus {
     Rejected,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct Poll {
     pub creator: Addr,
     pub status: PollStatus,
