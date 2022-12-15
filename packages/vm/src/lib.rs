@@ -44,7 +44,7 @@ pub use crate::conversion::{ref_to_u32, to_u32};
 #[cfg(feature = "bench")]
 pub use crate::dynamic_link::native_dynamic_link_trampoline_for_bench;
 pub use crate::dynamic_link::{
-    copy_region_vals_between_env, dynamic_link, write_value_to_env, FunctionMetadata, WasmerVal,
+    dynamic_link, read_region_vals_from_env, write_value_to_env, FunctionMetadata, WasmerVal,
 };
 pub use crate::environment::Environment;
 pub use crate::errors::{

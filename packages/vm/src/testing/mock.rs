@@ -13,8 +13,8 @@ use super::storage::MockStorage;
 use crate::environment::Environment;
 use crate::instance::Instance;
 use crate::{
-    copy_region_vals_between_env, Backend, BackendApi, BackendError, BackendResult, GasInfo,
-    Querier, Storage,
+    read_region_vals_from_env, write_value_to_env, Backend, BackendApi, BackendError,
+    BackendResult, GasInfo, Querier, Storage,
 };
 use crate::{FunctionMetadata, WasmerVal};
 
@@ -215,27 +215,35 @@ impl BackendApi for MockApi {
                 Some(callee_instance_cell) => {
                     let callee_instance = callee_instance_cell.borrow_mut();
 
-                    let arg_region_ptrs = copy_region_vals_between_env(
-                        caller_env,
-                        &callee_instance.env,
-                        args,
-                        MAX_REGIONS_LENGTH,
-                        false,
-                    )
-                    .unwrap();
+                    let datas =
+                        read_region_vals_from_env(caller_env, args, MAX_REGIONS_LENGTH, false)
+                            .unwrap();
+
+                    let mut arg_region_ptrs = Vec::<WasmerVal>::new();
+                    for data in datas {
+                        arg_region_ptrs
+                            .push(write_value_to_env(&callee_instance.env, &data).unwrap())
+                    }
+
                     let call_ret = match callee_instance.call_function_strict(
                         &func_info.signature,
                         &func_info.name,
                         &arg_region_ptrs,
                     ) {
-                        Ok(rets) => Ok(copy_region_vals_between_env(
-                            &callee_instance.env,
-                            caller_env,
-                            &rets,
-                            MAX_REGIONS_LENGTH,
-                            true,
-                        )
-                        .unwrap()),
+                        Ok(rets) => {
+                            let ret_datas = read_region_vals_from_env(
+                                &callee_instance.env,
+                                &rets,
+                                MAX_REGIONS_LENGTH,
+                                true,
+                            )
+                            .unwrap();
+                            let mut ret_region_ptrs = Vec::<WasmerVal>::new();
+                            for data in ret_datas {
+                                ret_region_ptrs.push(write_value_to_env(caller_env, &data).unwrap())
+                            }
+                            Ok(ret_region_ptrs.into_boxed_slice())
+                        }
                         Err(e) => Err(BackendError::dynamic_link_err(e.to_string())),
                     };
                     gas_info.cost += callee_instance.create_gas_report().used_internally;
