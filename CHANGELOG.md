@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+* (cosmwasm) bump up cosmwasm from v1.0.0 to v1.1.9 ([#256](https://github.com/line/cosmwasm/pull/256))
+
+### Fixes
+
 
 ## [[0.16.3-0.5.1](https://github.com/line/cosmwasm/compare/v0.16.3-0.5.0...0.16.3-0.5.1)] - 2022-03-03
 
@@ -85,3 +92,5 @@ Initial code is based on the cosmwasm v0.12.0
 * (cosmwasm) [v0.12.0](https://github.com/CosmWasm/cosmwasm/releases/tag/v0.12.0).
 
 Please refer [CHANGELOG_OF_COSMWASM_v0.12.0](https://github.com/CosmWasm/cosmwasm/releases?after=v0.12.0)
+
+[unreleased]: https://github.com/line/cosmwasm/compare/v1.0.0-0.6.0...HEAD
