@@ -21,6 +21,7 @@ use crate::{FunctionMetadata, WasmerVal};
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 const DEFAULT_GAS_COST_HUMANIZE: u64 = 44;
 const DEFAULT_GAS_COST_CANONICALIZE: u64 = 55;
+const MAX_REGIONS_LENGTH: usize = 64 * 1024 * 1024;
 
 /// All external requirements that can be injected for unit tests.
 /// It sets the given balance for the contract itself, nothing else
@@ -214,9 +215,14 @@ impl BackendApi for MockApi {
                 Some(callee_instance_cell) => {
                     let callee_instance = callee_instance_cell.borrow_mut();
 
-                    let arg_region_ptrs =
-                        copy_region_vals_between_env(caller_env, &callee_instance.env, args, false)
-                            .unwrap();
+                    let arg_region_ptrs = copy_region_vals_between_env(
+                        caller_env,
+                        &callee_instance.env,
+                        args,
+                        MAX_REGIONS_LENGTH,
+                        false,
+                    )
+                    .unwrap();
                     let call_ret = match callee_instance.call_function_strict(
                         &func_info.signature,
                         &func_info.name,
@@ -226,6 +232,7 @@ impl BackendApi for MockApi {
                             &callee_instance.env,
                             caller_env,
                             &rets,
+                            MAX_REGIONS_LENGTH,
                             true,
                         )
                         .unwrap()),

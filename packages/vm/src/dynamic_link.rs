@@ -14,10 +14,9 @@ use wasmer_types::ImportIndex;
 
 use cosmwasm_std::{from_slice, Addr};
 
-const MAX_REGIONS_LENGTH: usize = 100_000;
-
 // The length of the address is 63 characters for strings and 65 characters with "" for []byte. Thus, 65<64*2 is used.
 const MAX_ADDRESS_LENGTH: usize = 64 * 2;
+const MAX_INTERFACE_REGIONS_LENGTH: usize = 8 * 1024 * 1024;
 
 pub type WasmerVal = Val;
 
@@ -188,6 +187,7 @@ pub fn copy_region_vals_between_env<A, S, Q, A2, S2, Q2>(
     src_env: &Environment<A, S, Q>,
     dst_env: &Environment<A2, S2, Q2>,
     vals: &[WasmerVal],
+    limit_length: usize,
     deallocation: bool,
 ) -> VmResult<Box<[WasmerVal]>>
 where
@@ -199,7 +199,7 @@ where
     Q2: Querier + 'static,
 {
     let mut copied_region_ptrs = Vec::<WasmerVal>::with_capacity(vals.len());
-    let mut max_regions_len = MAX_REGIONS_LENGTH;
+    let mut max_regions_len = limit_length;
     for val in vals {
         let val_region_ptr = ref_to_u32(val)?;
         let data = read_region(&src_env.memory(), val_region_ptr, max_regions_len).map_err(
@@ -209,9 +209,7 @@ where
                     #[cfg(feature = "backtraces")]
                     backtrace,
                 } => VmError::CommunicationErr {
-                    source: CommunicationError::exceeds_limit_length_copy_regions(
-                        MAX_REGIONS_LENGTH,
-                    ),
+                    source: CommunicationError::exceeds_limit_length_copy_regions(limit_length),
                     #[cfg(feature = "backtraces")]
                     backtrace,
                 },
@@ -252,7 +250,8 @@ where
     let contract_addr_raw = read_region(&env.memory(), address, 64)?;
     let contract_addr: Addr = from_slice(&contract_addr_raw)
         .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
-    let expected_interface_binary = read_region(&env.memory(), interface, MAX_REGIONS_LENGTH)?;
+    let expected_interface_binary =
+        read_region(&env.memory(), interface, MAX_INTERFACE_REGIONS_LENGTH)?;
     let expected_interface: Vec<ExportType<FunctionType>> = from_slice(&expected_interface_binary)
         .map_err(|_| RuntimeError::new("Invalid expected interface"))?;
     let (module_result, gas_info) = env.api.get_wasmer_module(contract_addr.as_str());
@@ -302,6 +301,8 @@ mod tests {
     };
     use crate::to_vec;
 
+    const MAX_REGIONS_LENGTH: usize = 1024 * 1024;
+
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 
     // prepared data
@@ -348,6 +349,7 @@ mod tests {
             &src_instance.env,
             &dst_instance.env,
             &[WasmerVal::I32(data_wasm_ptr as i32)],
+            MAX_REGIONS_LENGTH,
             true,
         )
         .unwrap();
@@ -379,6 +381,7 @@ mod tests {
             &src_instance.env,
             &dst_instance.env,
             &[WasmerVal::I32(data_wasm_ptr as i32)],
+            MAX_REGIONS_LENGTH,
             true,
         )
         .unwrap();
@@ -409,6 +412,7 @@ mod tests {
                 WasmerVal::I32(data_ptr1 as i32),
                 WasmerVal::I32(data_ptr2 as i32),
             ],
+            MAX_REGIONS_LENGTH,
             true,
         );
         assert!(matches!(
