@@ -291,14 +291,19 @@ mod tests {
     use wasmer_types::Type;
 
     use crate::testing::{
-        mock_env, mock_instance, write_data_to_mock_env, MockApi, MockQuerier, MockStorage,
-        INSTANCE_CACHE,
+        mock_backend, mock_env, mock_instance, write_data_to_mock_env, MockApi, MockQuerier,
+        MockStorage, INSTANCE_CACHE,
     };
-    use crate::to_vec;
+    use crate::{to_vec, Instance, InstanceOptions};
 
     const MAX_REGIONS_LENGTH: usize = 1024 * 1024;
+    const HIGH_GAS_LIMIT_INSTANCE_OPTIONS: InstanceOptions = InstanceOptions {
+        gas_limit: 20_000_000_000_000_000,
+        print_debug: false,
+    };
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
+    static CONTRACT_CALLEE: &[u8] = include_bytes!("../testdata/simple_callee.wasm");
 
     // prepared data
     const PASS_DATA: &[u8] = b"data";
@@ -393,33 +398,31 @@ mod tests {
     }
 
     fn init_cache_with_two_instances() {
-        let callee_wasm = wat::parse_str(
-            r#"(module
-                (memory 3)
-                (export "memory" (memory 0))
-                (export "interface_version_8" (func 0))
-                (export "instantiate" (func 0))
-                (export "allocate" (func 0))
-                (export "deallocate" (func 0))
-                (type $t_succeed (func))
-                (func $f_succeed (type $t_succeed) nop)
-                (type $t_fail (func))
-                (func $f_fail (type $t_fail) unreachable)
-                (export "succeed" (func $f_succeed))
-                (export "fail" (func $f_fail))
-            )"#,
-        )
-        .unwrap();
-
         INSTANCE_CACHE.with(|lock| {
             let mut cache = lock.write().unwrap();
             cache.insert(
                 CALLEE_NAME_ADDR.to_string(),
-                RefCell::new(mock_instance(&callee_wasm, &[])),
+                RefCell::new(
+                    Instance::from_code(
+                        CONTRACT_CALLEE,
+                        mock_backend(&[]),
+                        HIGH_GAS_LIMIT_INSTANCE_OPTIONS,
+                        None,
+                    )
+                    .unwrap(),
+                ),
             );
             cache.insert(
                 CALLER_NAME_ADDR.to_string(),
-                RefCell::new(mock_instance(&CONTRACT, &[])),
+                RefCell::new(
+                    Instance::from_code(
+                        CONTRACT,
+                        mock_backend(&[]),
+                        HIGH_GAS_LIMIT_INSTANCE_OPTIONS,
+                        None,
+                    )
+                    .unwrap(),
+                ),
             );
         });
     }
@@ -535,9 +538,6 @@ mod tests {
                 &[WasmerVal::I32(address_region as i32)],
             );
             assert!(matches!(result, Err(RuntimeError { .. })));
-
-            // Because content in the latter part depends on the environment,
-            // comparing whether the error begins with panic error or not.
             assert!(result.unwrap_err().message().starts_with("func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: \"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable"));
         });
     }

@@ -13,7 +13,7 @@ use super::storage::MockStorage;
 use crate::environment::Environment;
 use crate::instance::Instance;
 use crate::{
-    read_region_vals_from_env, write_value_to_env, Backend, BackendApi, BackendError,
+    read_region_vals_from_env, to_vec, write_value_to_env, Backend, BackendApi, BackendError,
     BackendResult, GasInfo, Querier, Storage,
 };
 use crate::{FunctionMetadata, WasmerVal};
@@ -21,6 +21,12 @@ use crate::{FunctionMetadata, WasmerVal};
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 const DEFAULT_GAS_COST_HUMANIZE: u64 = 44;
 const DEFAULT_GAS_COST_CANONICALIZE: u64 = 55;
+
+// calculated by https://github.com/line/lbm-sdk/blob/6411ce42259b4774ce1864f452624651299b9683/x/wasm/types/params.go#L17-L38
+const DEFAULT_GAS_COST_INSTANTIATE: u64 = 140000000 * 60000;
+
+// comes from https://github.com/line/lbm-sdk/blob/6411ce42259b4774ce1864f452624651299b9683/x/wasm/keeper/gas_register.go#L13-L18
+const DEFAULT_GAS_COST_MESSAGE: u64 = 0;
 const MAX_REGIONS_LENGTH: usize = 64 * 1024 * 1024;
 
 /// All external requirements that can be injected for unit tests.
@@ -213,16 +219,28 @@ impl BackendApi for MockApi {
             let cache = lock.read().unwrap();
             match cache.get(contract_addr) {
                 Some(callee_instance_cell) => {
-                    let callee_instance = callee_instance_cell.borrow_mut();
-
                     let datas =
                         read_region_vals_from_env(caller_env, args, MAX_REGIONS_LENGTH, false)
                             .unwrap();
+                    let input_length: u64 = datas
+                        .iter()
+                        .fold(0, |sum, x| sum + x.len())
+                        .try_into()
+                        .unwrap();
+                    let instantiate_cost: u64 =
+                        DEFAULT_GAS_COST_INSTANTIATE + DEFAULT_GAS_COST_MESSAGE * input_length;
+
+                    let callee_instance = callee_instance_cell.borrow_mut();
+                    gas_info.cost += instantiate_cost;
 
                     let mut arg_region_ptrs = Vec::<WasmerVal>::new();
+                    let env_ptr =
+                        write_value_to_env(&callee_instance.env, &to_vec(&mock_env()).unwrap())
+                            .unwrap();
+                    arg_region_ptrs.push(env_ptr);
                     for data in datas {
                         arg_region_ptrs
-                            .push(write_value_to_env(&callee_instance.env, &data).unwrap())
+                            .push(write_value_to_env(&callee_instance.env, &data).unwrap());
                     }
 
                     let call_ret = match callee_instance.call_function_strict(
