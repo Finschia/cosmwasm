@@ -217,7 +217,7 @@ where
 
         if deallocation {
             env.call_function0("deallocate", &[val_region_ptr.into()])?;
-        }
+        };
     }
 
     Ok(datas)
@@ -242,7 +242,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
-    let contract_addr_raw = read_region(&env.memory(), address, 64)?;
+    let contract_addr_raw = read_region(&env.memory(), address, MAX_ADDRESS_LENGTH)?;
     let contract_addr: Addr = from_slice(&contract_addr_raw)
         .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
     let expected_interface_binary =
