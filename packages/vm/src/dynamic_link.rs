@@ -16,7 +16,8 @@ use cosmwasm_std::{from_slice, Addr};
 
 // The length of the address is 63 characters for strings and 65 characters with "" for []byte. Thus, 65<64*2 is used.
 const MAX_ADDRESS_LENGTH: usize = 64 * 2;
-const MAX_INTERFACE_REGIONS_LENGTH: usize = 8 * 1024 * 1024;
+// enough big value for copy interface. This is less than crate::calls::read_limits::XXX
+const MAX_INTERFACE_REGIONS_LENGTH: usize = 1024 * 1024;
 
 pub type WasmerVal = Val;
 
