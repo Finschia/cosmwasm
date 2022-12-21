@@ -124,7 +124,7 @@ pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// This macro implements functions to call dynamic linked function for attributed trait.
 ///
 /// To use this macro, the contract must declare the import
-/// `wasmer-types = { version = "1.0.2", features = ["enable-serde"] }`
+/// `wasmer-types = { version = "2.2.1", features = ["enable-serde"] }`
 /// in Cargo.toml
 ///
 /// This macro must take an attribute specifying a struct to implement the traits for.
