@@ -1,10 +1,10 @@
 use cosmwasm_std::{
-    dynamic_link, entry_point, from_slice, to_binary, to_vec, Addr, Binary, Contract, Deps,
-    DepsMut, Env, MessageInfo, Response,
+    dynamic_link, entry_point, from_slice, to_binary, to_vec, wasm_execute, Addr, Binary, Contract,
+    Deps, DepsMut, Env, MessageInfo, Reply, Response, SubMsg,
 };
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, NumberResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, NumberExecuteMsg, NumberResponse, QueryMsg};
 
 const ADDRESS_KEY: &[u8] = b"number-address";
 
@@ -43,6 +43,11 @@ pub fn execute(
         ExecuteMsg::Add { value } => handle_add(deps.as_ref(), value),
         ExecuteMsg::Sub { value } => handle_sub(deps.as_ref(), value),
         ExecuteMsg::Mul { value } => handle_mul(deps.as_ref(), value),
+        ExecuteMsg::SubmsgReplyAdd { value } => handle_submsg_reply_add(deps.as_ref(), value),
+        ExecuteMsg::SubmsgReplySub { value } => handle_submsg_reply_sub(deps.as_ref(), value),
+        ExecuteMsg::SubmsgReplyMul { value } => handle_submsg_reply_mul(deps.as_ref(), value),
+        ExecuteMsg::LogQuery {} => handle_log_query(deps.as_ref()),
+        ExecuteMsg::LogQueryDyn {} => handle_log_query_dyn(deps.as_ref()),
     }
 }
 
@@ -93,6 +98,76 @@ fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
         .querier
         .query_wasm_smart(address, &QueryMsg::Number {})?;
 
+    let response = Response::default()
+        .add_attribute("value_by_dynamic", value_dyn.to_string())
+        .add_attribute("value_by_query", res.value.to_string());
+
+    Ok(response)
+}
+
+fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
+    let contract_addr: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let execute_msg = SubMsg::reply_on_success(
+        wasm_execute(contract_addr, &NumberExecuteMsg::Add { value: by }, vec![])?,
+        0,
+    );
+    let response = Response::default().add_submessage(execute_msg);
+    return Ok(response);
+}
+
+fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
+    let contract_addr: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let execute_msg = SubMsg::reply_on_success(
+        wasm_execute(contract_addr, &NumberExecuteMsg::Sub { value: by }, vec![])?,
+        0,
+    );
+    let response = Response::default().add_submessage(execute_msg);
+    return Ok(response);
+}
+
+fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
+    let contract_addr: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let execute_msg = SubMsg::reply_on_success(
+        wasm_execute(contract_addr, &NumberExecuteMsg::Mul { value: by }, vec![])?,
+        0,
+    );
+    let response = Response::default().add_submessage(execute_msg);
+    return Ok(response);
+}
+
+fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
+    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let res: NumberResponse = deps
+        .querier
+        .query_wasm_smart(address, &QueryMsg::Number {})?;
+
+    let response = Response::default().add_attribute("value_by_query", res.value.to_string());
+
+    Ok(response)
+}
+
+fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
+    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let contract = NumberContract {
+        address: address.clone(),
+    };
+    let value_dyn = contract.number();
+
+    let response = Response::default().add_attribute("value_by_query_dyn", value_dyn.to_string());
+
+    Ok(response)
+}
+
+#[entry_point]
+pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, ContractError> {
+    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let contract = NumberContract {
+        address: address.clone(),
+    };
+    let value_dyn = contract.number();
+    let res: NumberResponse = deps
+        .querier
+        .query_wasm_smart(address, &QueryMsg::Number {})?;
     let response = Response::default()
         .add_attribute("value_by_dynamic", value_dyn.to_string())
         .add_attribute("value_by_query", res.value.to_string());

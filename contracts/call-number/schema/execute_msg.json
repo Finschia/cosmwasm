@@ -64,6 +64,93 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "submsg_reply_add"
+      ],
+      "properties": {
+        "submsg_reply_add": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "submsg_reply_sub"
+      ],
+      "properties": {
+        "submsg_reply_sub": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "submsg_reply_mul"
+      ],
+      "properties": {
+        "submsg_reply_mul": {
+          "type": "object",
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "value": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "log_query"
+      ],
+      "properties": {
+        "log_query": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "log_query_dyn"
+      ],
+      "properties": {
+        "log_query_dyn": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
     }
   ]
 }

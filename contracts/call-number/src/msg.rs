@@ -13,6 +13,19 @@ pub enum ExecuteMsg {
     Add { value: i32 },
     Sub { value: i32 },
     Mul { value: i32 },
+    SubmsgReplyAdd { value: i32 },
+    SubmsgReplySub { value: i32 },
+    SubmsgReplyMul { value: i32 },
+    LogQuery {},
+    LogQueryDyn {},
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NumberExecuteMsg {
+    Add { value: i32 },
+    Sub { value: i32 },
+    Mul { value: i32 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
