@@ -83,6 +83,11 @@ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_call_number",target=/code/contracts/call-number/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.12.5 ./contracts/call-number
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_simple_callee",target=/code/contracts/simple-callee/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/simple-callee
 ```
 
 ## Entry points
@@ -103,6 +108,7 @@ points in order to demonstrate and test the flexibility we have.
 | dynamic_caller_contract | `#[entry_point]`                              | no          | no            |
 | number                  | `#[entry_point]`                              | yes         | no            |
 | call-number             | `#[entry_point]`                              | yes         | no            |
+| simple-callee           | `#[entry_point]`                              | no          | no            |
 
 
 <sup>1</sup> Because we can. Don't try this at home.

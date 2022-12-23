@@ -14,10 +14,10 @@ use wasmer_types::ImportIndex;
 
 use cosmwasm_std::{from_slice, Addr};
 
-const MAX_REGIONS_LENGTH: usize = 100_000;
-
 // The length of the address is 63 characters for strings and 65 characters with "" for []byte. Thus, 65<64*2 is used.
 const MAX_ADDRESS_LENGTH: usize = 64 * 2;
+// enough big value for copy interface. This is less than crate::calls::read_limits::XXX
+const MAX_INTERFACE_REGIONS_LENGTH: usize = 1024 * 1024;
 
 pub type WasmerVal = Val;
 
@@ -184,50 +184,44 @@ pub fn dynamic_link<A: BackendApi, S: Storage, Q: Querier>(
     }
 }
 
-pub fn copy_region_vals_between_env<A, S, Q, A2, S2, Q2>(
-    src_env: &Environment<A, S, Q>,
-    dst_env: &Environment<A2, S2, Q2>,
-    vals: &[WasmerVal],
+// returns copied region ptrs and size of regions
+pub fn read_region_vals_from_env<A, S, Q>(
+    env: &Environment<A, S, Q>,
+    ptrs: &[WasmerVal],
+    limit_length: usize,
     deallocation: bool,
-) -> VmResult<Box<[WasmerVal]>>
+) -> VmResult<Vec<Vec<u8>>>
 where
     A: BackendApi + 'static,
     S: Storage + 'static,
     Q: Querier + 'static,
-    A2: BackendApi + 'static,
-    S2: Storage + 'static,
-    Q2: Querier + 'static,
 {
-    let mut copied_region_ptrs = Vec::<WasmerVal>::with_capacity(vals.len());
-    let mut max_regions_len = MAX_REGIONS_LENGTH;
-    for val in vals {
-        let val_region_ptr = ref_to_u32(val)?;
-        let data = read_region(&src_env.memory(), val_region_ptr, max_regions_len).map_err(
-            |e| match e {
+    let mut datas = Vec::<Vec<u8>>::with_capacity(ptrs.len());
+    let mut max_regions_len = limit_length;
+    for ptr in ptrs {
+        let val_region_ptr = ref_to_u32(ptr)?;
+        let data =
+            read_region(&env.memory(), val_region_ptr, max_regions_len).map_err(|e| match e {
                 VmError::CommunicationErr {
                     source: CommunicationError::RegionLengthTooBig { .. },
                     #[cfg(feature = "backtraces")]
                     backtrace,
                 } => VmError::CommunicationErr {
-                    source: CommunicationError::exceeds_limit_length_copy_regions(
-                        MAX_REGIONS_LENGTH,
-                    ),
+                    source: CommunicationError::exceeds_limit_length_copy_regions(limit_length),
                     #[cfg(feature = "backtraces")]
                     backtrace,
                 },
                 _ => e,
-            },
-        )?;
+            })?;
         max_regions_len -= data.len();
-        if deallocation {
-            src_env.call_function0("deallocate", &[val_region_ptr.into()])?;
-        }
+        datas.push(data);
 
-        let region_ptr = write_value_to_env(dst_env, &data)?;
-        copied_region_ptrs.push(region_ptr);
+        if deallocation {
+            env.call_function0("deallocate", &[val_region_ptr.into()])?;
+        };
     }
 
-    Ok(copied_region_ptrs.into_boxed_slice())
+    Ok(datas)
 }
 
 pub fn write_value_to_env<A, S, Q>(env: &Environment<A, S, Q>, value: &[u8]) -> VmResult<WasmerVal>
@@ -252,7 +246,8 @@ where
     let contract_addr_raw = read_region(&env.memory(), address, MAX_ADDRESS_LENGTH)?;
     let contract_addr: Addr = from_slice(&contract_addr_raw)
         .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
-    let expected_interface_binary = read_region(&env.memory(), interface, MAX_REGIONS_LENGTH)?;
+    let expected_interface_binary =
+        read_region(&env.memory(), interface, MAX_INTERFACE_REGIONS_LENGTH)?;
     let expected_interface: Vec<ExportType<FunctionType>> = from_slice(&expected_interface_binary)
         .map_err(|_| RuntimeError::new("Invalid expected interface"))?;
     let (module_result, gas_info) = env.api.get_wasmer_module(contract_addr.as_str());
@@ -297,16 +292,22 @@ mod tests {
     use wasmer_types::Type;
 
     use crate::testing::{
-        mock_env, mock_instance, read_data_from_mock_env, write_data_to_mock_env, MockApi,
-        MockQuerier, MockStorage, INSTANCE_CACHE,
+        mock_backend, mock_env, mock_instance, write_data_to_mock_env, MockApi, MockQuerier,
+        MockStorage, INSTANCE_CACHE,
     };
-    use crate::to_vec;
+    use crate::{to_vec, Instance, InstanceOptions};
+
+    const MAX_REGIONS_LENGTH: usize = 1024 * 1024;
+    const HIGH_GAS_LIMIT_INSTANCE_OPTIONS: InstanceOptions = InstanceOptions {
+        gas_limit: 20_000_000_000_000_000,
+        print_debug: false,
+    };
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
+    static CONTRACT_CALLEE: &[u8] = include_bytes!("../testdata/simple_callee.wasm");
 
     // prepared data
-    const PADDING_DATA: &[u8] = b"deadbeef";
-    const PASS_DATA1: &[u8] = b"data";
+    const PASS_DATA: &[u8] = b"data";
 
     const CALLEE_NAME_ADDR: &str = "callee";
     const CALLER_NAME_ADDR: &str = "caller";
@@ -339,80 +340,55 @@ mod tests {
     }
 
     #[test]
-    fn copy_single_region_works() {
-        let src_instance = mock_instance(&CONTRACT, &[]);
-        let dst_instance = mock_instance(&CONTRACT, &[]);
+    fn read_single_region_works() {
+        let instance = mock_instance(&CONTRACT, &[]);
 
-        let data_wasm_ptr = write_data_to_mock_env(&src_instance.env, PASS_DATA1).unwrap();
-        let copy_result = copy_region_vals_between_env(
-            &src_instance.env,
-            &dst_instance.env,
+        let data_wasm_ptr = write_data_to_mock_env(&instance.env, PASS_DATA).unwrap();
+        let datas = read_region_vals_from_env(
+            &instance.env,
             &[WasmerVal::I32(data_wasm_ptr as i32)],
+            MAX_REGIONS_LENGTH,
             true,
         )
         .unwrap();
-        assert_eq!(copy_result.len(), 1);
+        assert_eq!(datas.len(), 1);
+        assert_eq!(datas[0], PASS_DATA);
 
-        let read_result =
-            read_data_from_mock_env(&dst_instance.env, &copy_result[0], PASS_DATA1.len()).unwrap();
-        assert_eq!(PASS_DATA1, read_result);
-
-        // Even after deallocate, wasm region data remains.
-        // However, This test is skipped as it is a matter of whether allocate and deallocate work as expected.
-        // let read_deallocated_src_result = read_region(&src_env.memory(), data_wasm_ptr, PASS_DATA1.len());
-        // assert!(matches!(
-        //     read_deallocated_src_result,
-        //     Err(VmError::CommunicationErr { .. })
-        // ));
-    }
-
-    #[test]
-    fn wrong_use_copied_region_fails() {
-        let src_instance = mock_instance(&CONTRACT, &[]);
-        let dst_instance = mock_instance(&CONTRACT, &[]);
-
-        // If there is no padding data, it is difficult to compare because the same memory index falls apart.
-        write_data_to_mock_env(&src_instance.env, PADDING_DATA).unwrap();
-
-        let data_wasm_ptr = write_data_to_mock_env(&src_instance.env, PASS_DATA1).unwrap();
-        let copy_result = copy_region_vals_between_env(
-            &src_instance.env,
-            &dst_instance.env,
+        // check deallocated
+        match read_region_vals_from_env(
+            &instance.env,
             &[WasmerVal::I32(data_wasm_ptr as i32)],
+            MAX_REGIONS_LENGTH,
             true,
-        )
-        .unwrap();
-        assert_eq!(copy_result.len(), 1);
-
-        let read_from_src_result =
-            read_data_from_mock_env(&src_instance.env, &copy_result[0], PASS_DATA1.len());
-        assert!(matches!(
-            read_from_src_result,
-            Err(VmError::CommunicationErr { .. })
-        ));
+        ) {
+            Ok(datas) => assert_ne!(datas[0], PASS_DATA),
+            Err(VmError::RuntimeErr { msg, .. }) => {
+                assert!(msg.contains("out of bounds memory access"))
+            }
+            Err(e) => panic!("Unexpected Error: {}", e),
+        }
     }
 
     #[test]
-    fn trying_copy_too_large_region_fails() {
+    fn trying_read_too_large_region_fails() {
         let src_instance = mock_instance(&CONTRACT, &[]);
-        let dst_instance = mock_instance(&CONTRACT, &[]);
 
         let big_data_1 = [0_u8; MAX_REGIONS_LENGTH - 42 + 1];
         let big_data_2 = [1_u8; 42];
 
         let data_ptr1 = write_data_to_mock_env(&src_instance.env, &big_data_1).unwrap();
         let data_ptr2 = write_data_to_mock_env(&src_instance.env, &big_data_2).unwrap();
-        let copy_result = copy_region_vals_between_env(
+        let read_result = read_region_vals_from_env(
             &src_instance.env,
-            &dst_instance.env,
             &[
                 WasmerVal::I32(data_ptr1 as i32),
                 WasmerVal::I32(data_ptr2 as i32),
             ],
+            MAX_REGIONS_LENGTH,
             true,
         );
         assert!(matches!(
-            copy_result.unwrap_err(),
+            read_result.unwrap_err(),
             VmError::CommunicationErr {
                 source: CommunicationError::ExceedsLimitLengthCopyRegions {
                     max_length: MAX_REGIONS_LENGTH
@@ -423,33 +399,31 @@ mod tests {
     }
 
     fn init_cache_with_two_instances() {
-        let callee_wasm = wat::parse_str(
-            r#"(module
-                (memory 3)
-                (export "memory" (memory 0))
-                (export "interface_version_8" (func 0))
-                (export "instantiate" (func 0))
-                (export "allocate" (func 0))
-                (export "deallocate" (func 0))
-                (type $t_succeed (func))
-                (func $f_succeed (type $t_succeed) nop)
-                (type $t_fail (func))
-                (func $f_fail (type $t_fail) unreachable)
-                (export "succeed" (func $f_succeed))
-                (export "fail" (func $f_fail))
-            )"#,
-        )
-        .unwrap();
-
         INSTANCE_CACHE.with(|lock| {
             let mut cache = lock.write().unwrap();
             cache.insert(
                 CALLEE_NAME_ADDR.to_string(),
-                RefCell::new(mock_instance(&callee_wasm, &[])),
+                RefCell::new(
+                    Instance::from_code(
+                        CONTRACT_CALLEE,
+                        mock_backend(&[]),
+                        HIGH_GAS_LIMIT_INSTANCE_OPTIONS,
+                        None,
+                    )
+                    .unwrap(),
+                ),
             );
             cache.insert(
                 CALLER_NAME_ADDR.to_string(),
-                RefCell::new(mock_instance(&CONTRACT, &[])),
+                RefCell::new(
+                    Instance::from_code(
+                        CONTRACT,
+                        mock_backend(&[]),
+                        HIGH_GAS_LIMIT_INSTANCE_OPTIONS,
+                        None,
+                    )
+                    .unwrap(),
+                ),
             );
         });
     }
@@ -565,9 +539,6 @@ mod tests {
                 &[WasmerVal::I32(address_region as i32)],
             );
             assert!(matches!(result, Err(RuntimeError { .. })));
-
-            // Because content in the latter part depends on the environment,
-            // comparing whether the error begins with panic error or not.
             assert!(result.unwrap_err().message().starts_with("func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: \"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable"));
         });
     }
