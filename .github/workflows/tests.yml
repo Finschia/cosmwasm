@@ -713,6 +713,9 @@ jobs:
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
         run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
       - name: Build and run schema generator
         working-directory: ${{env.working-directory}}
         run: cargo schema --locked
@@ -759,6 +762,9 @@ jobs:
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
         run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
       - name: Build and run schema generator
         working-directory: ${{env.working-directory}}
         run: cargo schema --locked
@@ -805,6 +811,9 @@ jobs:
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
         run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
       - name: Build and run schema generator
         working-directory: ${{env.working-directory}}
         run: cargo schema --locked
@@ -851,6 +860,58 @@ jobs:
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
         run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_simple_callee:
+    name: contract_simple_callee
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/simple-callee
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.57.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_simple_callee-rust:1.57.0-${{ hashFiles('contracts/simple-callee/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
       - name: Build and run schema generator
         working-directory: ${{env.working-directory}}
         run: cargo schema --locked
