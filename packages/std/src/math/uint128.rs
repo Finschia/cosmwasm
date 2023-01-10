@@ -36,6 +36,7 @@ pub struct Uint128(#[schemars(with = "String")] u128);
 
 impl Uint128 {
     pub const MAX: Self = Self(u128::MAX);
+    pub const MIN: Self = Self(u128::MIN);
 
     /// Creates a Uint128(value).
     ///
@@ -45,8 +46,15 @@ impl Uint128 {
     }
 
     /// Creates a Uint128(0)
+    #[inline]
     pub const fn zero() -> Self {
         Uint128(0)
+    }
+
+    /// Creates a Uint128(1)
+    #[inline]
+    pub const fn one() -> Self {
+        Self(1)
     }
 
     /// Returns a copy of the internal data
@@ -72,7 +80,10 @@ impl Uint128 {
         self.0.pow(exp).into()
     }
 
-    /// Returns `self * numerator / denominator`
+    /// Returns `self * numerator / denominator`.
+    ///
+    /// Due to the nature of the integer division involved, the result is always floored.
+    /// E.g. 5 * 99/100 = 4.
     pub fn multiply_ratio<A: Into<u128>, B: Into<u128>>(
         &self,
         numerator: A,
@@ -87,7 +98,10 @@ impl Uint128 {
         }
     }
 
-    /// Returns `self * numerator / denominator`
+    /// Returns `self * numerator / denominator`.
+    ///
+    /// Due to the nature of the integer division involved, the result is always floored.
+    /// E.g. 5 * 99/100 = 4.
     pub fn checked_multiply_ratio<A: Into<u128>, B: Into<u128>>(
         &self,
         numerator: A,
@@ -207,8 +221,16 @@ impl Uint128 {
     }
 
     #[must_use]
-    pub fn saturating_pow(self, other: u32) -> Self {
-        Self(self.0.saturating_pow(other))
+    pub fn saturating_pow(self, exp: u32) -> Self {
+        Self(self.0.saturating_pow(exp))
+    }
+
+    pub const fn abs_diff(self, other: Self) -> Self {
+        Self(if self.0 < other.0 {
+            other.0 - self.0
+        } else {
+            self.0 - other.0
+        })
     }
 }
 
@@ -505,10 +527,40 @@ where
     }
 }
 
+impl PartialEq<&Uint128> for Uint128 {
+    fn eq(&self, rhs: &&Uint128) -> bool {
+        self == *rhs
+    }
+}
+
+impl PartialEq<Uint128> for &Uint128 {
+    fn eq(&self, rhs: &Uint128) -> bool {
+        *self == rhs
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{from_slice, to_vec};
+
+    #[test]
+    fn uint128_zero_works() {
+        let zero = Uint128::zero();
+        assert_eq!(
+            zero.to_be_bytes(),
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
+    }
+
+    #[test]
+    fn uint128_one_works() {
+        let one = Uint128::one();
+        assert_eq!(
+            one.to_be_bytes(),
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+        );
+    }
 
     #[test]
     fn uint128_convert_into() {
@@ -828,10 +880,10 @@ mod tests {
         let nums = vec![Uint128(17), Uint128(123), Uint128(540), Uint128(82)];
         let expected = Uint128(762);
 
-        let sum_as_ref = nums.iter().sum();
+        let sum_as_ref: Uint128 = nums.iter().sum();
         assert_eq!(expected, sum_as_ref);
 
-        let sum_as_owned = nums.into_iter().sum();
+        let sum_as_owned: Uint128 = nums.into_iter().sum();
         assert_eq!(expected, sum_as_owned);
     }
 
@@ -881,15 +933,28 @@ mod tests {
         assert_eq!(Uint128(0).saturating_sub(Uint128(1)), Uint128(0));
         assert_eq!(Uint128::MAX.saturating_mul(Uint128(2)), Uint128::MAX);
         assert_eq!(Uint128::MAX.saturating_pow(2), Uint128::MAX);
+    }
 
-        // wrapping_*
-        assert_eq!(Uint128::MAX.wrapping_add(Uint128(1)), Uint128(0));
-        assert_eq!(Uint128(0).wrapping_sub(Uint128(1)), Uint128::MAX);
+    #[test]
+    fn uint128_wrapping_methods() {
+        // wrapping_add
+        assert_eq!(Uint128(2).wrapping_add(Uint128(2)), Uint128(4)); // non-wrapping
+        assert_eq!(Uint128::MAX.wrapping_add(Uint128(1)), Uint128(0)); // wrapping
+
+        // wrapping_sub
+        assert_eq!(Uint128(7).wrapping_sub(Uint128(5)), Uint128(2)); // non-wrapping
+        assert_eq!(Uint128(0).wrapping_sub(Uint128(1)), Uint128::MAX); // wrapping
+
+        // wrapping_mul
+        assert_eq!(Uint128(3).wrapping_mul(Uint128(2)), Uint128(6)); // non-wrapping
         assert_eq!(
             Uint128::MAX.wrapping_mul(Uint128(2)),
-            Uint128(u128::MAX - 1)
-        );
-        assert_eq!(Uint128::MAX.wrapping_pow(2), Uint128(1));
+            Uint128::MAX - Uint128::one()
+        ); // wrapping
+
+        // wrapping_pow
+        assert_eq!(Uint128(2).wrapping_pow(3), Uint128(8)); // non-wrapping
+        assert_eq!(Uint128::MAX.wrapping_pow(2), Uint128(1)); // wrapping
     }
 
     #[test]
@@ -948,5 +1013,29 @@ mod tests {
         let b = Uint128::from(6u32);
         a %= &b;
         assert_eq!(a, Uint128::from(1u32));
+    }
+
+    #[test]
+    fn uint128_abs_diff_works() {
+        let a = Uint128::from(42u32);
+        let b = Uint128::from(5u32);
+        let expected = Uint128::from(37u32);
+        assert_eq!(a.abs_diff(b), expected);
+        assert_eq!(b.abs_diff(a), expected);
+    }
+
+    #[test]
+    fn uint128_partial_eq() {
+        let test_cases = [(1, 1, true), (42, 42, true), (42, 24, false), (0, 0, true)]
+            .into_iter()
+            .map(|(lhs, rhs, expected)| (Uint128::new(lhs), Uint128::new(rhs), expected));
+
+        #[allow(clippy::op_ref)]
+        for (lhs, rhs, expected) in test_cases {
+            assert_eq!(lhs == rhs, expected);
+            assert_eq!(&lhs == rhs, expected);
+            assert_eq!(lhs == &rhs, expected);
+            assert_eq!(&lhs == &rhs, expected);
+        }
     }
 }

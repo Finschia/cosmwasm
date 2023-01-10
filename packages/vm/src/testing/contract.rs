@@ -28,7 +28,7 @@ impl Contract {
         options: &MockInstanceOptions,
         memory_limit: Option<Size>,
     ) -> TestingResult<Self> {
-        check_wasm(wasm, &options.supported_features)?;
+        check_wasm(wasm, &options.available_capabilities)?;
         let module = compile(wasm, memory_limit, &[])?;
         let storage = MockStorage::new();
         let contract = Self { module, storage };
@@ -44,7 +44,7 @@ impl Contract {
         options: &MockInstanceOptions,
         memory_limit: Option<Size>,
     ) -> TestingResult<()> {
-        check_wasm(wasm, &options.supported_features)?;
+        check_wasm(wasm, &options.available_capabilities)?;
         let module = compile(wasm, memory_limit, &[])?;
         self.module = module;
         Ok(())
