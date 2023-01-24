@@ -23,6 +23,7 @@ use crate::imports::{do_db_next, do_db_scan};
 use crate::memory::{read_region, write_region};
 use crate::size::Size;
 use crate::wasm_backend::compile;
+use cosmwasm_std::{Attribute, Event};
 
 #[derive(Copy, Clone, Debug)]
 pub struct GasReport {
@@ -424,6 +425,11 @@ where
     /// The function is expected to return one value. Otherwise this calls errors.
     pub(crate) fn call_function1(&self, name: &str, args: &[Val]) -> VmResult<Val> {
         self.env.call_function1(name, args)
+    }
+
+    /// Returns events and attributes from event manager in context data
+    pub fn get_events_attributes(&self) -> (Vec<Event>, Vec<Attribute>) {
+        self.env.get_events_attributes()
     }
 }
 
