@@ -9,7 +9,7 @@ use crate::errors::{
 };
 use crate::import_helpers::{from_high_half, from_low_half};
 use crate::memory::{alloc, build_region, consume_region, release_buffer, Region};
-use crate::results::SystemResult;
+use crate::results::{Attribute, Event, SystemResult};
 #[cfg(feature = "iterator")]
 use crate::sections::decode_sections2;
 use crate::sections::encode_sections;
@@ -77,6 +77,22 @@ extern "C" {
     /// The host is free to log or process this in any way it considers appropriate.
     /// In production environments it is expected that those messages are discarded.
     fn debug(source_ptr: u32);
+
+    /// Adds an event to the event manager in the context data.
+    /// Returns 0 on success, greater than 0 in case of error.
+    fn add_event(event: u32) -> u32;
+
+    /// Adds events to the event manager in the context data.
+    /// Returns 0 on success, greater than 0 in case of error.
+    fn add_events(events: u32) -> u32;
+
+    /// Adds an attribute to the event manager in the context data.
+    /// Returns 0 on success, greater than 0 in case of error.
+    fn add_attribute(key: u32, value: u32) -> u32;
+
+    /// Adds attributes to the event manager in the context data.
+    /// Returns 0 on success, greater than 0 in case of error.
+    fn add_attributes(attributes: u32) -> u32;
 
     /// Executes a query on the chain (import). Not to be confused with the
     /// query export, which queries the state of the contract.
@@ -403,6 +419,64 @@ impl Api for ExternalApi {
             let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
             return Err(StdError::generic_err(format!(
                 "dynamic_link_interface_validate errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn add_event(&self, event: &Event) -> StdResult<()> {
+        let event_region = release_buffer(to_vec(event)?);
+        let event_ptr = event_region as u32;
+        let result = unsafe { add_event(event_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "add_event errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn add_events(&self, events: &[Event]) -> StdResult<()> {
+        let events_region = release_buffer(to_vec(events)?);
+        let events_ptr = events_region as u32;
+        let result = unsafe { add_events(events_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "add_events errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn add_attribute(&self, key: &str, value: &str) -> StdResult<()> {
+        let key_region = release_buffer(to_vec(key)?);
+        let key_ptr = key_region as u32;
+        let value_region = release_buffer(to_vec(value)?);
+        let value_ptr = value_region as u32;
+        let result = unsafe { add_attribute(key_ptr, value_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "add_attribute errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn add_attributes(&self, attributes: &[Attribute]) -> StdResult<()> {
+        let attributes_region = release_buffer(to_vec(attributes)?);
+        let attributes_ptr = attributes_region as u32;
+        let result = unsafe { add_attributes(attributes_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "add_attributes errored: {}",
                 error
             )));
         };

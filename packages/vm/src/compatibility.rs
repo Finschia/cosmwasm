@@ -23,6 +23,10 @@ const SUPPORTED_IMPORTS: &[&str] = &[
     "env.ed25519_batch_verify",
     "env.sha1_calculate",
     "env.validate_dynamic_link_interface",
+    "env.add_event",
+    "env.add_events",
+    "env.add_attribute",
+    "env.add_attributes",
     "env.debug",
     "env.query_chain",
     #[cfg(feature = "iterator")]
