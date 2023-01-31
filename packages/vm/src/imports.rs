@@ -9,6 +9,7 @@ use cosmwasm_crypto::{
 use cosmwasm_crypto::{
     ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN, MESSAGE_HASH_MAX_LEN,
 };
+use cosmwasm_std::{from_slice, Attribute, Event};
 
 #[cfg(feature = "iterator")]
 use cosmwasm_std::Order;
@@ -66,6 +67,9 @@ const MAX_LENGTH_DEBUG: usize = 2 * MI;
 
 /// Max length for an abort message
 const MAX_LENGTH_ABORT: usize = 2 * MI;
+
+// Max length for event, events, key, value, attributes
+const MAX_LENGTH_EVENT_VALUES: usize = 2 * MI;
 
 // Import implementations
 //
@@ -399,6 +403,72 @@ pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
             }
         },
     }
+}
+
+pub fn do_add_event<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    event_ptr: u32,
+) -> VmResult<u32> {
+    let event_data = read_region(&env.memory(), event_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let event: Event = match from_slice(&event_data) {
+        Ok(event) => event,
+        Err(_) => return write_to_contract::<A, S, Q>(env, b"Input is not valid `Event`"),
+    };
+
+    env.add_event(event)?;
+    Ok(0)
+}
+
+pub fn do_add_events<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    events_ptr: u32,
+) -> VmResult<u32> {
+    let events_data = read_region(&env.memory(), events_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let events: Vec<Event> = match from_slice(&events_data) {
+        Ok(events) => events,
+        Err(_) => return write_to_contract::<A, S, Q>(env, b"Input is not valid `Vec<Event>`"),
+    };
+
+    env.add_events(events)?;
+    Ok(0)
+}
+
+pub fn do_add_attribute<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    key_ptr: u32,
+    value_ptr: u32,
+) -> VmResult<u32> {
+    let key_data = read_region(&env.memory(), key_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let value_data = read_region(&env.memory(), value_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let key: String = match from_slice(&key_data) {
+        Ok(key) => key,
+        Err(_) => {
+            return write_to_contract::<A, S, Q>(env, b"Input (key) is not valid utf8 string")
+        }
+    };
+    let value: String = match from_slice(&value_data) {
+        Ok(value) => value,
+        Err(_) => {
+            return write_to_contract::<A, S, Q>(env, b"Input (value) is not valid utf8 string")
+        }
+    };
+
+    env.add_attribute(key, value)?;
+    Ok(0)
+}
+
+pub fn do_add_attributes<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+    attributes_ptr: u32,
+) -> VmResult<u32> {
+    let attributes_data = read_region(&env.memory(), attributes_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let attributes: Vec<Attribute> = match from_slice(&attributes_data) {
+        Ok(attributes) => attributes,
+        Err(_) => return write_to_contract::<A, S, Q>(env, b"Input is not valid Vec<Attribute>"),
+    };
+
+    env.add_attributes(attributes)?;
+    Ok(0)
 }
 
 /// Prints a debug message to console.

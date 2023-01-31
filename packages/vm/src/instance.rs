@@ -13,7 +13,8 @@ use crate::environment::Environment;
 use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::features::required_features_from_module;
 use crate::imports::{
-    do_abort, do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
+    do_abort, do_add_attribute, do_add_attributes, do_add_event, do_add_events,
+    do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
     do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_query_chain,
     do_secp256k1_recover_pubkey, do_secp256k1_verify, do_sha1_calculate,
 };
@@ -22,6 +23,7 @@ use crate::imports::{do_db_next, do_db_scan};
 use crate::memory::{read_region, write_region};
 use crate::size::Size;
 use crate::wasm_backend::compile;
+use cosmwasm_std::{Attribute, Event};
 
 #[derive(Copy, Clone, Debug)]
 pub struct GasReport {
@@ -242,6 +244,30 @@ where
             ),
         );
 
+        // Add an event to context data
+        env_imports.insert(
+            "add_event",
+            Function::new_native_with_env(store, env.clone(), do_add_event),
+        );
+
+        // Add events to context data
+        env_imports.insert(
+            "add_events",
+            Function::new_native_with_env(store, env.clone(), do_add_events),
+        );
+
+        // Add an attribute to context data
+        env_imports.insert(
+            "add_attribute",
+            Function::new_native_with_env(store, env.clone(), do_add_attribute),
+        );
+
+        // Add attributes to context data
+        env_imports.insert(
+            "add_attributes",
+            Function::new_native_with_env(store, env.clone(), do_add_attributes),
+        );
+
         import_obj.register("env", env_imports);
 
         if let Some(extra_imports) = extra_imports {
@@ -399,6 +425,11 @@ where
     /// The function is expected to return one value. Otherwise this calls errors.
     pub(crate) fn call_function1(&self, name: &str, args: &[Val]) -> VmResult<Val> {
         self.env.call_function1(name, args)
+    }
+
+    /// Returns events and attributes from event manager in context data
+    pub fn get_events_attributes(&self) -> (Vec<Event>, Vec<Attribute>) {
+        self.env.get_events_attributes()
     }
 }
 

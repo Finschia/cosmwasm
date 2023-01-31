@@ -19,7 +19,7 @@ use crate::query::{
     AllDelegationsResponse, AllValidatorsResponse, BondedDenomResponse, Delegation,
     DelegationResponse, FullDelegation, StakingQuery, Validator, ValidatorResponse,
 };
-use crate::results::{ContractResult, Empty, SystemResult};
+use crate::results::{Attribute, ContractResult, Empty, Event, SystemResult};
 use crate::serde::{from_binary, to_binary, to_vec};
 
 /// Storage provides read and write access to a persistent storage.
@@ -146,6 +146,18 @@ pub trait Api {
     /// Emits a debugging message that is handled depending on the environment (typically printed to console or ignored).
     /// Those messages are not persisted to chain.
     fn debug(&self, message: &str);
+
+    /// This issues an event to the event manager in the context data
+    fn add_event(&self, event: &Event) -> StdResult<()>;
+
+    /// This issues events to the event manager in the context data
+    fn add_events(&self, events: &[Event]) -> StdResult<()>;
+
+    /// This issues an attribute to the event manager in the context data
+    fn add_attribute(&self, key: &str, value: &str) -> StdResult<()>;
+
+    /// This issues attributes to the event manager in the context data
+    fn add_attributes(&self, attributes: &[Attribute]) -> StdResult<()>;
 }
 
 /// A short-hand alias for the two-level query result (1. accessing the contract, 2. executing query in the contract)

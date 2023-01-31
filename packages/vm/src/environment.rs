@@ -3,7 +3,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
-use cosmwasm_std::{Addr, Env};
+use cosmwasm_std::{Addr, Attribute, Env, Event};
 use wasmer::{HostEnvInitError, Instance as WasmerInstance, Memory, Val, WasmerEnv};
 use wasmer_middlewares::metering::{get_remaining_points, set_remaining_points, MeteringPoints};
 
@@ -414,17 +414,112 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             })
         })
     }
+
+    pub fn add_event(&self, event: impl Into<Event>) -> VmResult<()> {
+        if self.is_storage_readonly() {
+            return Err(VmError::write_access_denied());
+        };
+        self.with_context_data_mut(|ctx| {
+            ctx.event_manager.add_event(event);
+            Ok(())
+        })
+    }
+
+    pub fn add_events<E: Into<Event>>(&self, events: impl IntoIterator<Item = E>) -> VmResult<()> {
+        if self.is_storage_readonly() {
+            return Err(VmError::write_access_denied());
+        };
+        self.with_context_data_mut(|ctx| {
+            ctx.event_manager.add_events(events);
+            Ok(())
+        })
+    }
+
+    pub fn add_attribute(&self, key: impl Into<String>, value: impl Into<String>) -> VmResult<()> {
+        if self.is_storage_readonly() {
+            return Err(VmError::write_access_denied());
+        };
+        self.with_context_data_mut(|ctx| {
+            ctx.event_manager.add_attribute(key, value);
+            Ok(())
+        })
+    }
+
+    pub fn add_attributes<AT: Into<Attribute>>(
+        &self,
+        attrs: impl IntoIterator<Item = AT>,
+    ) -> VmResult<()> {
+        if self.is_storage_readonly() {
+            return Err(VmError::write_access_denied());
+        };
+        self.with_context_data_mut(|ctx| {
+            ctx.event_manager.add_attributes(attrs);
+            Ok(())
+        })
+    }
+
+    pub fn get_events_attributes(&self) -> (Vec<Event>, Vec<Attribute>) {
+        self.with_context_data(|ctx| {
+            (
+                ctx.event_manager.get_events(),
+                ctx.event_manager.get_attributes(),
+            )
+        })
+    }
+}
+
+struct EventManager {
+    events: Vec<Event>,
+    attributes: Vec<Attribute>,
+}
+
+impl EventManager {
+    pub fn new() -> EventManager {
+        EventManager {
+            events: Vec::<Event>::new(),
+            attributes: Vec::<Attribute>::new(),
+        }
+    }
+
+    pub fn add_event(&mut self, event: impl Into<Event>) {
+        self.events.push(event.into())
+    }
+
+    pub fn add_events<E: Into<Event>>(&mut self, events: impl IntoIterator<Item = E>) {
+        self.events.extend(events.into_iter().map(E::into))
+    }
+
+    pub fn add_attribute(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.attributes.push(Attribute {
+            key: key.into(),
+            value: value.into(),
+        })
+    }
+
+    pub fn add_attributes<A: Into<Attribute>>(&mut self, attrs: impl IntoIterator<Item = A>) {
+        self.attributes.extend(attrs.into_iter().map(A::into))
+    }
+
+    pub fn get_events(&self) -> Vec<Event> {
+        self.events.clone()
+    }
+
+    pub fn get_attributes(&self) -> Vec<Attribute> {
+        self.attributes.clone()
+    }
 }
 
 pub struct ContextData<S: Storage, Q: Querier> {
     gas_state: GasState,
     storage: Option<S>,
+    /// Used as also event manager readonly
     storage_readonly: bool,
     querier: Option<Q>,
     /// A non-owning link to the wasmer instance
     wasmer_instance: Option<NonNull<WasmerInstance>>,
     serialized_env: Option<Vec<u8>>,
     dynamic_callstack: Vec<Addr>,
+    event_manager: EventManager,
 }
 
 impl<S: Storage, Q: Querier> ContextData<S, Q> {
@@ -437,6 +532,7 @@ impl<S: Storage, Q: Querier> ContextData<S, Q> {
             wasmer_instance: None,
             serialized_env: None,
             dynamic_callstack: Vec::new(),
+            event_manager: EventManager::new(),
         }
     }
 }
@@ -1000,5 +1096,74 @@ mod tests {
             assert_eq!(ctx.dynamic_callstack[0], contract1_addr);
             assert_eq!(ctx.dynamic_callstack[1], contract2_addr);
         })
+    }
+
+    #[test]
+    fn event_manager_works() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+
+        env.set_storage_readonly(false);
+
+        let event1 = Event::new("type1")
+            .add_attribute("foo", "Alice")
+            .add_attribute("bar", "Bob");
+        env.add_event(event1.clone()).unwrap();
+        let (events, attributes) = env.get_events_attributes();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0], event1);
+        assert_eq!(attributes.len(), 0);
+
+        let attr1 = Attribute::new("hoge", "Alice");
+        env.add_attribute(attr1.key.clone(), attr1.value.clone())
+            .unwrap();
+        let (events, attributes) = env.get_events_attributes();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0], event1);
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0], attr1);
+
+        let event2 = Event::new("type2")
+            .add_attribute("foofoo", "alice")
+            .add_attribute("foobar", "bob");
+        let event3 = Event::new("type3")
+            .add_attribute("barfoo", "Bob")
+            .add_attribute("barbar", "Alice");
+        env.add_events(vec![event2.clone(), event3.clone()])
+            .unwrap();
+        let (events, attributes) = env.get_events_attributes();
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0], event1);
+        assert_eq!(events[1], event2);
+        assert_eq!(events[2], event3);
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0], attr1);
+
+        let attr2 = Attribute::new("fuga", "Bob");
+        let attr3 = Attribute::new("piyo", "Charlie");
+        env.add_attributes(vec![attr2.clone(), attr3.clone()])
+            .unwrap();
+        let (events, attributes) = env.get_events_attributes();
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0], event1);
+        assert_eq!(events[1], event2);
+        assert_eq!(events[2], event3);
+        assert_eq!(attributes.len(), 3);
+        assert_eq!(attributes[0], attr1);
+        assert_eq!(attributes[1], attr2);
+        assert_eq!(attributes[2], attr3);
+    }
+
+    #[test]
+    #[should_panic(expected = "WriteAccessDenied")]
+    fn add_event_fails_with_readonly_permission() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+
+        env.set_storage_readonly(true);
+
+        let event1 = Event::new("type1")
+            .add_attribute("foo", "Alice")
+            .add_attribute("bar", "Bob");
+        // panic because of lack of the write access permission
+        env.add_event(event1.clone()).unwrap();
     }
 }

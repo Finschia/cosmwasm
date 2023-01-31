@@ -601,6 +601,7 @@ mod tests {
     use cosmwasm_std::{coins, Empty};
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
+    static EVENTS_CONTRACT: &[u8] = include_bytes!("../testdata/events.wasm");
 
     #[test]
     fn call_instantiate_works() {
@@ -674,6 +675,136 @@ mod tests {
         let contract_result = call_query(&mut instance, &mock_env(), msg).unwrap();
         let query_response = contract_result.unwrap();
         assert_eq!(query_response.as_slice(), b"{\"verifier\":\"verifies\"}");
+    }
+
+    #[test]
+    fn add_event_works() {
+        let mut instance = mock_instance(EVENTS_CONTRACT, &[]);
+
+        // init
+        let info = mock_info("creator", &[]);
+        let msg = br#"{}"#;
+        call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
+            .unwrap()
+            .unwrap();
+
+        // execute
+        let ty = "type";
+        let key = "foo";
+        let value = "Alice";
+        let msg = format!(
+            r#"{{"event":{{"type":"{}","attributes":[{{"key":"{}","value":"{}"}}]}}}}"#,
+            ty, key, value
+        );
+        call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg.as_bytes())
+            .unwrap()
+            .unwrap();
+
+        let (events, attributes) = instance.get_events_attributes();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].ty, ty);
+        assert_eq!(events[0].attributes.len(), 1);
+        assert_eq!(events[0].attributes[0].key, key);
+        assert_eq!(events[0].attributes[0].value, value);
+        assert_eq!(attributes.len(), 0);
+    }
+
+    #[test]
+    fn add_events_works() {
+        let mut instance = mock_instance(EVENTS_CONTRACT, &[]);
+
+        // init
+        let info = mock_info("creator", &[]);
+        let msg = br#"{}"#;
+        call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
+            .unwrap()
+            .unwrap();
+
+        // execute
+        let ty1 = "type1";
+        let key1 = "foo";
+        let value1 = "Alice";
+        let ty2 = "type2";
+        let key2 = "bar";
+        let value2 = "Bob";
+        let msg = format!(
+            r#"{{"events":{{"events":[{{"type":"{}", "attributes":[{{"key":"{}","value":"{}"}}]}},{{"type":"{}", "attributes":[{{"key":"{}","value":"{}"}}]}}]}}}}"#,
+            ty1, key1, value1, ty2, key2, value2
+        );
+        call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg.as_bytes())
+            .unwrap()
+            .unwrap();
+
+        let (events, attributes) = instance.get_events_attributes();
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].ty, ty1);
+        assert_eq!(events[0].attributes.len(), 1);
+        assert_eq!(events[0].attributes[0].key, key1);
+        assert_eq!(events[0].attributes[0].value, value1);
+        assert_eq!(events[1].ty, ty2);
+        assert_eq!(events[1].attributes.len(), 1);
+        assert_eq!(events[1].attributes[0].key, key2);
+        assert_eq!(events[1].attributes[0].value, value2);
+        assert_eq!(attributes.len(), 0);
+    }
+
+    #[test]
+    fn add_attribute_works() {
+        let mut instance = mock_instance(EVENTS_CONTRACT, &[]);
+
+        // init
+        let info = mock_info("creator", &[]);
+        let msg = br#"{}"#;
+        call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
+            .unwrap()
+            .unwrap();
+
+        // execute
+        let key = "foo";
+        let value = "Alice";
+        let msg = format!(r#"{{"attribute":{{"key":"{}","value":"{}"}}}}"#, key, value);
+        call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg.as_bytes())
+            .unwrap()
+            .unwrap();
+
+        let (events, attributes) = instance.get_events_attributes();
+        assert_eq!(events.len(), 0);
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0].key, key);
+        assert_eq!(attributes[0].value, value);
+    }
+
+    #[test]
+    fn add_attributes_works() {
+        let mut instance = mock_instance(EVENTS_CONTRACT, &[]);
+
+        // init
+        let info = mock_info("creator", &[]);
+        let msg = br#"{}"#;
+        call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
+            .unwrap()
+            .unwrap();
+
+        // execute
+        let key1 = "foo";
+        let value1 = "Alice";
+        let key2 = "bar";
+        let value2 = "Bob";
+        let msg = format!(
+            r#"{{"attributes":{{"attributes":[{{"key":"{}","value":"{}"}},{{"key":"{}","value":"{}"}}]}}}}"#,
+            key1, value1, key2, value2
+        );
+        call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg.as_bytes())
+            .unwrap()
+            .unwrap();
+
+        let (events, attributes) = instance.get_events_attributes();
+        assert_eq!(events.len(), 0);
+        assert_eq!(attributes.len(), 2);
+        assert_eq!(attributes[0].key, key1);
+        assert_eq!(attributes[0].value, value1);
+        assert_eq!(attributes[1].key, key2);
+        assert_eq!(attributes[1].value, value2);
     }
 
     #[cfg(feature = "stargate")]

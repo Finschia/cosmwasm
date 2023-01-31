@@ -140,7 +140,7 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
-    #[error("Must not call a writing storage function in this context.")]
+    #[error("Must not call a writing storage / issuing events function in this context.")]
     WriteAccessDenied {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,

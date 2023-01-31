@@ -32,7 +32,7 @@ use crate::storage::MemoryStorage;
 use crate::timestamp::Timestamp;
 use crate::traits::{Api, Querier, QuerierResult};
 use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo, TransactionInfo};
-use crate::Attribute;
+use crate::{Attribute, Event};
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 
@@ -228,6 +228,22 @@ impl Api for MockApi {
         _contract: &Addr,
         _interface: &[ExportType<FunctionType>],
     ) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn add_event(&self, _event: &Event) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn add_events(&self, _events: &[Event]) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn add_attribute(&self, _key: &str, _value: &str) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn add_attributes(&self, _attributes: &[Attribute]) -> StdResult<()> {
         Ok(())
     }
 }
