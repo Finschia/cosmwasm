@@ -1,4 +1,4 @@
-use cosmwasm_std::{Attribute, Event};
+use cosmwasm_std::{Addr, Attribute, Event};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +21,25 @@ pub enum ExecuteMsg {
         value: String,
     },
     Attributes {
+        attributes: Vec<Attribute>,
+    },
+    EventDyn {
+        address: Addr,
+        #[serde(rename = "type")]
+        ty: String,
+        attributes: Vec<Attribute>,
+    },
+    EventsDyn {
+        address: Addr,
+        events: Vec<Event>,
+    },
+    AttributeDyn {
+        address: Addr,
+        key: String,
+        value: String,
+    },
+    AttributesDyn {
+        address: Addr,
         attributes: Vec<Attribute>,
     },
 }
