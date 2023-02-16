@@ -466,6 +466,58 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             )
         })
     }
+
+    /// Generate events from `context_data.EventManager` as from dynamic linked callee instance.
+    /// Events returned are given information of callstack as an attribute,
+    /// and attributes are merged into a new event.
+    /// Returns error if it is not called with dynamic linked callee.
+    pub fn generate_events_as_from_dynamic_linked_callee(&self) -> VmResult<Vec<Event>> {
+        let res: VmResult<(Env, Vec<Addr>)> = self.with_context_data(|ctx| {
+            let env: Env = match &ctx.serialized_env {
+                Some(e) => from_slice(e, DESERIALIZATION_LIMIT),
+                None => Err(VmError::uninitialized_context_data("serialized_env")),
+            }?;
+            Ok((env, ctx.dynamic_callstack.clone()))
+        });
+        let (env, mut callstack) = res?;
+        if callstack.len() < 1 {
+            return Err(VmError::invalid_context("generate_events_as_from_dynamic_linked_callee is called with non-callee environment."));
+        };
+
+        callstack.push(env.contract.address);
+        let callstack_str = &match serde_json::to_string(&callstack) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(VmError::serialize_err("Vec<Event>", e.to_string())),
+        }?;
+
+        let (mut events, attributes) = self.get_events_attributes();
+        let event_from_attrs =
+            Event::new(format!("dynamiclink-{}", callstack_str)).add_attributes(attributes);
+        events.push(event_from_attrs);
+        Ok(events
+            .iter()
+            .map(|e| {
+                if !is_callee_event(e, callstack_str) {
+                    e.clone().add_attribute("callstack", callstack_str)
+                } else {
+                    e.clone()
+                }
+            })
+            .collect())
+    }
+}
+
+fn is_callee_event(event: &Event, callstack_str: &str) -> bool {
+    for attr in &event.attributes {
+        if attr.key == "callstack"
+            && attr
+                .value
+                .contains(&callstack_str[..callstack_str.len() - 1])
+        {
+            return true;
+        }
+    }
+    false
 }
 
 struct EventManager {
@@ -569,7 +621,7 @@ mod tests {
     use crate::conversion::ref_to_u32;
     use crate::errors::VmError;
     use crate::size::Size;
-    use crate::testing::{mock_env, MockApi, MockQuerier, MockStorage};
+    use crate::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
     use crate::wasm_backend::compile;
 
     use cosmwasm_std::{
@@ -1165,5 +1217,19 @@ mod tests {
             .add_attribute("bar", "Bob");
         // panic because of lack of the write access permission
         env.add_event(event1.clone()).unwrap();
+    }
+
+    #[test]
+    fn is_callee_event_works() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+        env.with_context_data_mut(|ctx| {
+            ctx.dynamic_callstack
+                .push(Addr::unchecked("caller_address"));
+        });
+        let callee_events = env.generate_events_as_from_dynamic_linked_callee().unwrap();
+        let callstack_str = &format!(r#"["caller_address","{}"]"#, MOCK_CONTRACT_ADDR);
+        for callee_event in callee_events {
+            assert!(is_callee_event(&callee_event, callstack_str))
+        }
     }
 }

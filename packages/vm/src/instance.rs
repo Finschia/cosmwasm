@@ -431,6 +431,11 @@ where
     pub fn get_events_attributes(&self) -> (Vec<Event>, Vec<Attribute>) {
         self.env.get_events_attributes()
     }
+
+    /// Generate events from `context_data.EventManager` as from dynamic linked callee instance.
+    pub fn generate_events_as_from_dynamic_linked_callee(&self) -> VmResult<Vec<Event>> {
+        self.env.generate_events_as_from_dynamic_linked_callee()
+    }
 }
 
 /// This exists only to be exported through `internals` for use by crates that are

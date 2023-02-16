@@ -156,6 +156,12 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[error("Some function is called in invalid context: {}", msg)]
+    InvalidContext {
+        msg: String,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
 }
 
 impl VmError {
@@ -332,8 +338,17 @@ impl VmError {
             backtrace: Backtrace::capture(),
         }
     }
+
     pub(crate) fn dynamic_call_depth_over_limitation_err() -> Self {
         VmError::DynamicCallDepthOverLimitationErr {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub(crate) fn invalid_context(msg: impl Into<String>) -> Self {
+        VmError::InvalidContext {
+            msg: msg.into(),
             #[cfg(feature = "backtraces")]
             backtrace: Backtrace::capture(),
         }
