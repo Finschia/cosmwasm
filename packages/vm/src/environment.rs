@@ -480,7 +480,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             Ok((env, ctx.dynamic_callstack.clone()))
         });
         let (env, mut callstack) = res?;
-        if callstack.len() < 1 {
+        if callstack.is_empty() {
             return Err(VmError::invalid_context("generate_events_as_from_dynamic_linked_callee is called with non-callee environment."));
         };
 
