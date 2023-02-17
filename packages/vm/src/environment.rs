@@ -1232,4 +1232,35 @@ mod tests {
             assert!(is_callee_event(&callee_event, callstack_str))
         }
     }
+
+    #[test]
+    fn generate_events_as_from_dynamic_linked_callee_works() {
+        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+        env.set_storage_readonly(false);
+        env.with_context_data_mut(|ctx| {
+            ctx.dynamic_callstack
+                .push(Addr::unchecked("caller_address"));
+        });
+        let ty = "ty";
+        let key1 = "key1";
+        let value1 = "value1";
+        let event = Event::new(ty).add_attribute(key1, value1);
+        let key2 = "key2";
+        let value2 = "value2";
+        env.add_event(event.clone()).unwrap();
+        env.add_attribute(key2, value2).unwrap();
+        let callee_events = env.generate_events_as_from_dynamic_linked_callee().unwrap();
+        let callstack_str = &format!(r#"["caller_address","{}"]"#, MOCK_CONTRACT_ADDR);
+        assert_eq!(callee_events.len(), 2);
+        assert_eq!(
+            callee_events[0],
+            event.add_attribute("callstack", callstack_str)
+        );
+        assert_eq!(
+            callee_events[1],
+            Event::new(format!("dynamiclink-{}", callstack_str))
+                .add_attribute(key2, value2)
+                .add_attribute("callstack", callstack_str)
+        );
+    }
 }
