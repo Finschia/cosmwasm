@@ -119,7 +119,7 @@ pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let module_name = module.ident;
     let body = match module.content {
         None => vec![],
-        Some((_, items)) => items.clone(),
+        Some((_, items)) => items,
     };
 
     let mut list_callable_points = Vec::new();

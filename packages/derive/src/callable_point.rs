@@ -127,9 +127,7 @@ pub fn make_except_function(item: &syn::Item) -> TokenStream {
 pub fn strip_callable_point(function: syn::ItemFn) -> syn::ItemFn {
     let mut res = vec![];
     for attr in function.attrs {
-        if attr.path.is_ident("callable_point") {
-            ()
-        } else {
+        if !attr.path.is_ident("callable_point") {
             res.push(attr)
         }
     }
