@@ -3,8 +3,9 @@ use quote::{format_ident, quote};
 
 use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make_typed_return};
 
-pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
+pub fn make_callable_point(function: syn::ItemFn) -> (TokenStream, TokenStream) {
     let function_name_ident = &function.sig.ident;
+    let function_name_string = function_name_ident.to_string();
     let mod_name_ident = format_ident!("__wasm_export_{}", function_name_ident);
     // The first argument is `deps` and the second one is `env`,
     // the rest is region pointers
@@ -46,6 +47,7 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
             )
         }
     };
+    let is_read_only = !is_dep_mutable;
 
     match &orig_arg_types[1] {
         syn::Type::Path(p) => {
@@ -86,22 +88,57 @@ pub fn make_callable_point(function: syn::ItemFn) -> TokenStream {
     } else {
         quote! { let deps = cosmwasm_std::make_dependencies() }
     };
+    (
+        quote! {
+            #[cfg(target_arch = "wasm32")]
+            mod #mod_name_ident {
+                 use super::*;
 
-    quote! {
-        #[cfg(target_arch = "wasm32")]
-        mod #mod_name_ident {
-            use super::*;
+                #[no_mangle]
+                extern "C" fn #function_name_ident(#(#renamed_param_defs),*) #typed_return {
+                    #(let #vec_arg_idents: Vec<u8> = unsafe { cosmwasm_std::memory::consume_region(#ptr_idents as *mut cosmwasm_std::memory::Region)};)*
+                    #(let #arg_idents: #arg_types = cosmwasm_std::from_slice(&#vec_arg_idents).unwrap();)*
 
-            #[no_mangle]
-            extern "C" fn #function_name_ident(#(#renamed_param_defs),*) #typed_return {
-                #(let #vec_arg_idents: Vec<u8> = unsafe { cosmwasm_std::memory::consume_region(#ptr_idents as *mut cosmwasm_std::memory::Region)};)*
-                #(let #arg_idents: #arg_types = cosmwasm_std::from_slice(&#vec_arg_idents).unwrap();)*
+                    #deps_def;
 
-                #deps_def;
-
-                #call_origin_return
+                    #call_origin_return
+                }
             }
+
+            #[allow(dead_code)]
+            #function
+        },
+        quote! {(#function_name_string.to_string(), #is_read_only),},
+    )
+}
+
+pub fn make_except_callable_point(function: syn::ItemFn) -> TokenStream {
+    quote! {
+        #function
+    }
+}
+
+pub fn make_except_function(item: &syn::Item) -> TokenStream {
+    quote! {
+        #item
+    }
+}
+
+pub fn strip_callable_point(function: syn::ItemFn) -> syn::ItemFn {
+    let mut res = vec![];
+    for attr in function.attrs {
+        if attr.path.is_ident("callable_point") {
+            ()
+        } else {
+            res.push(attr)
         }
+    }
+
+    syn::ItemFn {
+        attrs: res,
+        vis: function.vis,
+        sig: function.sig,
+        block: function.block,
     }
 }
 

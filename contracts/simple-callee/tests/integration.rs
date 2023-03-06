@@ -14,6 +14,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
     vec![
         (String::from("succeed"), ([Type::I32], []).into()),
         (String::from("fail"), ([Type::I32], []).into()),
+        (
+            String::from("_list_callable_points"),
+            ([], [Type::I32]).into(),
+        ),
     ]
 }
 

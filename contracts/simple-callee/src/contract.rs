@@ -1,4 +1,4 @@
-use cosmwasm_std::{callable_point, entry_point, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{callable_points, entry_point, DepsMut, Env, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg};
@@ -23,12 +23,17 @@ pub fn execute(
     Ok(Response::default())
 }
 
-#[callable_point]
-fn succeed(_deps: DepsMut, _env: Env) {
-    ()
-}
+#[callable_points]
+mod __callable_point {
+    use super::*;
 
-#[callable_point]
-fn fail(_deps: DepsMut, _env: Env) {
-    panic!()
+    #[callable_point]
+    fn succeed(_deps: DepsMut, _env: Env) {
+        ()
+    }
+
+    #[callable_point]
+    fn fail(_deps: DepsMut, _env: Env) {
+        panic!()
+    }
 }

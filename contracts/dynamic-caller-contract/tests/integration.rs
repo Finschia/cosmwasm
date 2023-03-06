@@ -41,6 +41,13 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
     ]
 }
 
+fn required_exports() -> Vec<(String, FunctionType)> {
+    vec![(
+        String::from("_list_callable_points"),
+        ([], [Type::I32]).into(),
+    )]
+}
+
 #[test]
 fn dynamic_link_import_works() {
     let options = MockInstanceOptions::default();
@@ -70,6 +77,31 @@ fn dynamic_link_import_works() {
                 assert_eq!(*function_type, required_import.2);
             }
             None => panic!("{} is not imported.", required_import.0),
+        }
+    }
+}
+
+#[test]
+fn callable_point_export_works() {
+    let options = MockInstanceOptions::default();
+    let contract = Contract::from_code(CONTRACT_CALLER, &options, None).unwrap();
+
+    let export_function_map: HashMap<_, _> = contract
+        .module
+        .exports()
+        .functions()
+        .map(|export| (export.name().to_string(), export.ty().clone()))
+        .collect::<Vec<(String, FunctionType)>>()
+        .into_iter()
+        .collect();
+
+    let required_exports = required_exports();
+    for required_export in required_exports {
+        match export_function_map.get(&required_export.0) {
+            Some(exported_function) => {
+                assert_eq!(*exported_function, required_export.1);
+            }
+            None => panic!("{} is not exported.", required_export.0),
         }
     }
 }

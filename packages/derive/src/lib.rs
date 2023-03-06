@@ -92,33 +92,103 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
     res
 }
 
-/// This macro generate callable point function which can be called with dynamic link.
+/// This macro generates callable points for functions marked with #[callable_point] which can be called with dynamic link.
 ///
 /// Function attributed with this macro must take `deps` typed `Deps` or `DepsMut`
 /// as the first argument and `env` typed `Env` as the second argument.
 ///
 /// example usage:
 /// ```
-/// use cosmwasm_std::{Addr, Env, Deps, callable_point};
+/// # use cosmwasm_std::{Addr, Env, Deps, callable_points};
 ///
-/// #[callable_point]
-/// fn validate_address_callable_from_other_contracts(deps: Deps, _env: Env) -> Addr {
-///   // do something with deps, for example, using api.
-///   deps.api.addr_validate("dummy_human_address").unwrap()
+/// #[callable_points]
+/// mod __callable_point {
+///     use cosmwasm_std::{Addr, Deps, Env};
+///
+///     #[callable_point]
+///     fn validate_address_callable_from_other_contracts(deps: Deps, _env: Env) -> Addr {
+///         // do something with deps, for example, using api.
+///         deps.api.addr_validate("dummy_human_address").unwrap()
+///     }
 /// }
 /// ```
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let function = parse_macro_input!(item as syn::ItemFn);
-    let mut res = TokenStream::from(quote! {
-        #[allow(dead_code)]
-        #function
-    });
+pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let module = parse_macro_input!(item as syn::ItemMod);
+    let module_name = module.ident;
+    let body = match module.content {
+        None => vec![],
+        Some((_, items)) => items.clone(),
+    };
 
-    let maked = callable_point::make_callable_point(function);
-    res.extend(TokenStream::from(maked));
-    res
+    let mut list_callable_points = Vec::new();
+
+    let mut res = Vec::new();
+    for i in &body {
+        if let syn::Item::Fn(function) = i.clone() {
+            let is_callable_point = function
+                .attrs
+                .iter()
+                .any(|attr| attr.path.is_ident("callable_point"));
+
+            if is_callable_point {
+                let function_remove_macro = callable_point::strip_callable_point(function.clone());
+                let (maked, callee_func) =
+                    callable_point::make_callable_point(function_remove_macro);
+                res.extend(maked);
+                list_callable_points.push(callee_func);
+            } else {
+                let maked = callable_point::make_except_callable_point(function.clone());
+                res.extend(maked);
+            }
+        } else {
+            let maked = callable_point::make_except_function(i);
+            res.extend(maked);
+        }
+    }
+
+    let list_callable_points_ts = quote! {
+        mod #module_name {
+            use serde::ser::{Serialize, SerializeMap, Serializer};
+
+            struct CalleeMap<K, V> {
+                inner: Vec<(K, V)>,
+            }
+
+            impl<K, V> Serialize for CalleeMap<K, V>
+            where
+            K: Serialize,
+            V: Serialize,
+            {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                S: Serializer,
+                {
+                    let mut map = serializer.serialize_map(Some(self.inner.len()))?;
+                    for (k, v) in &self.inner {
+                        map.serialize_entry(&k, &v)?;
+                    }
+                    map.end()
+                }
+            }
+
+            #[no_mangle]
+            extern "C" fn _list_callable_points() -> u32 {
+                let callee_map : CalleeMap<String, bool> = CalleeMap {
+                    inner: vec![#(#list_callable_points)*],
+                };
+
+                let vec_callee_map = serde_json::to_vec_pretty(&callee_map).unwrap();
+                cosmwasm_std::memory::release_buffer(vec_callee_map) as u32
+            }
+
+            #(#res)*
+
+        }
+    };
+
+    TokenStream::from(list_callable_points_ts)
 }
 
 /// This macro implements functions to call dynamic linked function for attributed trait.
