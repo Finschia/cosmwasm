@@ -84,6 +84,7 @@ fn handle_attributes(deps: DepsMut, attributes: Vec<Attribute>) -> Result<Respon
     Ok(Response::default())
 }
 
+/// This issues the given event three times in different ways
 fn handle_event_dyn(
     deps: DepsMut,
     address: Addr,
@@ -104,6 +105,7 @@ fn handle_event_dyn(
     Ok(Response::default().add_event(event))
 }
 
+/// This issues given events three times in different ways
 fn handle_events_dyn(
     deps: DepsMut,
     address: Addr,
@@ -121,6 +123,7 @@ fn handle_events_dyn(
     Ok(Response::default().add_events(events))
 }
 
+/// This issues the given attribute three times in different ways
 fn handle_attribute_dyn(
     deps: DepsMut,
     address: Addr,
@@ -139,6 +142,7 @@ fn handle_attribute_dyn(
     Ok(Response::default().add_attribute(key, value))
 }
 
+/// This issues the given attributes three times in different ways
 fn handle_attributes_dyn(
     deps: DepsMut,
     address: Addr,
