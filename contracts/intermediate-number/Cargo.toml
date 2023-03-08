@@ -1,5 +1,5 @@
 [package]
-name = "caller-callee-number"
+name = "intermediate-number"
 version = "0.1.0"
 authors = ["da1suk8 <42408108+da1suk8@users.noreply.github.com>"]
 edition = "2018"

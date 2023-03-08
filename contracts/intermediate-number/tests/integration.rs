@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use wasmer::{FunctionType, Type};
 
 static CONTRACT_CALLER_CALLEE: &[u8] =
-    include_bytes!("../target/wasm32-unknown-unknown/release/caller_callee_number.wasm");
+    include_bytes!("../target/wasm32-unknown-unknown/release/intermediate_number.wasm");
 
 fn required_imports() -> Vec<(String, String, FunctionType)> {
     let module_name = "dynamiclinked_NumberContract";

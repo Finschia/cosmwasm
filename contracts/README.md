@@ -95,9 +95,9 @@ docker run --rm -v "$(pwd)":/code \
   cosmwasm/rust-optimizer:0.12.5 ./contracts/events
 
 docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="devcontract_cache_caller_callee_number",target=/code/contracts/caller-callee-number/target \
+  --mount type=volume,source="devcontract_cache_intermediate_number",target=/code/contracts/intermediate-number/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.12.5 ./contracts/caller-callee-number 
+  cosmwasm/rust-optimizer:0.12.5 ./contracts/intermediate-number 
 ```
 
 ## Entry points
@@ -120,7 +120,7 @@ points in order to demonstrate and test the flexibility we have.
 | call-number             | `#[entry_point]`                              | yes         | no            |
 | simple-callee           | `#[entry_point]`                              | no          | no            |
 | events                  | `#[entry_point]`                              | no          | no            |
-| caller-callee-number    | `#[entry_point]`                              | yes         | no            |
+| intermediate-number     | `#[entry_point]`                              | yes         | no            |
 
 
 <sup>1</sup> Because we can. Don't try this at home.
