@@ -112,34 +112,6 @@ pub fn make_callable_point(function: syn::ItemFn) -> (TokenStream, TokenStream) 
     )
 }
 
-pub fn make_except_callable_point(function: syn::ItemFn) -> TokenStream {
-    quote! {
-        #function
-    }
-}
-
-pub fn make_except_function(item: &syn::Item) -> TokenStream {
-    quote! {
-        #item
-    }
-}
-
-pub fn strip_callable_point(function: syn::ItemFn) -> syn::ItemFn {
-    let mut res = vec![];
-    for attr in function.attrs {
-        if !attr.path.is_ident("callable_point") {
-            res.push(attr)
-        }
-    }
-
-    syn::ItemFn {
-        attrs: res,
-        vis: function.vis,
-        sig: function.sig,
-        block: function.block,
-    }
-}
-
 fn make_call_origin_and_return(
     is_dep_mutable: bool,
     func_name_ident: &syn::Ident,

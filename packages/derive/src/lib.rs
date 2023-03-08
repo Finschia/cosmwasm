@@ -9,6 +9,7 @@ use quote::quote;
 use std::str::FromStr;
 
 mod callable_point;
+mod callable_points;
 mod contract;
 mod dynamic_link;
 mod utils;
@@ -122,31 +123,7 @@ pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
         Some((_, items)) => items,
     };
 
-    let mut list_callable_points = Vec::new();
-
-    let mut res = Vec::new();
-    for i in &body {
-        if let syn::Item::Fn(function) = i.clone() {
-            let is_callable_point = function
-                .attrs
-                .iter()
-                .any(|attr| attr.path.is_ident("callable_point"));
-
-            if is_callable_point {
-                let function_remove_macro = callable_point::strip_callable_point(function.clone());
-                let (maked, callee_func) =
-                    callable_point::make_callable_point(function_remove_macro);
-                res.extend(maked);
-                list_callable_points.push(callee_func);
-            } else {
-                let maked = callable_point::make_except_callable_point(function.clone());
-                res.extend(maked);
-            }
-        } else {
-            let maked = callable_point::make_except_function(i);
-            res.extend(maked);
-        }
-    }
+    let (maked, list_callable_points) = callable_points::make_callable_points(body);
 
     let list_callable_points_ts = quote! {
         mod #module_name {
@@ -183,7 +160,7 @@ pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 cosmwasm_std::memory::release_buffer(vec_callee_map) as u32
             }
 
-            #(#res)*
+            #(#maked)*
 
         }
     };
