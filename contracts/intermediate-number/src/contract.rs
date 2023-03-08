@@ -7,7 +7,6 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, NumberResponse, QueryMsg};
 
 const ADDRESS_KEY: &[u8] = b"number-address";
-// const KEY: &[u8] = b"number";
 
 #[derive(Contract)]
 struct NumberContract {
