@@ -404,11 +404,21 @@ where
         write_region(&self.env.memory(), region_ptr, data)?;
         Ok(())
     }
+
     /// Calls a function exported by the instance.
-    /// The function is expected to return no value. Otherwise this calls errors.
+    /// TODO: remove after make wasmvm not using this
     pub fn call_function_strict(
         &self,
         _type: &FunctionType,
+        name: &str,
+        args: &[Val],
+    ) -> VmResult<Box<[Val]>> {
+        self.env.call_function(name, args)
+    }
+
+    /// Calls a function exported by the instance.
+    pub fn call_function(
+        &self,
         name: &str,
         args: &[Val],
     ) -> VmResult<Box<[Val]>> {
