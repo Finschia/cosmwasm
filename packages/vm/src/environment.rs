@@ -350,6 +350,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         }
     }
 
+    // TODO: remove it after make wasmvm not using this
     pub fn try_record_dynamic_call_trace(&self) -> VmResult<()> {
         self.with_context_data_mut(|ctx| {
             if ctx.dynamic_callstack.len() >= DYNAMIC_CALL_DEPTH_LIMIT_CNT {
@@ -374,6 +375,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         })
     }
 
+    // TODO: remove it after make wasmvm not using this
     pub fn remove_latest_dynamic_call_trace(&self) {
         self.with_context_data_mut(|ctx| {
             ctx.dynamic_callstack.pop();
@@ -383,6 +385,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
     // try_pass_callstack will be called through wasmvm.
     // checking between the previous callers in the virtual_callstack and target.
     // if it failed, it will be returned ReEntrancyErr.
+    // TODO: remove it after make wasmvm not using this
     pub fn try_pass_callstack<A2, S2, Q2>(
         &self,
         target: &mut Environment<A2, S2, Q2>,
@@ -412,6 +415,31 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
                     }
                 }
             })
+        })
+    }
+
+    /// this function sets callstack to environment and checks it is not re-entrance
+    pub fn set_dynamic_callstack(&self, callstack: Vec<Addr>) -> VmResult<()> {
+        // check callstack length
+        if callstack.len() >= DYNAMIC_CALL_DEPTH_LIMIT_CNT {
+            return Err(VmError::dynamic_call_depth_over_limitation_err());
+        };
+
+        self.with_context_data_mut(|ctx| {
+            let contract_env: Env = match &ctx.serialized_env {
+                Some(env) => from_slice(env, DESERIALIZATION_LIMIT),
+                None => Err(VmError::uninitialized_context_data("serialized_env")),
+            }?;
+            match callstack
+                .iter()
+                .find(|&x| *x == contract_env.contract.address)
+            {
+                Some(_) => Err(VmError::re_entrancy_err()),
+                None => {
+                    ctx.dynamic_callstack = callstack.clone();
+                    Ok(())
+                }
+            }
         })
     }
 
@@ -1096,6 +1124,46 @@ mod tests {
             assert_eq!(ctx.dynamic_callstack[0], contract1_addr);
             assert_eq!(ctx.dynamic_callstack[1], contract2_addr);
         })
+    }
+
+    #[test]
+    fn set_dynamic_callstack_works() {
+        let contract1_addr = Addr::unchecked("contract1");
+        let contract2_addr = Addr::unchecked("contract2");
+        let callstack = vec![contract1_addr.clone(), contract2_addr.clone()];
+        let (env, _instance1) =
+            make_instance(TESTING_GAS_LIMIT, Some(Addr::unchecked("contract3")));
+        env.set_dynamic_callstack(callstack).unwrap();
+        env.with_context_data(|ctx| {
+            assert_eq!(ctx.dynamic_callstack.len(), 2);
+            assert_eq!(ctx.dynamic_callstack[0], contract1_addr);
+            assert_eq!(ctx.dynamic_callstack[1], contract2_addr);
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "ReEntrancyErr")]
+    fn panic_set_re_entrancing_dynamic_callstack() {
+        let contract1_addr = Addr::unchecked("contract1");
+        let contract2_addr = Addr::unchecked("contract2");
+        let callstack = vec![contract1_addr.clone(), contract2_addr];
+        let (env, _instance1) = make_instance(
+            TESTING_GAS_LIMIT,
+            Some(Addr::unchecked(contract1_addr.clone())),
+        );
+        env.set_dynamic_callstack(callstack).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "DynamicCallDepthOverLimitationErr")]
+    fn panic_set_too_long_dynamic_callstack() {
+        let mut callstack = Vec::<Addr>::new();
+        for i in 0..(DYNAMIC_CALL_DEPTH_LIMIT_CNT + 2) {
+            callstack.push(Addr::unchecked(format!("contract{}", i)));
+        }
+        let (env, _instance1) =
+            make_instance(TESTING_GAS_LIMIT, Some(Addr::unchecked("callee_contract")));
+        env.set_dynamic_callstack(callstack).unwrap();
     }
 
     #[test]
