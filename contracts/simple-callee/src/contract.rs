@@ -24,7 +24,7 @@ pub fn execute(
 }
 
 #[callable_points]
-mod __callable_point {
+mod callable_points {
     use super::*;
 
     #[callable_point]

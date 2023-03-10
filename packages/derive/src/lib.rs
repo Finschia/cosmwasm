@@ -93,23 +93,37 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
     res
 }
 
-/// This macro generates callable points for functions marked with #[callable_point] which can be called with dynamic link.
+/// This macro generates callable point for functions marked with `#[callable_point]`
+/// which can be called with dynamic link.
 ///
-/// Function attributed with this macro must take `deps` typed `Deps` or `DepsMut`
-/// as the first argument and `env` typed `Env` as the second argument.
+/// To use this macro, the contract must declare the import
+/// `serde_json = "1.0"
+/// in Cargo.toml
+///
+/// Functions with `#[callable_point]` are exposed to the outside world,
+/// those without `#[callable_point]` are not.
+///
+/// For externally exposed functions, `_list_callaple_points()` is created
+/// to summarize the read/write permissions of externally exposed functions
+/// based on the respective function arguments `Deps` and `DepsMut`.
+/// It is used to check read/write permissions.
 ///
 /// example usage:
 /// ```
 /// # use cosmwasm_std::{Addr, Env, Deps, callable_points};
 ///
 /// #[callable_points]
-/// mod __callable_point {
+/// mod callable_points {
 ///     use cosmwasm_std::{Addr, Deps, Env};
 ///
-///     #[callable_point]
+///     #[callable_point] // exposed to WASM
 ///     fn validate_address_callable_from_other_contracts(deps: Deps, _env: Env) -> Addr {
 ///         // do something with deps, for example, using api.
 ///         deps.api.addr_validate("dummy_human_address").unwrap()
+///     }
+///
+///     fn foo() -> u32 { // NOT exposed to WASM
+///         42
 ///     }
 /// }
 /// ```
@@ -123,7 +137,7 @@ pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
         Some((_, items)) => items,
     };
 
-    let (maked, list_callable_points) = callable_points::make_callable_points(body);
+    let (made, list_callable_points) = callable_points::make_callable_points(body);
 
     let list_callable_points_ts = quote! {
         mod #module_name {
@@ -160,7 +174,7 @@ pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 cosmwasm_std::memory::release_buffer(vec_callee_map) as u32
             }
 
-            #(#maked)*
+            #(#made)*
 
         }
     };

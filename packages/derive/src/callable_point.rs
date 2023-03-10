@@ -3,6 +3,8 @@ use quote::{format_ident, quote};
 
 use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make_typed_return};
 
+/// Function attributed with this macro must take `deps` typed `Deps` or `DepsMut`
+/// as the first argument and `env` typed `Env` as the second argument.
 pub fn make_callable_point(function: syn::ItemFn) -> (TokenStream, TokenStream) {
     let function_name_ident = &function.sig.ident;
     let function_name_string = function_name_ident.to_string();

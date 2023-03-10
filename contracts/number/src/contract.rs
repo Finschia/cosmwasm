@@ -77,7 +77,7 @@ fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
 }
 
 #[callable_points]
-mod __callable_point {
+mod callable_points {
     use super::*;
 
     #[callable_point]

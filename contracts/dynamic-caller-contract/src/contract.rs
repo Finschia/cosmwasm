@@ -172,7 +172,7 @@ pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, Con
 }
 
 #[callable_points]
-mod __callable_point {
+mod callable_points {
     use super::*;
 
     #[callable_point]
