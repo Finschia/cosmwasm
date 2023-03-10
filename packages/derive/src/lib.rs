@@ -122,7 +122,8 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 ///         deps.api.addr_validate("dummy_human_address").unwrap()
 ///     }
 ///
-///     fn foo() -> u32 { // NOT exposed to WASM
+///     // NOT exposed to WASM
+///     fn foo() -> u32 {
 ///         42
 ///     }
 /// }
