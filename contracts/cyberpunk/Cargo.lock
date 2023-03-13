@@ -213,6 +213,7 @@ name = "cosmwasm-derive"
 version = "1.1.9-0.7.0"
 dependencies = [
  "convert_case",
+ "proc-macro-error",
  "proc-macro2",
  "quote",
  "syn",
@@ -254,6 +255,7 @@ dependencies = [
  "thiserror",
  "uint",
  "uuid",
+ "wasmer-types",
 ]
 
 [[package]]
@@ -284,6 +286,7 @@ dependencies = [
  "thiserror",
  "wasmer",
  "wasmer-middlewares",
+ "wasmer-types",
 ]
 
 [[package]]
