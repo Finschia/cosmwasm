@@ -1,9 +1,10 @@
+use derivative::Derivative;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::binary::Binary;
-use crate::coins::Coin;
+use crate::coin::Coin;
 use crate::errors::StdResult;
 #[cfg(feature = "stargate")]
 use crate::ibc::IbcMsg;
@@ -18,7 +19,7 @@ pub trait CustomMsg: Serialize + Clone + fmt::Debug + PartialEq + JsonSchema {}
 impl CustomMsg for Empty {}
 
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 // See https://github.com/serde-rs/serde/issues/1296 why we cannot add De-Serialize trait bounds to T
 pub enum CosmosMsg<T = Empty> {
@@ -46,14 +47,14 @@ pub enum CosmosMsg<T = Empty> {
 
 /// The message types of the bank module.
 ///
-/// See https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/bank/v1beta1/tx.proto.
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankMsg {
     /// Sends native tokens from the contract to the given address.
     ///
-    /// This is translated to a MsgSend in https://github.com/line/lbm-sdk/blob/main/proto/lbm/bank/v1/tx.proto.
+    /// This is translated to a [MsgSend](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/bank/v1beta1/tx.proto#L19-L28).
     /// `from_address` is automatically filled with the current contract's address.
     Send {
         to_address: String,
@@ -67,19 +68,19 @@ pub enum BankMsg {
 
 /// The message types of the staking module.
 ///
-/// See https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto.
 #[cfg(feature = "staking")]
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum StakingMsg {
-    /// This is translated to a MsgDelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
+    /// This is translated to a [MsgDelegate](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L79-L88).
     /// `delegator_address` is automatically filled with the current contract's address.
     Delegate { validator: String, amount: Coin },
-    /// This is translated to a MsgUndelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
+    /// This is translated to a [MsgUndelegate](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L110-L119).
     /// `delegator_address` is automatically filled with the current contract's address.
     Undelegate { validator: String, amount: Coin },
-    /// This is translated to a MsgBeginRedelegate in https://github.com/line/lbm-sdk/blob/main/proto/lbm/staking/v1/tx.proto.
+    /// This is translated to a [MsgBeginRedelegate](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L93-L103).
     /// `delegator_address` is automatically filled with the current contract's address.
     Redelegate {
         src_validator: String,
@@ -93,7 +94,7 @@ pub enum StakingMsg {
 /// See https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto
 #[cfg(feature = "staking")]
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DistributionMsg {
     /// This is translated to a [MsgSetWithdrawAddress](https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto#L29-L37).
@@ -110,31 +111,41 @@ pub enum DistributionMsg {
     },
 }
 
+fn binary_to_string(data: &Binary, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+    match std::str::from_utf8(data.as_slice()) {
+        Ok(s) => fmt.write_str(s),
+        Err(_) => write!(fmt, "{:?}", data),
+    }
+}
+
 /// The message types of the wasm module.
 ///
-/// See https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
+/// See https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto.
 #[non_exhaustive]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Derivative, PartialEq, Eq, JsonSchema)]
+#[derivative(Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum WasmMsg {
     /// Dispatches a call to another contract at a known address (with known ABI).
     ///
-    /// This is translated to a MsgExecuteContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a [MsgExecuteContract](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L71-L82).
     /// `sender` is automatically filled with the current contract's address.
     Execute {
         contract_addr: String,
         /// msg is the json-encoded ExecuteMsg struct (as raw Binary)
+        #[derivative(Debug(format_with = "binary_to_string"))]
         msg: Binary,
         funds: Vec<Coin>,
     },
     /// Instantiates a new contracts from previously uploaded Wasm code.
     ///
-    /// This is translated to a MsgInstantiateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a [MsgInstantiateContract](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L45-L62).
     /// `sender` is automatically filled with the current contract's address.
     Instantiate {
         admin: Option<String>,
         code_id: u64,
         /// msg is the JSON-encoded InstantiateMsg struct (as raw Binary)
+        #[derivative(Debug(format_with = "binary_to_string"))]
         msg: Binary,
         funds: Vec<Coin>,
         /// A human-readbale label for the contract
@@ -145,13 +156,14 @@ pub enum WasmMsg {
     ///
     /// Only the contract admin (as defined in wasmd), if any, is able to make this call.
     ///
-    /// This is translated to a MsgMigrateContract in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto.
+    /// This is translated to a [MsgMigrateContract](https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L90-L100).
     /// `sender` is automatically filled with the current contract's address.
     Migrate {
         contract_addr: String,
         /// the code_id of the new logic to place in the given contract
         new_code_id: u64,
         /// msg is the json-encoded MigrateMsg struct that will be passed to the new code
+        #[derivative(Debug(format_with = "binary_to_string"))]
         msg: Binary,
     },
     /// Sets a new admin (for migrate) on the given contract.
@@ -166,7 +178,7 @@ pub enum WasmMsg {
 }
 
 #[cfg(feature = "stargate")]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum GovMsg {
     /// This maps directly to [MsgVote](https://github.com/cosmos/cosmos-sdk/blob/v0.42.5/proto/cosmos/gov/v1beta1/tx.proto#L46-L56) in the Cosmos SDK with voter set to the contract address.
@@ -174,7 +186,7 @@ pub enum GovMsg {
 }
 
 #[cfg(feature = "stargate")]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VoteOption {
     Yes,
@@ -259,7 +271,7 @@ impl<T> From<GovMsg> for CosmosMsg<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::coins;
+    use crate::{coin, coins};
 
     #[test]
     fn from_bank_msg_works() {
@@ -271,5 +283,41 @@ mod tests {
             CosmosMsg::Bank(msg) => assert_eq!(bank, msg),
             _ => panic!("must encode in Bank variant"),
         }
+    }
+
+    #[cosmwasm_schema::cw_serde]
+    enum ExecuteMsg {
+        Mint { coin: Coin },
+    }
+
+    #[test]
+    fn wasm_msg_debug_decodes_binary_string_when_possible() {
+        let msg = WasmMsg::Execute {
+            contract_addr: "joe".to_string(),
+            msg: to_binary(&ExecuteMsg::Mint {
+                coin: coin(10, "BTC"),
+            })
+            .unwrap(),
+            funds: vec![],
+        };
+
+        assert_eq!(
+            format!("{:?}", msg),
+            "Execute { contract_addr: \"joe\", msg: {\"mint\":{\"coin\":{\"denom\":\"BTC\",\"amount\":\"10\"}}}, funds: [] }"
+        );
+    }
+
+    #[test]
+    fn wasm_msg_debug_dumps_binary_when_not_utf8() {
+        let msg = WasmMsg::Execute {
+            contract_addr: "joe".to_string(),
+            msg: Binary::from([0, 159, 146, 150]),
+            funds: vec![],
+        };
+
+        assert_eq!(
+            format!("{:?}", msg),
+            "Execute { contract_addr: \"joe\", msg: Binary(009f9296), funds: [] }"
+        );
     }
 }

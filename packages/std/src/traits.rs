@@ -5,12 +5,14 @@ use wasmer_types::{ExportType, FunctionType};
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
-use crate::coins::Coin;
+use crate::coin::Coin;
 use crate::errors::{
     HashCalculationError, RecoverPubkeyError, StdError, StdResult, VerificationError,
 };
 #[cfg(feature = "iterator")]
 use crate::iterator::{Order, Record};
+#[cfg(feature = "cosmwasm_1_1")]
+use crate::query::SupplyResponse;
 use crate::query::{
     AllBalanceResponse, BalanceResponse, BankQuery, CustomQuery, QueryRequest, WasmQuery,
 };
@@ -21,6 +23,7 @@ use crate::query::{
 };
 use crate::results::{Attribute, ContractResult, Empty, Event, SystemResult};
 use crate::serde::{from_binary, to_binary, to_vec};
+use crate::ContractInfoResponse;
 
 /// Storage provides read and write access to a persistent storage.
 /// If you only want to provide read access, provide `&Storage`
@@ -95,7 +98,11 @@ pub trait Api {
     fn addr_validate(&self, human: &str) -> StdResult<Addr>;
 
     /// Takes a human readable address and returns a canonical binary representation of it.
-    /// This can be used when a compact fixed length representation is needed.
+    /// This can be used when a compact representation is needed.
+    ///
+    /// Please note that the length of the resulting address is defined by the chain and
+    /// can vary from address to address. On Cosmos chains 20 and 32 bytes are typically used.
+    /// But that might change. So your contract should not make assumptions on the size.
     fn addr_canonicalize(&self, human: &str) -> StdResult<CanonicalAddr>;
 
     /// Takes a canonical address and returns a human readble address.
@@ -232,6 +239,16 @@ impl<'a, C: CustomQuery> QuerierWrapper<'a, C> {
         }
     }
 
+    #[cfg(feature = "cosmwasm_1_1")]
+    pub fn query_supply(&self, denom: impl Into<String>) -> StdResult<Coin> {
+        let request = BankQuery::Supply {
+            denom: denom.into(),
+        }
+        .into();
+        let res: SupplyResponse = self.query(&request)?;
+        Ok(res.amount)
+    }
+
     pub fn query_balance(
         &self,
         address: impl Into<String>,
@@ -310,6 +327,18 @@ impl<'a, C: CustomQuery> QuerierWrapper<'a, C> {
         }
     }
 
+    /// Given a contract address, query information about that contract.
+    pub fn query_wasm_contract_info(
+        &self,
+        contract_addr: impl Into<String>,
+    ) -> StdResult<ContractInfoResponse> {
+        let request = WasmQuery::ContractInfo {
+            contract_addr: contract_addr.into(),
+        }
+        .into();
+        self.query(&request)
+    }
+
     #[cfg(feature = "staking")]
     pub fn query_all_validators(&self) -> StdResult<Vec<Validator>> {
         let request = StakingQuery::AllValidators {}.into();
@@ -366,7 +395,7 @@ impl<'a, C: CustomQuery> QuerierWrapper<'a, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mock::MockQuerier;
+    use crate::testing::MockQuerier;
     use crate::{coins, from_slice, Uint128};
 
     // this is a simple demo helper to prove we can use it
@@ -405,5 +434,94 @@ mod tests {
             .unwrap();
         let balance: BalanceResponse = from_slice(&raw).unwrap();
         assert_eq!(balance.amount.amount, Uint128::new(5));
+    }
+
+    #[cfg(feature = "cosmwasm_1_1")]
+    #[test]
+    fn bank_query_helpers_work() {
+        use crate::coin;
+
+        let querier: MockQuerier<Empty> = MockQuerier::new(&[
+            ("foo", &[coin(123, "ELF"), coin(777, "FLY")]),
+            ("bar", &[coin(321, "ELF")]),
+        ]);
+        let wrapper = QuerierWrapper::<Empty>::new(&querier);
+
+        let supply = wrapper.query_supply("ELF").unwrap();
+        assert_eq!(supply, coin(444, "ELF"));
+
+        let balance = wrapper.query_balance("foo", "ELF").unwrap();
+        assert_eq!(balance, coin(123, "ELF"));
+
+        let all_balances = wrapper.query_all_balances("foo").unwrap();
+        assert_eq!(all_balances, vec![coin(123, "ELF"), coin(777, "FLY")]);
+    }
+
+    #[test]
+    fn contract_info() {
+        const ACCT: &str = "foobar";
+        fn mock_resp() -> ContractInfoResponse {
+            ContractInfoResponse {
+                code_id: 0,
+                creator: "creator".to_string(),
+                admin: None,
+                pinned: false,
+                ibc_port: None,
+            }
+        }
+
+        let mut querier: MockQuerier<Empty> = MockQuerier::new(&[(ACCT, &coins(5, "BTC"))]);
+        querier.update_wasm(|q| -> QuerierResult {
+            if q == &(WasmQuery::ContractInfo {
+                contract_addr: ACCT.to_string(),
+            }) {
+                SystemResult::Ok(ContractResult::Ok(to_binary(&mock_resp()).unwrap()))
+            } else {
+                SystemResult::Err(crate::SystemError::NoSuchContract {
+                    addr: ACCT.to_string(),
+                })
+            }
+        });
+        let wrapper = QuerierWrapper::<Empty>::new(&querier);
+
+        let contract_info = wrapper.query_wasm_contract_info(ACCT).unwrap();
+        assert_eq!(contract_info, mock_resp());
+    }
+
+    #[test]
+    fn contract_info_err() {
+        const ACCT: &str = "foobar";
+        fn mock_resp() -> ContractInfoResponse {
+            ContractInfoResponse {
+                code_id: 0,
+                creator: "creator".to_string(),
+                admin: None,
+                pinned: false,
+                ibc_port: None,
+            }
+        }
+
+        let mut querier: MockQuerier<Empty> = MockQuerier::new(&[(ACCT, &coins(5, "BTC"))]);
+        querier.update_wasm(|q| -> QuerierResult {
+            if q == &(WasmQuery::ContractInfo {
+                contract_addr: ACCT.to_string(),
+            }) {
+                SystemResult::Ok(ContractResult::Ok(to_binary(&mock_resp()).unwrap()))
+            } else {
+                SystemResult::Err(crate::SystemError::NoSuchContract {
+                    addr: ACCT.to_string(),
+                })
+            }
+        });
+        let wrapper = QuerierWrapper::<Empty>::new(&querier);
+
+        let err = wrapper.query_wasm_contract_info("unknown").unwrap_err();
+        assert!(matches!(
+            err,
+            StdError::GenericErr {
+                msg,
+                ..
+            } if msg == "Querier system error: No such contract: foobar"
+        ));
     }
 }

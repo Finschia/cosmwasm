@@ -3,7 +3,6 @@ use std::vec::Vec;
 use wasmer_types::{ExportType, FunctionType};
 
 use crate::addresses::{Addr, CanonicalAddr};
-use crate::binary::Binary;
 use crate::errors::{
     HashCalculationError, RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
 };
@@ -246,7 +245,7 @@ impl Api for ExternalApi {
         }
 
         let out = unsafe { consume_region(canon) };
-        Ok(CanonicalAddr(Binary(out)))
+        Ok(CanonicalAddr::from(out))
     }
 
     fn addr_humanize(&self, canonical: &CanonicalAddr) -> StdResult<Addr> {

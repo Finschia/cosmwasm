@@ -2,10 +2,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::addresses::Addr;
-use crate::coins::Coin;
+use crate::coin::Coin;
 use crate::timestamp::Timestamp;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct Env {
     pub block: BlockInfo,
     /// Information on the transaction this message was executed in.
@@ -15,7 +15,7 @@ pub struct Env {
     pub contract: ContractInfo,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct TransactionInfo {
     /// The position of this transaction in the block. The first
     /// transaction has index 0.
@@ -26,7 +26,7 @@ pub struct TransactionInfo {
     pub index: u32,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct BlockInfo {
     /// The height of a block is the number of blocks preceding it in the blockchain.
     pub height: u64,
@@ -80,14 +80,14 @@ pub struct BlockInfo {
     pub chain_id: String,
 }
 
-/// Additional information from `MsgInstantiateContract` and `MsgExecuteContract`, which is passed
+/// Additional information from [MsgInstantiateContract] and [MsgExecuteContract], which is passed
 /// along with the contract execution message into the `instantiate` and `execute` entry points.
 ///
 /// It contains the essential info for authorization - identity of the call, and payment.
 ///
-/// `MsgInstantiateContract` and `MsgExecuteContract` are defined in https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto .
-/// [MsgExecuteContract]: https://github.com/line/lbm-sdk/blob/main/x/wasm/internal/types/tx.proto .
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+/// [MsgInstantiateContract]: https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L45-L62
+/// [MsgExecuteContract]: https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L71-L82
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct MessageInfo {
     /// The `sender` field from `MsgInstantiateContract` and `MsgExecuteContract`.
     /// You can think of this as the address that initiated the action (i.e. the message). What that
@@ -105,7 +105,7 @@ pub struct MessageInfo {
     pub funds: Vec<Coin>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct ContractInfo {
     pub address: Addr,
 }
