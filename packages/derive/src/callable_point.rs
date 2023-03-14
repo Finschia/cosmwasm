@@ -5,7 +5,7 @@ use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make
 
 /// Function attributed with this macro must take `deps` typed `Deps` or `DepsMut`
 /// as the first argument and `env` typed `Env` as the second argument.
-pub fn make_callable_point(function: syn::ItemFn) -> (TokenStream, TokenStream) {
+pub fn make_callable_point(function: syn::ItemFn) -> (TokenStream, (String, bool)) {
     let function_name_ident = &function.sig.ident;
     let function_name_string = function_name_ident.to_string();
     let mod_name_ident = format_ident!("__wasm_export_{}", function_name_ident);
@@ -110,7 +110,7 @@ pub fn make_callable_point(function: syn::ItemFn) -> (TokenStream, TokenStream) 
             #[allow(dead_code)]
             #function
         },
-        quote! {(#function_name_string.to_string(), #is_read_only),},
+        (function_name_string, is_read_only),
     )
 }
 

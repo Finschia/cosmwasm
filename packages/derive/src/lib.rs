@@ -139,40 +139,13 @@ pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let (made, list_callable_points) = callable_points::make_callable_points(body);
+    let callee_map_lit = callable_points::make_callee_map_lit(list_callable_points);
 
     let list_callable_points_ts = quote! {
         mod #module_name {
-            use serde::ser::{Serialize, SerializeMap, Serializer};
-
-            struct CalleeMap<K, V> {
-                inner: Vec<(K, V)>,
-            }
-
-            impl<K, V> Serialize for CalleeMap<K, V>
-            where
-            K: Serialize,
-            V: Serialize,
-            {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where
-                S: Serializer,
-                {
-                    let mut map = serializer.serialize_map(Some(self.inner.len()))?;
-                    for (k, v) in &self.inner {
-                        map.serialize_entry(&k, &v)?;
-                    }
-                    map.end()
-                }
-            }
-
             #[no_mangle]
             extern "C" fn _list_callable_points() -> u32 {
-                let callee_map : CalleeMap<String, bool> = CalleeMap {
-                    inner: vec![#(#list_callable_points)*],
-                };
-
-                let vec_callee_map = serde_json::to_vec_pretty(&callee_map).unwrap();
-                cosmwasm_std::memory::release_buffer(vec_callee_map) as u32
+                cosmwasm_std::memory::release_buffer((#callee_map_lit).to_vec()) as u32
             }
 
             #(#made)*
