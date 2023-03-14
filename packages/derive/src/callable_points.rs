@@ -2,7 +2,6 @@ use proc_macro2::Span;
 use proc_macro2::TokenTree;
 use quote::quote;
 use serde::ser::{Serialize, SerializeMap, Serializer};
-use syn;
 
 use crate::callable_point;
 
