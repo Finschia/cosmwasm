@@ -93,12 +93,14 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
     res
 }
 
-/// This macro generates callable point for functions marked with `#[callable_point]`
+/// This macro generates callable points for functions with `#[callable_point]`
 /// which can be called with dynamic link.
 ///
 /// To use this macro, the contract must declare the import
-/// `serde_json = "1.0"
+/// `serde_json = "1.0"`
 /// in Cargo.toml
+///
+/// `#[callable_point]` is used as a mark, not as an attribute macro.
 ///
 /// Functions with `#[callable_point]` are exposed to the outside world,
 /// those without `#[callable_point]` are not.

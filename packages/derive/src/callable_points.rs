@@ -31,6 +31,9 @@ pub fn make_callable_points(body: Vec<syn::Item>) -> (Vec<TokenTree>, Vec<(Strin
 
 /// If the function has `#[callable_point]`, strip it.
 ///
+/// The second return value is the result of whether or not `#[callable_point]` was found.
+/// This is used to create a callable point.
+///
 /// example:
 ///
 /// ```no_test
@@ -69,6 +72,9 @@ pub fn strip_callable_point(function: syn::ItemFn) -> (syn::ItemFn, bool) {
     )
 }
 
+/// Returns a literal of list_callable_points.
+///
+/// This is for using serialized binaries in `#[callable_points]`.
 pub fn make_callee_map_lit(list_callable_points: Vec<(String, bool)>) -> syn::LitByteStr {
     struct CalleeMap<K, V> {
         inner: Vec<(K, V)>,
