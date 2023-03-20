@@ -417,11 +417,7 @@ where
     }
 
     /// Calls a function exported by the instance.
-    pub fn call_function(
-        &self,
-        name: &str,
-        args: &[Val],
-    ) -> VmResult<Box<[Val]>> {
+    pub fn call_function(&self, name: &str, args: &[Val]) -> VmResult<Box<[Val]>> {
         self.env.call_function(name, args)
     }
 
