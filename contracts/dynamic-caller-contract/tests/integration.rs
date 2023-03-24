@@ -43,7 +43,7 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
 
 fn required_exports() -> Vec<(String, FunctionType)> {
     vec![(
-        String::from("_list_callable_points"),
+        String::from("_get_callable_points_properties"),
         ([], [Type::I32]).into(),
     )]
 }

@@ -105,7 +105,7 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
 /// Functions with `#[callable_point]` are exposed to the outside world,
 /// those without `#[callable_point]` are not.
 ///
-/// For externally exposed functions, `_list_callaple_points()` is created
+/// For externally exposed functions, `_get_callable_points_properties()` is created
 /// to summarize the read/write permissions of externally exposed functions
 /// based on the respective function arguments `Deps` and `DepsMut`.
 /// It is used to check read/write permissions.

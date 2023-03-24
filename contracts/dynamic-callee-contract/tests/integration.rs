@@ -32,7 +32,7 @@ fn required_exports() -> Vec<(String, FunctionType)> {
         (String::from("pong_env"), ([Type::I32], [Type::I32]).into()),
         (String::from("do_panic"), ([Type::I32], []).into()),
         (
-            String::from("_list_callable_points"),
+            String::from("_get_callable_points_properties"),
             ([], [Type::I32]).into(),
         ),
     ]
