@@ -1,7 +1,8 @@
 use proc_macro2::Span;
 use proc_macro2::TokenTree;
 use quote::quote;
-use serde::ser::{Serialize, SerializeMap, Serializer};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::callable_point;
 
@@ -76,31 +77,29 @@ pub fn strip_callable_point(function: syn::ItemFn) -> (syn::ItemFn, bool) {
 ///
 /// This is for using serialized binaries in `#[callable_points]`.
 pub fn make_callee_map_lit(list_callable_points: Vec<(String, bool)>) -> syn::LitByteStr {
-    struct CalleeMap<K, V> {
-        inner: Vec<(K, V)>,
+    #[derive(Serialize, Deserialize)]
+    struct CalleeInfo {
+        is_read_only: bool,
+    }
+    #[derive(Serialize, Deserialize)]
+    struct CalleeMap {
+        #[serde(flatten)]
+        inner: HashMap<String, CalleeInfo>,
     }
 
-    impl<K, V> Serialize for CalleeMap<K, V>
-    where
-        K: Serialize,
-        V: Serialize,
-    {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let mut map = serializer.serialize_map(Some(self.inner.len()))?;
-            for (k, v) in &self.inner {
-                map.serialize_entry(&k, &v)?;
-            }
-            map.end()
-        }
+    let mut inner_callee_map = HashMap::new();
+
+    for callable_point in list_callable_points.into_iter() {
+        let callee_info = CalleeInfo {
+            is_read_only: callable_point.1,
+        };
+        inner_callee_map.insert(callable_point.0, callee_info);
     }
 
-    let callee_map: CalleeMap<String, bool> = CalleeMap {
-        inner: list_callable_points,
+    let callee_map: CalleeMap = CalleeMap {
+        inner: inner_callee_map,
     };
 
-    let callee_map_vec = serde_json::to_vec_pretty(&callee_map).unwrap();
+    let callee_map_vec = serde_json::to_vec(&callee_map).unwrap();
     syn::LitByteStr::new(&callee_map_vec[..], Span::call_site())
 }
