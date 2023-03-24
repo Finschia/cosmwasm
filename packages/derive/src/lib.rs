@@ -143,10 +143,10 @@ pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let (made, list_callable_points) = callable_points::make_callable_points(body);
     let callee_map_lit = callable_points::make_callee_map_lit(list_callable_points);
 
-    let list_callable_points_ts = quote! {
+    let callable_points_ts = quote! {
         mod #module_name {
             #[no_mangle]
-            extern "C" fn _list_callable_points() -> u32 {
+            extern "C" fn _get_callable_points_properties() -> u32 {
                 cosmwasm_std::memory::release_buffer((#callee_map_lit).to_vec()) as u32
             }
 
@@ -155,7 +155,7 @@ pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    TokenStream::from(list_callable_points_ts)
+    TokenStream::from(callable_points_ts)
 }
 
 /// This macro implements functions to call dynamic linked function for attributed trait.

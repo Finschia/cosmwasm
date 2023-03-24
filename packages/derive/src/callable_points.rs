@@ -78,19 +78,19 @@ pub fn strip_callable_point(function: syn::ItemFn) -> (syn::ItemFn, bool) {
 /// This is for using serialized binaries in `#[callable_points]`.
 pub fn make_callee_map_lit(list_callable_points: Vec<(String, bool)>) -> syn::LitByteStr {
     #[derive(Serialize, Deserialize)]
-    struct CalleeInfo {
+    struct CalleeProperty {
         is_read_only: bool,
     }
     #[derive(Serialize, Deserialize)]
     struct CalleeMap {
         #[serde(flatten)]
-        inner: HashMap<String, CalleeInfo>,
+        inner: HashMap<String, CalleeProperty>,
     }
 
     let mut inner_callee_map = HashMap::new();
 
     for callable_point in list_callable_points.into_iter() {
-        let callee_info = CalleeInfo {
+        let callee_info = CalleeProperty {
             is_read_only: callable_point.1,
         };
         inner_callee_map.insert(callable_point.0, callee_info);
