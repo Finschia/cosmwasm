@@ -1,7 +1,7 @@
 [package]
-name = "dynamic-callee-contract"
+name = "intermediate-number"
 version = "0.1.0"
-authors = ["Jiyong Ha <jiyong.ha@linecorp.com>"]
+authors = ["da1suk8 <42408108+da1suk8@users.noreply.github.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -30,11 +30,11 @@ cosmwasm-storage = { path = "../../packages/storage", features = ["iterator"] }
 schemars = "0.8.1"
 serde = { version = "1.0.125", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.24" }
-wasmer-types = { version = "2.3.0", features = ["enable-serde"] }
+wasmer-types = { version = "2.2.1", features = ["enable-serde"] }
 serde_json = "1.0"
+
 
 [dev-dependencies]
 cosmwasm-schema = { path = "../../packages/schema" }
 cosmwasm-vm = { path = "../../packages/vm", default-features = false, features = ["iterator"] }
-wasmer = { version = "=2.3.0", default-features = false, features = ["cranelift", "universal", "singlepass"] }
-wasmer-types = "=2.3.0"
+wasmer = { version = "=2.2.1", default-features = false, features = ["cranelift", "universal", "singlepass"] }

@@ -187,6 +187,8 @@ dependencies = [
  "proc-macro-error",
  "proc-macro2",
  "quote",
+ "serde",
+ "serde_json",
  "syn",
 ]
 
@@ -1370,6 +1372,7 @@ dependencies = [
  "cosmwasm-vm",
  "schemars",
  "serde",
+ "serde_json",
  "thiserror",
  "wasmer",
  "wasmer-types",

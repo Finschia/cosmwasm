@@ -20,6 +20,8 @@ quote = "1.0"
 proc-macro-error = { version = "1", default-features = false }
 proc-macro2 = "1.0.32"
 convert_case = "0.4.0"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+serde_json = "1.0"
 
 [dev-dependencies]
 # Needed for testing docs

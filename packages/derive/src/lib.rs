@@ -9,6 +9,7 @@ use quote::quote;
 use std::str::FromStr;
 
 mod callable_point;
+mod callable_points;
 mod contract;
 mod dynamic_link;
 mod utils;
@@ -92,33 +93,69 @@ pub fn entry_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
     res
 }
 
-/// This macro generate callable point function which can be called with dynamic link.
+/// This macro generates callable points for functions with `#[callable_point]`
+/// which can be called with dynamic link.
 ///
-/// Function attributed with this macro must take `deps` typed `Deps` or `DepsMut`
-/// as the first argument and `env` typed `Env` as the second argument.
+/// To use this macro, the contract must declare the import
+/// `serde_json = "1.0"`
+/// in Cargo.toml
+///
+/// `#[callable_point]` is used as a mark, not as an attribute macro.
+///
+/// Functions with `#[callable_point]` are exposed to the outside world,
+/// those without `#[callable_point]` are not.
+///
+/// For externally exposed functions, `_get_callable_points_properties()` is created
+/// to summarize the read/write permissions of externally exposed functions
+/// based on the respective function arguments `Deps` and `DepsMut`.
+/// It is used to check read/write permissions.
 ///
 /// example usage:
 /// ```
-/// use cosmwasm_std::{Addr, Env, Deps, callable_point};
+/// # use cosmwasm_std::{Addr, Env, Deps, callable_points};
 ///
-/// #[callable_point]
-/// fn validate_address_callable_from_other_contracts(deps: Deps, _env: Env) -> Addr {
-///   // do something with deps, for example, using api.
-///   deps.api.addr_validate("dummy_human_address").unwrap()
+/// #[callable_points]
+/// mod callable_points {
+///     use cosmwasm_std::{Addr, Deps, Env};
+///
+///     #[callable_point] // exposed to WASM
+///     fn validate_address_callable_from_other_contracts(deps: Deps, _env: Env) -> Addr {
+///         // do something with deps, for example, using api.
+///         deps.api.addr_validate("dummy_human_address").unwrap()
+///     }
+///
+///     // NOT exposed to WASM
+///     fn foo() -> u32 {
+///         42
+///     }
 /// }
 /// ```
 #[proc_macro_error]
 #[proc_macro_attribute]
-pub fn callable_point(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    let function = parse_macro_input!(item as syn::ItemFn);
-    let mut res = TokenStream::from(quote! {
-        #[allow(dead_code)]
-        #function
-    });
+pub fn callable_points(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let module = parse_macro_input!(item as syn::ItemMod);
+    let module_name = module.ident;
+    let body = match module.content {
+        None => vec![],
+        Some((_, items)) => items,
+    };
 
-    let maked = callable_point::make_callable_point(function);
-    res.extend(TokenStream::from(maked));
-    res
+    let (made, list_callable_points) = callable_points::make_callable_points(body);
+    let callee_map_lit = callable_points::make_callee_map_lit(list_callable_points);
+
+    let callable_points_ts = quote! {
+        mod #module_name {
+            #[no_mangle]
+            extern "C" fn _get_callable_points_properties() -> u32 {
+                cosmwasm_std::memory::release_buffer((#callee_map_lit).to_vec()) as u32
+            }
+
+            #(#made)*
+
+        }
+    };
+
+    TokenStream::from(callable_points_ts)
 }
 
 /// This macro implements functions to call dynamic linked function for attributed trait.

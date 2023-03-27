@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, from_slice, to_vec, Addr, Contract, Deps, DepsMut,
+    callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Contract, Deps, DepsMut,
     Env, MessageInfo, Response, Uint128,
 };
 use serde::{Deserialize, Serialize};
@@ -171,8 +171,13 @@ pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, Con
     Ok(Response::default())
 }
 
-#[callable_point]
-fn should_never_be_called(_deps: Deps, _env: Env) {}
+#[callable_points]
+mod callable_points {
+    use super::*;
+
+    #[callable_point]
+    fn should_never_be_called(_deps: Deps, _env: Env) {}
+}
 
 #[cfg(test)]
 mod tests {

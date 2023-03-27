@@ -2,56 +2,52 @@ use cosmwasm_vm::testing::{Contract, MockInstanceOptions};
 use std::collections::HashMap;
 use wasmer::{FunctionType, Type};
 
-static CONTRACT_CALLER: &[u8] =
-    include_bytes!("../target/wasm32-unknown-unknown/release/dynamic_caller_contract.wasm");
+static CONTRACT_CALLER_CALLEE: &[u8] =
+    include_bytes!("../target/wasm32-unknown-unknown/release/intermediate_number.wasm");
 
 fn required_imports() -> Vec<(String, String, FunctionType)> {
-    let module_name = String::from("dynamiclinked_CalleeContract");
+    let module_name = "dynamiclinked_NumberContract";
     vec![
         (
-            String::from("pong"),
+            String::from("add"),
             module_name.to_string(),
-            ([Type::I32, Type::I32], [Type::I32]).into(),
+            ([Type::I32, Type::I32], []).into(),
         ),
         (
-            String::from("pong_with_struct"),
+            String::from("sub"),
             module_name.to_string(),
-            ([Type::I32, Type::I32], [Type::I32]).into(),
+            ([Type::I32, Type::I32], []).into(),
         ),
         (
-            String::from("pong_with_tuple"),
+            String::from("mul"),
             module_name.to_string(),
-            ([Type::I32, Type::I32], [Type::I32]).into(),
+            ([Type::I32, Type::I32], []).into(),
         ),
         (
-            String::from("pong_with_tuple_takes_2_args"),
-            module_name.to_string(),
-            ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
-        ),
-        (
-            String::from("pong_env"),
+            String::from("number"),
             module_name.to_string(),
             ([Type::I32], [Type::I32]).into(),
-        ),
-        (
-            String::from("do_panic"),
-            module_name.to_string(),
-            ([Type::I32], []).into(),
         ),
     ]
 }
 
 fn required_exports() -> Vec<(String, FunctionType)> {
-    vec![(
-        String::from("_get_callable_points_properties"),
-        ([], [Type::I32]).into(),
-    )]
+    vec![
+        (String::from("add"), ([Type::I32, Type::I32], []).into()),
+        (String::from("sub"), ([Type::I32, Type::I32], []).into()),
+        (String::from("mul"), ([Type::I32, Type::I32], []).into()),
+        (String::from("number"), ([Type::I32], [Type::I32]).into()),
+        (
+            String::from("_get_callable_points_properties"),
+            ([], [Type::I32]).into(),
+        ),
+    ]
 }
 
 #[test]
 fn dynamic_link_import_works() {
     let options = MockInstanceOptions::default();
-    let contract = Contract::from_code(CONTRACT_CALLER, &options, None).unwrap();
+    let contract = Contract::from_code(CONTRACT_CALLER_CALLEE, &options, None).unwrap();
 
     let import_function_map: HashMap<_, _> = contract
         .module
@@ -84,7 +80,7 @@ fn dynamic_link_import_works() {
 #[test]
 fn callable_point_export_works() {
     let options = MockInstanceOptions::default();
-    let contract = Contract::from_code(CONTRACT_CALLER, &options, None).unwrap();
+    let contract = Contract::from_code(CONTRACT_CALLER_CALLEE, &options, None).unwrap();
 
     let export_function_map: HashMap<_, _> = contract
         .module
