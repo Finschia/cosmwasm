@@ -730,6 +730,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "intermediate-number"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cosmwasm-vm",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "wasmer",
+ "wasmer-types",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -872,22 +888,6 @@ checksum = "19e64526ebdee182341572e50e9ad03965aa510cd94427a4549448f285e957a1"
 dependencies = [
  "hermit-abi",
  "libc",
-]
-
-[[package]]
-name = "number"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cosmwasm-vm",
- "schemars",
- "serde",
- "serde_json",
- "thiserror",
- "wasmer",
- "wasmer-types",
 ]
 
 [[package]]

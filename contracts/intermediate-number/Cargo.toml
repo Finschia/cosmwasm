@@ -1,7 +1,7 @@
 [package]
-name = "dynamic-caller-contract"
+name = "intermediate-number"
 version = "0.1.0"
-authors = ["Jiyong Ha <jiyong.ha@linecorp.com>"]
+authors = ["da1suk8 <42408108+da1suk8@users.noreply.github.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -33,8 +33,8 @@ thiserror = { version = "1.0.24" }
 wasmer-types = { version = "2.2.1", features = ["enable-serde"] }
 serde_json = "1.0"
 
+
 [dev-dependencies]
 cosmwasm-schema = { path = "../../packages/schema" }
 cosmwasm-vm = { path = "../../packages/vm", default-features = false, features = ["iterator"] }
 wasmer = { version = "=2.2.1", default-features = false, features = ["cranelift", "universal", "singlepass"] }
-wasmer-types = "=2.2.1"

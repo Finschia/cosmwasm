@@ -15,6 +15,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
         (String::from("sub"), ([Type::I32, Type::I32], []).into()),
         (String::from("mul"), ([Type::I32, Type::I32], []).into()),
         (String::from("number"), ([Type::I32], [Type::I32]).into()),
+        (
+            String::from("_get_callable_points_properties"),
+            ([], [Type::I32]).into(),
+        ),
     ]
 }
 

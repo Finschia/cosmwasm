@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    callable_point, entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    callable_points, entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
     Storage,
 };
 
@@ -76,22 +76,27 @@ fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
     Ok(NumberResponse { value })
 }
 
-#[callable_point]
-fn add(deps: DepsMut, _env: Env, by: i32) {
-    handle_add(deps, by).unwrap();
-}
+#[callable_points]
+mod callable_points {
+    use super::*;
 
-#[callable_point]
-fn sub(deps: DepsMut, _env: Env, by: i32) {
-    handle_sub(deps, by).unwrap();
-}
+    #[callable_point]
+    fn add(deps: DepsMut, _env: Env, by: i32) {
+        handle_add(deps, by).unwrap();
+    }
 
-#[callable_point]
-fn mul(deps: DepsMut, _env: Env, by: i32) {
-    handle_mul(deps, by).unwrap();
-}
+    #[callable_point]
+    fn sub(deps: DepsMut, _env: Env, by: i32) {
+        handle_sub(deps, by).unwrap();
+    }
 
-#[callable_point]
-fn number(deps: Deps, _env: Env) -> i32 {
-    read(deps.storage).unwrap()
+    #[callable_point]
+    fn mul(deps: DepsMut, _env: Env, by: i32) {
+        handle_mul(deps, by).unwrap();
+    }
+
+    #[callable_point]
+    fn number(deps: Deps, _env: Env) -> i32 {
+        read(deps.storage).unwrap()
+    }
 }
