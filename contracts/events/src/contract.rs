@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    callable_point, dynamic_link, entry_point, Addr, Attribute, Contract, DepsMut, Env, Event,
+    callable_points, dynamic_link, entry_point, Addr, Attribute, Contract, DepsMut, Env, Event,
     MessageInfo, Response,
 };
 
@@ -160,23 +160,28 @@ fn handle_attributes_dyn(
     Ok(Response::default().add_attributes(attributes))
 }
 
-#[callable_point]
-fn add_event_dyn(deps: DepsMut, _env: Env, ty: String, attributes: Vec<Attribute>) {
-    let event = Event::new(ty).add_attributes(attributes);
-    deps.api.add_event(&event).unwrap();
-}
+#[callable_points]
+mod callable_points {
+    use super::*;
 
-#[callable_point]
-fn add_events_dyn(deps: DepsMut, _env: Env, events: Vec<Event>) {
-    deps.api.add_events(&events).unwrap();
-}
+    #[callable_point]
+    fn add_event_dyn(deps: DepsMut, _env: Env, ty: String, attributes: Vec<Attribute>) {
+        let event = Event::new(ty).add_attributes(attributes);
+        deps.api.add_event(&event).unwrap();
+    }
 
-#[callable_point]
-fn add_attribute_dyn(deps: DepsMut, _env: Env, key: String, value: String) {
-    deps.api.add_attribute(&key, &value).unwrap();
-}
+    #[callable_point]
+    fn add_events_dyn(deps: DepsMut, _env: Env, events: Vec<Event>) {
+        deps.api.add_events(&events).unwrap();
+    }
 
-#[callable_point]
-fn add_attributes_dyn(deps: DepsMut, _env: Env, attributes: Vec<Attribute>) {
-    deps.api.add_attributes(&attributes).unwrap();
+    #[callable_point]
+    fn add_attribute_dyn(deps: DepsMut, _env: Env, key: String, value: String) {
+        deps.api.add_attribute(&key, &value).unwrap();
+    }
+
+    #[callable_point]
+    fn add_attributes_dyn(deps: DepsMut, _env: Env, attributes: Vec<Attribute>) {
+        deps.api.add_attributes(&attributes).unwrap();
+    }
 }
