@@ -974,6 +974,55 @@ jobs:
               exit 1
             fi
 
+  contract_events:
+    name: contract_events
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/events
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.57.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_events-rust:1.57.0-${{ hashFiles('contracts/events/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
   fmt:
     name: fmt
     runs-on: ubuntu-latest
@@ -1021,11 +1070,38 @@ jobs:
       - name: Check formatting of contract staking
         working-directory: ${{env.root-directory}}/staking
         run: cargo fmt -- --check
+      - name: Check formatting of contract floaty
+        working-directory: ${{env.root-directory}}/floaty
+        run: cargo fmt -- --check
       - name: Check formatting of contract dynamic callee contract
         working-directory: ${{env.root-directory}}/dynamic-callee-contract
         run: cargo fmt -- --check
       - name: Check formatting of contract dynamic caller contract
         working-directory: ${{env.root-directory}}/dynamic-caller-contract
+        run: cargo fmt -- --check
+      - name: Check formatting of contract number
+        working-directory: ${{env.root-directory}}/number
+        run: cargo fmt -- --check
+      - name: Check formatting of contract intermediate-number
+        working-directory: ${{env.root-directory}}/intermediate-number
+        run: cargo fmt -- --check
+      - name: Check formatting of contract call number
+        working-directory: ${{env.root-directory}}/call-number
+        run: cargo fmt -- --check
+      - name: Check formatting of contract events
+        working-directory: ${{env.root-directory}}/events
+        run: cargo fmt -- --check
+      - name: Check formatting of contract voting with uuid
+        working-directory: ${{env.root-directory}}/voting-with-uuid
+        run: cargo fmt -- --check
+      - name: Check formatting of contract ibc reflect
+        working-directory: ${{env.root-directory}}/ibc-reflect
+        run: cargo fmt -- --check
+      - name: Check formatting of contract ibc reflect send
+        working-directory: ${{env.root-directory}}/ibc-reflect-send
+        run: cargo fmt -- --check
+      - name: Check formatting of contract simple callee
+        working-directory: ${{env.root-directory}}/simple-callee
         run: cargo fmt -- --check
 
   clippy:
