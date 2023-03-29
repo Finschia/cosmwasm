@@ -156,6 +156,12 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[error("Error during calling dynamic linked callable point: {}", msg)]
+    DynamicCallErr {
+        msg: String,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
 }
 
 impl VmError {
@@ -334,6 +340,13 @@ impl VmError {
     }
     pub(crate) fn dynamic_call_depth_over_limitation_err() -> Self {
         VmError::DynamicCallDepthOverLimitationErr {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+    pub(crate) fn dynamic_call_err(msg: impl Into<String>) -> Self {
+        VmError::DynamicCallErr {
+            msg: msg.into(),
             #[cfg(feature = "backtraces")]
             backtrace: Backtrace::capture(),
         }
@@ -602,6 +615,16 @@ mod tests {
         let error = VmError::write_access_denied();
         match error {
             VmError::WriteAccessDenied { .. } => {}
+            e => panic!("Unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn dynamic_call_err() {
+        let message = "foobar";
+        let error = VmError::dynamic_call_err(message);
+        match error {
+            VmError::DynamicCallErr { msg, .. } => assert_eq!(msg, message),
             e => panic!("Unexpected error: {:?}", e),
         }
     }
