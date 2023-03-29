@@ -294,6 +294,9 @@ struct CalleeProperty {
     is_read_only: bool,
 }
 
+// This sets callee instance read/write permission according to
+// GET_PROPERTY_FUNCTION in callee instance.
+// This checks callee instance does not take write permission in readonly context.
 pub fn set_callee_permission<A, S, Q>(
     callee_instance: &mut Instance<A, S, Q>,
     callable_point: &str,
