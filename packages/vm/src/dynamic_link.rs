@@ -317,10 +317,10 @@ where
         true,
     )?;
     if ret_datas.len() != 1 {
-        Err(VmError::dynamic_call_err(format!(
+        return Err(VmError::dynamic_call_err(format!(
             "{} returns no or more than 1 values. It should returns just 1 value.",
             GET_PROPERTY_FUNCTION
-        )))?
+        )));
     };
 
     let properties: HashMap<String, CalleeProperty> = serde_json::from_slice(&ret_datas[0])
@@ -335,12 +335,13 @@ where
 
     if is_readonly_context && !property.is_read_only {
         // An error occurs because read-only permission cannot be inherited from read-write permission
-        Err(VmError::dynamic_call_err(
+        return Err(VmError::dynamic_call_err(
             "a read-write callable point is called in read-only context.",
-        ))?
+        ));
     };
 
-    Ok(callee_instance.set_storage_readonly(property.is_read_only))
+    callee_instance.set_storage_readonly(property.is_read_only);
+    Ok(())
 }
 
 #[cfg(test)]
