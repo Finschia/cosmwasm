@@ -1,4 +1,4 @@
-use cosmwasm_std::{callable_points, entry_point, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{callable_points, entry_point, Deps, DepsMut, Env, MessageInfo, Response};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg};
@@ -29,6 +29,11 @@ mod callable_points {
 
     #[callable_point]
     fn succeed(_deps: DepsMut, _env: Env) {
+        ()
+    }
+
+    #[callable_point]
+    fn succeed_readonly(_deps: Deps, _env: Env) {
         ()
     }
 
