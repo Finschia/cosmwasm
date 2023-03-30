@@ -13,6 +13,7 @@ static CONTRACT: &[u8] =
 fn required_exports() -> Vec<(String, FunctionType)> {
     vec![
         (String::from("succeed"), ([Type::I32], []).into()),
+        (String::from("succeed_readonly"), ([Type::I32], []).into()),
         (String::from("fail"), ([Type::I32], []).into()),
         (
             String::from("_get_callable_points_properties"),
@@ -80,13 +81,33 @@ fn callable_point_succeed_works() {
 }
 
 #[test]
-fn callable_fail_fails() {
+fn callable_point_succeed_readonly_works() {
     let instance = make_instance();
     let env = to_vec(&mock_env()).unwrap();
     let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
 
     let required_exports = required_exports();
     let export_index = 1;
+    assert_eq!("succeed_readonly".to_string(), required_exports[export_index].0);
+
+    // check succeed_readonly
+    instance
+        .call_function_strict(
+            &required_exports[export_index].1,
+            "succeed_readonly",
+            &[env_region_ptr.into()],
+        )
+        .unwrap();
+}
+
+#[test]
+fn callable_fail_fails() {
+    let instance = make_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
+
+    let required_exports = required_exports();
+    let export_index = 2;
     assert_eq!("fail".to_string(), required_exports[export_index].0);
 
     // check unreachable

@@ -6,7 +6,9 @@ use crate::conversion::ref_to_u32;
 use crate::environment::{process_gas_info, Environment};
 use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::imports::write_to_contract;
+use crate::instance::Instance;
 use crate::memory::read_region;
+use serde::{Deserialize, Serialize};
 use wasmer::{
     ExportType, Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val,
 };
@@ -18,6 +20,8 @@ use cosmwasm_std::{from_slice, Addr};
 const MAX_ADDRESS_LENGTH: usize = 64 * 2;
 // enough big value for copy interface. This is less than crate::calls::read_limits::XXX
 const MAX_INTERFACE_REGIONS_LENGTH: usize = 1024 * 1024;
+const MAX_PROPERTIES_REGIONS_LENGTH: usize = 1024 * 1024;
+const GET_PROPERTY_FUNCTION: &str = "_get_callable_points_properties";
 
 pub type WasmerVal = Val;
 
@@ -284,6 +288,62 @@ where
     }
 }
 
+// CalleeProperty represents property about the function of callee
+#[derive(Serialize, Deserialize)]
+struct CalleeProperty {
+    is_read_only: bool,
+}
+
+// This sets callee instance read/write permission according to
+// GET_PROPERTY_FUNCTION in callee instance.
+// This checks callee instance does not take write permission in readonly context.
+pub fn set_callee_permission<A, S, Q>(
+    callee_instance: &mut Instance<A, S, Q>,
+    callable_point: &str,
+    is_readonly_context: bool,
+) -> VmResult<()>
+where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+{
+    callee_instance.set_storage_readonly(true);
+    let ret = callee_instance.call_function(GET_PROPERTY_FUNCTION, &[])?;
+
+    let ret_datas = read_region_vals_from_env(
+        &callee_instance.env,
+        &ret,
+        MAX_PROPERTIES_REGIONS_LENGTH,
+        true,
+    )?;
+    if ret_datas.len() != 1 {
+        return Err(VmError::dynamic_call_err(format!(
+            "{} returns no or more than 1 values. It should returns just 1 value.",
+            GET_PROPERTY_FUNCTION
+        )));
+    };
+
+    let properties: HashMap<String, CalleeProperty> = serde_json::from_slice(&ret_datas[0])
+        .map_err(|e| VmError::dynamic_call_err(e.to_string()))?;
+
+    let property = properties.get(callable_point).ok_or_else(|| {
+        VmError::dynamic_call_err(format!(
+            "callee function properties has not key:{}",
+            callable_point
+        ))
+    })?;
+
+    if is_readonly_context && !property.is_read_only {
+        // An error occurs because read-only permission cannot be inherited from read-write permission
+        return Err(VmError::dynamic_call_err(
+            "a read-write callable point is called in read-only context.",
+        ));
+    };
+
+    callee_instance.set_storage_readonly(property.is_read_only);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -541,5 +601,26 @@ mod tests {
             assert!(matches!(result, Err(RuntimeError { .. })));
             assert!(result.unwrap_err().message().starts_with("func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: \"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable"));
         });
+    }
+
+    #[test]
+    fn set_callee_permission_works_readwrite() {
+        let mut instance = mock_instance(&CONTRACT_CALLEE, &[]);
+        set_callee_permission(&mut instance, "succeed", false).unwrap();
+        assert!(!instance.env.is_storage_readonly())
+    }
+
+    #[test]
+    fn set_callee_permission_works_readonly() {
+        let mut instance = mock_instance(&CONTRACT_CALLEE, &[]);
+        set_callee_permission(&mut instance, "succeed_readonly", true).unwrap();
+        assert!(instance.env.is_storage_readonly())
+    }
+
+    #[test]
+    #[should_panic(expected = "a read-write callable point is called in read-only context.")]
+    fn set_callee_permission_fails() {
+        let mut instance = mock_instance(&CONTRACT_CALLEE, &[]);
+        set_callee_permission(&mut instance, "succeed", true).unwrap();
     }
 }

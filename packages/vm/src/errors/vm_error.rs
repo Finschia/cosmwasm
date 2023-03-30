@@ -156,6 +156,12 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[error("Error during calling dynamic linked callable point: {}", msg)]
+    DynamicCallErr {
+        msg: String,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
 }
 
 impl VmError {
@@ -338,6 +344,13 @@ impl VmError {
             backtrace: Backtrace::capture(),
         }
     }
+    pub(crate) fn dynamic_call_err(msg: impl Into<String>) -> Self {
+        VmError::DynamicCallErr {
+            msg: msg.into(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
 }
 
 impl From<BackendError> for VmError {
@@ -385,7 +398,7 @@ impl From<wasmer::RuntimeError> for VmError {
             original.to_string().starts_with(&message),
             "The error message we created is not a prefix of the error message from Wasmer. Our message: '{}'. Wasmer messsage: '{}'",
             &message,
-            original.to_string()
+            original
         );
         VmError::runtime_err(format!("Wasmer runtime error: {}", &message))
     }
@@ -602,6 +615,16 @@ mod tests {
         let error = VmError::write_access_denied();
         match error {
             VmError::WriteAccessDenied { .. } => {}
+            e => panic!("Unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn dynamic_call_err() {
+        let message = "foobar";
+        let error = VmError::dynamic_call_err(message);
+        match error {
+            VmError::DynamicCallErr { msg, .. } => assert_eq!(msg, message),
             e => panic!("Unexpected error: {:?}", e),
         }
     }
