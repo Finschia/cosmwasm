@@ -12,10 +12,10 @@ use cosmwasm_vm::testing::{
     write_data_to_mock_env, MockApi, MockInstanceOptions, MockQuerier, MockStorage, INSTANCE_CACHE,
 };
 use cosmwasm_vm::{
-    call_execute, call_instantiate, features_from_csv, native_dynamic_link_trampoline_for_bench,
-    read_region, ref_to_u32, to_u32, write_region, Backend, BackendApi, BackendError,
-    BackendResult, Cache, CacheOptions, Checksum, Environment, FunctionMetadata, GasInfo, Instance,
-    InstanceOptions, Querier, Size, Storage, WasmerVal,
+    call_execute, call_instantiate, capabilities_from_csv,
+    native_dynamic_link_trampoline_for_bench, read_region, ref_to_u32, to_u32, write_region,
+    Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum, Environment,
+    FunctionMetadata, GasInfo, Instance, InstanceOptions, Querier, Size, Storage, WasmerVal,
 };
 use std::cell::RefCell;
 use wasmer::Module;
@@ -175,7 +175,7 @@ fn bench_cache(c: &mut Criterion) {
 
     let options = CacheOptions {
         base_dir: TempDir::new().unwrap().into_path(),
-        supported_features: features_from_csv("iterator,staking"),
+        available_capabilities: capabilities_from_csv("iterator,staking"),
         memory_cache_size: MEMORY_CACHE_SIZE,
         instance_memory_limit: DEFAULT_MEMORY_LIMIT,
     };
@@ -215,7 +215,7 @@ fn bench_cache(c: &mut Criterion) {
     group.bench_function("instantiate from fs", |b| {
         let non_memcache = CacheOptions {
             base_dir: TempDir::new().unwrap().into_path(),
-            supported_features: features_from_csv("iterator,staking"),
+            available_capabilities: capabilities_from_csv("iterator,staking"),
             memory_cache_size: Size(0),
             instance_memory_limit: DEFAULT_MEMORY_LIMIT,
         };
@@ -445,7 +445,7 @@ pub fn bench_instance_threads(c: &mut Criterion) {
     c.bench_function("multi-threaded get_instance", |b| {
         let options = CacheOptions {
             base_dir: TempDir::new().unwrap().into_path(),
-            supported_features: features_from_csv("iterator,staking"),
+            available_capabilities: capabilities_from_csv("iterator,staking"),
             memory_cache_size: MEMORY_CACHE_SIZE,
             instance_memory_limit: DEFAULT_MEMORY_LIMIT,
         };

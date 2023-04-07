@@ -8,6 +8,12 @@ for contract_dir in contracts/*/; do
     cargo fmt --all
     mkdir -p target/wasm32-unknown-unknown/release/
     touch target/wasm32-unknown-unknown/release/"$(basename "$contract_dir" | tr - _)".wasm
+  )
+done
+
+# test
+for contract_dir in contracts/*/; do
+  (
     cargo check --tests
   )
 done

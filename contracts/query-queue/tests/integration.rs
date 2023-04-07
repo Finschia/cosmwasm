@@ -139,7 +139,7 @@ fn create_queue_contract_and_push_42() -> (Instance<MockApi, MockStorage, MockQu
 
 fn create_integrated_query_contract() -> (Instance<MockApi, MockStorage, MockQuerier>, MessageInfo)
 {
-    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         Count {},

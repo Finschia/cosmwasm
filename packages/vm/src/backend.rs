@@ -14,7 +14,7 @@ use crate::{FunctionMetadata, WasmerVal};
 /// A structure that represents gas cost to be deducted from the remaining gas.
 /// This is always needed when computations are performed outside of
 /// Wasm execution, such as calling crypto APIs or calls into the blockchain.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct GasInfo {
     /// The gas cost of a computation that was executed already but not yet charged.
     ///
@@ -173,7 +173,7 @@ pub trait Querier {
 /// attached.
 pub type BackendResult<T> = (core::result::Result<T, BackendError>, GasInfo);
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum BackendError {
     #[error("Panic in FFI call")]

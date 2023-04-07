@@ -7,11 +7,11 @@ use wasmer::{
 };
 
 use crate::backend::{Backend, BackendApi, Querier, Storage};
+use crate::capabilities::required_capabilities_from_module;
 use crate::conversion::{ref_to_u32, to_u32};
 use crate::dynamic_link::{dynamic_link, native_validate_dynamic_link_interface};
 use crate::environment::Environment;
 use crate::errors::{CommunicationError, VmError, VmResult};
-use crate::features::required_features_from_module;
 use crate::imports::{
     do_abort, do_add_attribute, do_add_attributes, do_add_event, do_add_events,
     do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
@@ -40,6 +40,7 @@ pub struct GasReport {
 
 #[derive(Copy, Clone, Debug)]
 pub struct InstanceOptions {
+    /// Gas limit measured in [CosmWasm gas](https://github.com/CosmWasm/cosmwasm/blob/main/docs/GAS.md).
     pub gas_limit: u64,
     pub print_debug: bool,
 }
@@ -323,8 +324,8 @@ where
     /// This is not needed for production because we can do static analysis
     /// on the Wasm file before instatiation to obtain this information. It's
     /// only kept because it can be handy for integration testing.
-    pub fn required_features(&self) -> HashSet<String> {
-        required_features_from_module(self._inner.module())
+    pub fn required_capabilities(&self) -> HashSet<String> {
+        required_capabilities_from_module(self._inner.module())
     }
 
     /// Returns the size of the default memory in pages.
@@ -478,16 +479,16 @@ mod tests {
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 
     #[test]
-    fn required_features_works() {
+    fn required_capabilities_works() {
         let backend = mock_backend(&[]);
         let (instance_options, memory_limit) = mock_instance_options();
         let instance =
             Instance::from_code(CONTRACT, backend, instance_options, memory_limit).unwrap();
-        assert_eq!(instance.required_features().len(), 0);
+        assert_eq!(instance.required_capabilities().len(), 0);
     }
 
     #[test]
-    fn required_features_works_for_many_exports() {
+    fn required_capabilities_works_for_many_exports() {
         let wasm = wat::parse_str(
             r#"(module
             (type (func))
@@ -505,10 +506,10 @@ mod tests {
         let backend = mock_backend(&[]);
         let (instance_options, memory_limit) = mock_instance_options();
         let instance = Instance::from_code(&wasm, backend, instance_options, memory_limit).unwrap();
-        assert_eq!(instance.required_features().len(), 3);
-        assert!(instance.required_features().contains("nutrients"));
-        assert!(instance.required_features().contains("sun"));
-        assert!(instance.required_features().contains("water"));
+        assert_eq!(instance.required_capabilities().len(), 3);
+        assert!(instance.required_capabilities().contains("nutrients"));
+        assert!(instance.required_capabilities().contains("sun"));
+        assert!(instance.required_capabilities().contains("water"));
     }
 
     #[test]
