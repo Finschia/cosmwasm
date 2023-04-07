@@ -288,6 +288,36 @@ impl BackendApi for MockApi {
             }
         })
     }
+
+    fn call_callable_point(
+        &self,
+        _contract_addr: &str,
+        _name: &str,
+        _args: &[u8],
+        _is_readonly: bool,
+        _callstack: &[u8],
+        _gas_limit: u64,
+    ) -> BackendResult<Vec<u8>> {
+        (
+            Err(BackendError::unknown(
+                "mock of call_callable_point is not implemented",
+            )),
+            GasInfo::new(0, 0),
+        )
+    }
+
+    fn validate_dynamic_link_interface(
+        &self,
+        _contract_addr: &str,
+        _expected_interface: &[u8],
+    ) -> BackendResult<Vec<u8>> {
+        (
+            Err(BackendError::unknown(
+                "mock of validate_dynamic_link_interface is not implemented",
+            )),
+            GasInfo::new(0, 0),
+        )
+    }
 }
 
 /// Returns a default enviroment with height, time, chain_id, and contract address

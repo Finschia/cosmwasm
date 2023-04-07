@@ -352,8 +352,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         }
     }
 
-    // TODO: remove it after make wasmvm not using this
-    pub fn try_record_dynamic_call_trace(&self) -> VmResult<()> {
+    pub fn get_dynamic_callstack(&self) -> VmResult<Vec<Addr>> {
         self.with_context_data_mut(|ctx| {
             if ctx.dynamic_callstack.len() >= DYNAMIC_CALL_DEPTH_LIMIT_CNT {
                 return Err(VmError::dynamic_call_depth_over_limitation_err());
@@ -370,8 +369,9 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             {
                 Some(_) => Err(VmError::re_entrancy_err()),
                 None => {
-                    ctx.dynamic_callstack.push(contract_env.contract.address);
-                    Ok(())
+                    let mut result = ctx.dynamic_callstack.clone();
+                    result.push(contract_env.contract.address);
+                    Ok(result)
                 }
             }
         })
@@ -1061,71 +1061,6 @@ mod tests {
             panic!("A panic occurred in the callback.")
         })
         .unwrap();
-    }
-
-    #[test]
-    fn record_dynamic_call_trace_works() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
-        assert!(env.try_record_dynamic_call_trace().is_ok());
-        env.with_context_data(|ctx| {
-            let contract_env: Env = match &ctx.serialized_env {
-                Some(env) => from_slice(&env, DESERIALIZATION_LIMIT),
-                None => Err(VmError::uninitialized_context_data("serialized_env")),
-            }
-            .unwrap();
-
-            assert_eq!(ctx.dynamic_callstack.len(), 1);
-            assert_eq!(ctx.dynamic_callstack[0], contract_env.contract.address);
-        });
-
-        env.remove_latest_dynamic_call_trace();
-        env.with_context_data(|ctx| {
-            assert!(ctx.dynamic_callstack.is_empty());
-        })
-    }
-
-    #[test]
-    fn try_record_re_entrancy_failure() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
-        assert!(env.try_record_dynamic_call_trace().is_ok());
-        assert!(matches!(
-            env.try_record_dynamic_call_trace(),
-            Err(VmError::ReEntrancyErr { .. })
-        ));
-    }
-
-    #[test]
-    fn dynamic_call_depth_limitation_over_failure() {
-        let (env, _instance) = make_instance(TESTING_GAS_LIMIT, None);
-
-        env.with_context_data_mut(|ctx| {
-            //insert dummy into stack
-            ctx.dynamic_callstack = (0..DYNAMIC_CALL_DEPTH_LIMIT_CNT)
-                .map(|x| Addr::unchecked(x.to_string()))
-                .collect();
-        });
-
-        assert!(matches!(
-            env.try_record_dynamic_call_trace(),
-            Err(VmError::DynamicCallDepthOverLimitationErr { .. })
-        ));
-    }
-
-    #[test]
-    fn try_pass_callstack_works() {
-        let contract1_addr = Addr::unchecked("contract1");
-        let contract2_addr = Addr::unchecked("contract2");
-        let (env, _instance1) = make_instance(TESTING_GAS_LIMIT, Some(contract1_addr.clone()));
-        let (mut env2, _instance2) = make_instance(TESTING_GAS_LIMIT, Some(contract2_addr.clone()));
-        assert!(env.try_record_dynamic_call_trace().is_ok());
-        env.try_pass_callstack(&mut env2).unwrap();
-        assert!(env2.try_record_dynamic_call_trace().is_ok());
-
-        env2.with_context_data(|ctx| {
-            assert_eq!(ctx.dynamic_callstack.len(), 2);
-            assert_eq!(ctx.dynamic_callstack[0], contract1_addr);
-            assert_eq!(ctx.dynamic_callstack[1], contract2_addr);
-        })
     }
 
     #[test]
