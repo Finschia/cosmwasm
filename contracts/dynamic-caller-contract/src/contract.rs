@@ -65,9 +65,7 @@ impl Callee for CalleeContract {
         panic!()
     }
 
-    fn do_nothing(&self) {
-        ()
-    }
+    fn do_nothing(&self) {}
 
     fn do_panic(&self) {
         panic!()
@@ -111,7 +109,12 @@ pub fn execute(
 }
 
 pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(b"dynamic_callee_contract").ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?)?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(b"dynamic_callee_contract")
+            .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
+    )?;
     let contract = CalleeContract { address };
     let pong_ret = contract.pong(ping_num.u128() as u64);
     let struct_ret = contract.pong_with_struct(ExampleStruct {
@@ -144,21 +147,36 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
 pub fn try_re_entrancy(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     // It will be tried to call the should_never_be_called function below.
     // But, should be blocked by VM host side normally because it's a reentrancy case.
-    let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?)?;
+    let address = from_slice(
+        &deps
+            .storage
+            .get(b"dynamic_callee_contract")
+            .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
+    )?;
     let contract = CalleeContract { address };
     contract.reentrancy(env.contract.address);
     Ok(Response::default())
 }
 
 pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
-    let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?)?;
+    let address = from_slice(
+        &deps
+            .storage
+            .get(b"dynamic_callee_contract")
+            .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
+    )?;
     let contract = CalleeContract { address };
     contract.do_panic();
     Ok(Response::default())
 }
 
 pub fn try_validate_interface(deps: Deps, _env: Env) -> Result<Response, ContractError> {
-    let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?)?;
+    let address = from_slice(
+        &deps
+            .storage
+            .get(b"dynamic_callee_contract")
+            .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
+    )?;
     let contract = CalleeContract { address };
     contract.validate_interface(deps)?;
     Ok(Response::default())
@@ -166,7 +184,12 @@ pub fn try_validate_interface(deps: Deps, _env: Env) -> Result<Response, Contrac
 
 // should error
 pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, ContractError> {
-    let address = from_slice(&deps.storage.get(b"dynamic_callee_contract").ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?)?;
+    let address = from_slice(
+        &deps
+            .storage
+            .get(b"dynamic_callee_contract")
+            .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
+    )?;
     let err_interface: Vec<wasmer_types::ExportType<wasmer_types::FunctionType>> =
         vec![wasmer_types::ExportType::new(
             "not_exist",
