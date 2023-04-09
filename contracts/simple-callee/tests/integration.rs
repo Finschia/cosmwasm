@@ -88,7 +88,10 @@ fn callable_point_succeed_readonly_works() {
 
     let required_exports = required_exports();
     let export_index = 1;
-    assert_eq!("succeed_readonly".to_string(), required_exports[export_index].0);
+    assert_eq!(
+        "succeed_readonly".to_string(),
+        required_exports[export_index].0
+    );
 
     // check succeed_readonly
     instance
