@@ -84,9 +84,7 @@ mod callable_points {
     }
 
     #[callable_point]
-    fn do_nothing(_deps: Deps, _env: Env) {
-        ()
-    }
+    fn do_nothing(_deps: Deps, _env: Env) {}
 
     #[callable_point]
     fn do_panic(_deps: Deps, _env: Env) {
