@@ -28,14 +28,10 @@ mod callable_points {
     use super::*;
 
     #[callable_point]
-    fn succeed(_deps: DepsMut, _env: Env) {
-        ()
-    }
+    fn succeed(_deps: DepsMut, _env: Env) {}
 
     #[callable_point]
-    fn succeed_readonly(_deps: Deps, _env: Env) {
-        ()
-    }
+    fn succeed_readonly(_deps: Deps, _env: Env) {}
 
     #[callable_point]
     fn fail(_deps: DepsMut, _env: Env) {
