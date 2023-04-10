@@ -159,9 +159,7 @@ fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
 
 fn handle_number(deps: Deps) -> Result<i32, ContractError> {
     let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
-    let contract = NumberContract {
-        address: address.clone(),
-    };
+    let contract = NumberContract { address };
     let value_dyn = contract.number();
     Ok(value_dyn)
 }
