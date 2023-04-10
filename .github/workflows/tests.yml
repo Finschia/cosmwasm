@@ -985,7 +985,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.57.0
+          toolchain: 1.60.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -993,7 +993,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_events-rust:1.57.0-${{ hashFiles('contracts/events/Cargo.lock') }}
+          key: cargocache-v2-contract_events-rust:1.60.0-${{ hashFiles('contracts/events/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
