@@ -985,7 +985,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.57.0
+          toolchain: 1.60.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -993,7 +993,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_events-rust:1.57.0-${{ hashFiles('contracts/events/Cargo.lock') }}
+          key: cargocache-v2-contract_events-rust:1.60.0-${{ hashFiles('contracts/events/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -1210,28 +1210,63 @@ jobs:
             mkdir -p target/wasm32-unknown-unknown/release
             touch target/wasm32-unknown-unknown/release/staking.wasm
             cargo clippy --tests -- -D warnings
-      # These four tests issue errors in 1.51.0. In 1.57.0, they succeeds.
-      # - name: Clippy linting on dynamic-callee-contract
-      #   working-directory: ${{env.contracts}}/dynamic-callee-contract
-      #   run: |
-      #       mkdir -p target/wasm32-unknown-unknown/release
-      #       touch target/wasm32-unknown-unknown/release/dynamic_callee_contract.wasm
-      #       cargo clippy --tests -- -D warnings
-      # - name: Clippy linting on dynamic-caller-contract
-      #   working-directory: ${{env.contracts}}/dynamic-caller-contract
-      #   run: |
-      #       mkdir -p target/wasm32-unknown-unknown/release
-      #       touch target/wasm32-unknown-unknown/release/dynamic_caller_contract.wasm
-      #       cargo clippy --tests -- -D warnings
-      # - name: Clippy linting on number
-      #   working-directory: ${{env.contracts}}/number
-      #   run: |
-      #       mkdir -p target/wasm32-unknown-unknown/release
-      #       touch target/wasm32-unknown-unknown/release/number.wasm
-      #       cargo clippy --tests -- -D warnings
-      # - name: Clippy linting on call-number
-      #   working-directory: ${{env.contracts}}/call-number
-      #   run: |
-      #       mkdir -p target/wasm32-unknown-unknown/release
-      #       touch target/wasm32-unknown-unknown/release/call_number.wasm
-      #       cargo clippy --tests -- -D warnings
+      - name: Clippy linting on dynamic-callee-contract
+        working-directory: ${{env.contracts}}/dynamic-callee-contract
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/dynamic_callee_contract.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on dynamic-caller-contract
+        working-directory: ${{env.contracts}}/dynamic-caller-contract
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/dynamic_caller_contract.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on number
+        working-directory: ${{env.contracts}}/number
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/number.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on intermediate-number
+        working-directory: ${{env.contracts}}/intermediate-number
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/intermediate_number.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on call-number
+        working-directory: ${{env.contracts}}/call-number
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/call_number.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on cyberpunk
+        working-directory: ${{env.contracts}}/cyberpunk
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/cyberpunk.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on events
+        working-directory: ${{env.contracts}}/events
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/events.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on floaty
+        working-directory: ${{env.contracts}}/floaty
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/floaty.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on simple-callee
+        working-directory: ${{env.contracts}}/simple-callee
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/simple_callee.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on voting-with-uuid
+        working-directory: ${{env.contracts}}/voting-with-uuid
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/cw_voting_with_uuid.wasm
+            cargo clippy --tests -- -D warnings

@@ -314,7 +314,7 @@ pub fn end_poll(
         attr("action", "end_poll"),
         attr("poll_id", poll_id.to_string()),
         attr("rejected_reason", rejected_reason),
-        attr("passed", &passed.to_string()),
+        attr("passed", passed.to_string()),
     ];
 
     Ok(Response::new().add_attributes(attributes))
@@ -393,7 +393,7 @@ pub fn cast_vote(
     let attributes = vec![
         attr("action", "vote_casted"),
         attr("poll_id", poll_id.to_string()),
-        attr("weight", &weight.to_string()),
+        attr("weight", weight.to_string()),
         attr("voter", &info.sender),
     ];
 

@@ -112,7 +112,7 @@ fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractErro
         0,
     );
     let response = Response::default().add_submessage(execute_msg);
-    return Ok(response);
+    Ok(response)
 }
 
 fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
@@ -122,7 +122,7 @@ fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractErro
         0,
     );
     let response = Response::default().add_submessage(execute_msg);
-    return Ok(response);
+    Ok(response)
 }
 
 fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
@@ -132,7 +132,7 @@ fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractErro
         0,
     );
     let response = Response::default().add_submessage(execute_msg);
-    return Ok(response);
+    Ok(response)
 }
 
 fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
@@ -148,9 +148,7 @@ fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
 
 fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
     let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
-    let contract = NumberContract {
-        address: address.clone(),
-    };
+    let contract = NumberContract { address };
     let value_dyn = contract.number();
 
     let response = Response::default().add_attribute("value_by_query_dyn", value_dyn.to_string());

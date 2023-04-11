@@ -6,7 +6,7 @@ static CONTRACT_CALLER: &[u8] =
     include_bytes!("../target/wasm32-unknown-unknown/release/dynamic_caller_contract.wasm");
 
 fn required_imports() -> Vec<(String, String, FunctionType)> {
-    let module_name = String::from("dynamiclinked_CalleeContract");
+    let module_name = "dynamiclinked_CalleeContract";
     vec![
         (
             String::from("pong"),
