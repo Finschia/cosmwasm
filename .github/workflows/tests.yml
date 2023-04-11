@@ -1228,9 +1228,45 @@ jobs:
             mkdir -p target/wasm32-unknown-unknown/release
             touch target/wasm32-unknown-unknown/release/number.wasm
             cargo clippy --tests -- -D warnings
+      - name: Clippy linting on intermediate-number
+        working-directory: ${{env.contracts}}/intermediate-number
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/intermediate_number.wasm
+            cargo clippy --tests -- -D warnings
       - name: Clippy linting on call-number
         working-directory: ${{env.contracts}}/call-number
         run: |
             mkdir -p target/wasm32-unknown-unknown/release
             touch target/wasm32-unknown-unknown/release/call_number.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on cyberpunk
+        working-directory: ${{env.contracts}}/cyberpunk
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/cyberpunk.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on events
+        working-directory: ${{env.contracts}}/events
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/events.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on floaty
+        working-directory: ${{env.contracts}}/floaty
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/floaty.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on simple-callee
+        working-directory: ${{env.contracts}}/simple-callee
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/simple_callee.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on voting-with-uuid
+        working-directory: ${{env.contracts}}/voting-with-uuid
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/cw_voting_with_uuid.wasm
             cargo clippy --tests -- -D warnings
