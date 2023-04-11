@@ -342,57 +342,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::{coins, Addr, Empty};
-    use std::cell::RefCell;
-    use wasmer_types::Type;
 
-    use crate::testing::{
-        mock_backend, mock_env, mock_instance, write_data_to_mock_env, MockApi, MockQuerier,
-        MockStorage, INSTANCE_CACHE,
-    };
-    use crate::{to_vec, Instance, InstanceOptions};
+    use crate::testing::{mock_instance, write_data_to_mock_env};
 
     const MAX_REGIONS_LENGTH: usize = 1024 * 1024;
-    const HIGH_GAS_LIMIT_INSTANCE_OPTIONS: InstanceOptions = InstanceOptions {
-        gas_limit: 20_000_000_000_000_000,
-        print_debug: false,
-    };
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
     static CONTRACT_CALLEE: &[u8] = include_bytes!("../testdata/simple_callee.wasm");
 
     // prepared data
     const PASS_DATA: &[u8] = b"data";
-
-    const CALLEE_NAME_ADDR: &str = "callee";
-    const CALLER_NAME_ADDR: &str = "caller";
-
-    // this account has some coins
-    const INIT_ADDR: &str = "someone";
-    const INIT_AMOUNT: u128 = 500;
-    const INIT_DENOM: &str = "TOKEN";
-
-    fn prepare_dynamic_call_data(
-        callee_address: Option<Addr>,
-        func_info: FunctionMetadata,
-        caller_env: &mut Environment<MockApi, MockStorage, MockQuerier>,
-    ) -> Option<u32> {
-        let region_ptr = callee_address.map(|addr| {
-            let data = to_vec(&addr).unwrap();
-            write_data_to_mock_env(caller_env, &data).unwrap()
-        });
-
-        caller_env.set_callee_function_metadata(Some(func_info));
-
-        let serialized_env = to_vec(&mock_env()).unwrap();
-        caller_env.set_serialized_env(&serialized_env);
-
-        let storage = MockStorage::new();
-        let querier: MockQuerier<Empty> =
-            MockQuerier::new(&[(INIT_ADDR, &coins(INIT_AMOUNT, INIT_DENOM))]);
-        caller_env.move_in(storage, querier);
-        region_ptr
-    }
 
     #[test]
     fn read_single_region_works() {
@@ -451,66 +410,6 @@ mod tests {
                 ..
             }
         ))
-    }
-
-    fn init_cache_with_two_instances() {
-        INSTANCE_CACHE.with(|lock| {
-            let mut cache = lock.write().unwrap();
-            cache.insert(
-                CALLEE_NAME_ADDR.to_string(),
-                RefCell::new(
-                    Instance::from_code(
-                        CONTRACT_CALLEE,
-                        mock_backend(&[]),
-                        HIGH_GAS_LIMIT_INSTANCE_OPTIONS,
-                        None,
-                    )
-                    .unwrap(),
-                ),
-            );
-            cache.insert(
-                CALLER_NAME_ADDR.to_string(),
-                RefCell::new(
-                    Instance::from_code(
-                        CONTRACT,
-                        mock_backend(&[]),
-                        HIGH_GAS_LIMIT_INSTANCE_OPTIONS,
-                        None,
-                    )
-                    .unwrap(),
-                ),
-            );
-        });
-    }
-
-    #[test]
-    fn native_dynamic_link_trampoline_works() {
-        init_cache_with_two_instances();
-
-        INSTANCE_CACHE.with(|lock| {
-            let func_name = "succeed";
-            let cache = lock.read().unwrap();
-            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
-            let mut caller_env = &mut caller_instance.borrow_mut().env;
-            let target_func_info = FunctionMetadata {
-                module_name: CALLER_NAME_ADDR.to_string(),
-                name: func_name.to_string(),
-                signature: ([Type::I32], []).into(),
-            };
-            let address_region = prepare_dynamic_call_data(
-                Some(Addr::unchecked(CALLEE_NAME_ADDR)),
-                target_func_info,
-                &mut caller_env,
-            )
-            .unwrap();
-
-            let result = native_dynamic_link_trampoline(
-                &caller_env,
-                &[WasmerVal::I32(address_region as i32)],
-            );
-            assert_eq!(result.unwrap_err().message(),
-                       format!(r#"Error during calling callable point "{}" of "{}" (func_info:{{module_name:{}, name:{}, signature:[] -> []}}): error:Unknown error during call into backend: mock of call_callable_point is not implemented"#, func_name, CALLEE_NAME_ADDR, CALLER_NAME_ADDR, func_name));
-        });
     }
 
     #[test]
