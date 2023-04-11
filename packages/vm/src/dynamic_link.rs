@@ -9,18 +9,17 @@ use crate::imports::write_to_contract;
 use crate::instance::Instance;
 use crate::memory::read_region;
 use serde::{Deserialize, Serialize};
-use wasmer::{
-    ExportType, Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val,
-};
+use wasmer::{Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val};
 use wasmer_types::ImportIndex;
 
-use cosmwasm_std::{from_slice, Addr};
+use cosmwasm_std::{from_slice, Addr, Binary};
 
 // The length of the address is 63 characters for strings and 65 characters with "" for []byte. Thus, 65<64*2 is used.
 const MAX_ADDRESS_LENGTH: usize = 64 * 2;
 // enough big value for copy interface. This is less than crate::calls::read_limits::XXX
 const MAX_INTERFACE_REGIONS_LENGTH: usize = 1024 * 1024;
 const MAX_PROPERTIES_REGIONS_LENGTH: usize = 1024 * 1024;
+const MAX_REGIONS_LENGTH_INPUT: usize = 64 * 1024 * 1024;
 const GET_PROPERTY_FUNCTION: &str = "_get_callable_points_properties";
 
 pub type WasmerVal = Val;
@@ -63,23 +62,6 @@ impl FunctionMetadata {
     }
 }
 
-fn with_trace_dynamic_call<A, S, Q, C, R>(
-    env: &Environment<A, S, Q>,
-    callback: C,
-) -> Result<R, RuntimeError>
-where
-    A: BackendApi + 'static,
-    S: Storage + 'static,
-    Q: Querier + 'static,
-    C: FnOnce() -> Result<R, RuntimeError>,
-{
-    env.try_record_dynamic_call_trace()
-        .map_err(|e| RuntimeError::new(e.to_string()))?;
-    let res = callback();
-    env.remove_latest_dynamic_call_trace();
-    res
-}
-
 fn native_dynamic_link_trampoline<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
     args: &[WasmerVal],
@@ -98,25 +80,52 @@ where
     let contract_addr_binary = read_region(&env.memory(), address_region_ptr, MAX_ADDRESS_LENGTH)?;
     let contract_addr: Addr = from_slice(&contract_addr_binary)
         .map_err(|_| RuntimeError::new("Invalid callee contract address"))?;
-    let func_args = &args[1..];
-    with_trace_dynamic_call(env, || {
-        let func_info = env
-            .with_callee_function_metadata(|func_info| {
-                Ok(func_info.clone_and_drop_callee_addr_arg())
-            })
-            .unwrap();
-        let (call_result, gas_info) =
-            env.api
-                .contract_call(env, contract_addr.as_str(), &func_info, func_args);
-        process_gas_info::<A, S, Q>(env, gas_info)?;
-        match call_result {
-            Ok(ret) => Ok(ret.to_vec()),
-            Err(e) => Err(RuntimeError::new(format!(
-                "func_info:{{{}}}, error:{}",
-                func_info, e
-            ))),
-        }
-    })
+    let mut args_data: Vec<Binary> = vec![];
+    for arg in &args[1..] {
+        let arg_ptr = ref_to_u32(arg)?;
+        let arg_data = read_region(&env.memory(), arg_ptr, MAX_REGIONS_LENGTH_INPUT)?;
+        args_data.push(Binary(arg_data))
+    }
+    let args_binary = serde_json::to_vec(&args_data).map_err(|e| {
+        RuntimeError::new(format!(
+            "Error during serializing args for a callable point: {}",
+            e
+        ))
+    })?;
+    let func_info = env.with_callee_function_metadata(|func_info| {
+        Ok(func_info.clone_and_drop_callee_addr_arg())
+    })?;
+    let callstack = env.get_dynamic_callstack()?;
+    let callstack_binary = serde_json::to_vec(&callstack).map_err(|e| {
+        RuntimeError::new(format!(
+            "Error during serializing callstack of callable points: {}",
+            e
+        ))
+    })?;
+    let (call_result, gas_info) = env.api.call_callable_point(
+        contract_addr.as_str(),
+        &func_info.name,
+        &args_binary,
+        env.is_storage_readonly(),
+        &callstack_binary,
+        env.get_gas_left(),
+    );
+    process_gas_info::<A, S, Q>(env, gas_info)?;
+    match call_result {
+        Ok(ret) => match serde_json::from_slice::<Option<Binary>>(&ret).map_err(|e| {
+            RuntimeError::new(format!(
+                r#"Error during deserializing result of callable point "{}" of "{}": {}"#,
+                func_info.name, contract_addr, e
+            ))
+        })? {
+            Some(v) => Ok(vec![write_value_to_env::<A, S, Q>(env, &v)?]),
+            None => Ok(vec![]),
+        },
+        Err(e) => Err(RuntimeError::new(format!(
+            r#"Error during calling callable point "{}" of "{}" (func_info:{{{}}}): error:{}"#,
+            func_info.name, contract_addr, func_info, e,
+        ))),
+    }
 }
 
 #[cfg(feature = "bench")]
@@ -252,39 +261,25 @@ where
         .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
     let expected_interface_binary =
         read_region(&env.memory(), interface, MAX_INTERFACE_REGIONS_LENGTH)?;
-    let expected_interface: Vec<ExportType<FunctionType>> = from_slice(&expected_interface_binary)
-        .map_err(|_| RuntimeError::new("Invalid expected interface"))?;
-    let (module_result, gas_info) = env.api.get_wasmer_module(contract_addr.as_str());
+    let (result_data, gas_info) = env
+        .api
+        .validate_dynamic_link_interface(contract_addr.as_str(), &expected_interface_binary);
     process_gas_info::<A, S, Q>(env, gas_info)?;
-    let module = module_result.map_err(|_| RuntimeError::new("Cannot get module"))?;
-    let mut exported_fns: HashMap<String, FunctionType> = HashMap::new();
-    for f in module.exports().functions() {
-        exported_fns.insert(f.name().to_string(), f.ty().clone());
-    }
-
-    // No gas fee for comparison now
-    let mut err_msg = "The following functions are not implemented: ".to_string();
-    let mut is_err = false;
-    for expected_fn in expected_interface.iter() {
-        // if not expected
-        if !exported_fns
-            .get(expected_fn.name())
-            .map_or(false, |t| t == expected_fn.ty())
-        {
-            if is_err {
-                err_msg.push_str(", ");
-            };
-            err_msg.push_str(&format!("{}: {}", expected_fn.name(), expected_fn.ty()));
-            is_err = true;
-        }
-    }
-
-    if is_err {
-        // not expected
-        Ok(write_to_contract::<A, S, Q>(env, err_msg.as_bytes())?)
-    } else {
-        // as expected
-        Ok(0)
+    let result_data = result_data.map_err(|e| {
+        RuntimeError::new(format!(
+            "Error during calling validate_dynamic_link_interface: {}",
+            e
+        ))
+    })?;
+    let result: Option<String> = serde_json::from_slice(&result_data).map_err(|e| {
+        RuntimeError::new(format!(
+            "Error during deserializing the result of validate_dynamic_link_interface: {}",
+            e
+        ))
+    })?;
+    match result {
+        Some(err_msg) => Ok(write_to_contract::<A, S, Q>(env, err_msg.as_bytes())?),
+        None => Ok(0),
     }
 }
 
@@ -347,57 +342,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::{coins, Addr, Empty};
-    use std::cell::RefCell;
-    use wasmer_types::Type;
 
-    use crate::testing::{
-        mock_backend, mock_env, mock_instance, write_data_to_mock_env, MockApi, MockQuerier,
-        MockStorage, INSTANCE_CACHE,
-    };
-    use crate::{to_vec, Instance, InstanceOptions};
+    use crate::testing::{mock_instance, write_data_to_mock_env};
 
     const MAX_REGIONS_LENGTH: usize = 1024 * 1024;
-    const HIGH_GAS_LIMIT_INSTANCE_OPTIONS: InstanceOptions = InstanceOptions {
-        gas_limit: 20_000_000_000_000_000,
-        print_debug: false,
-    };
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
     static CONTRACT_CALLEE: &[u8] = include_bytes!("../testdata/simple_callee.wasm");
 
     // prepared data
     const PASS_DATA: &[u8] = b"data";
-
-    const CALLEE_NAME_ADDR: &str = "callee";
-    const CALLER_NAME_ADDR: &str = "caller";
-
-    // this account has some coins
-    const INIT_ADDR: &str = "someone";
-    const INIT_AMOUNT: u128 = 500;
-    const INIT_DENOM: &str = "TOKEN";
-
-    fn prepare_dynamic_call_data(
-        callee_address: Option<Addr>,
-        func_info: FunctionMetadata,
-        caller_env: &mut Environment<MockApi, MockStorage, MockQuerier>,
-    ) -> Option<u32> {
-        let region_ptr = callee_address.map(|addr| {
-            let data = to_vec(&addr).unwrap();
-            write_data_to_mock_env(caller_env, &data).unwrap()
-        });
-
-        caller_env.set_callee_function_metadata(Some(func_info));
-
-        let serialized_env = to_vec(&mock_env()).unwrap();
-        caller_env.set_serialized_env(&serialized_env);
-
-        let storage = MockStorage::new();
-        let querier: MockQuerier<Empty> =
-            MockQuerier::new(&[(INIT_ADDR, &coins(INIT_AMOUNT, INIT_DENOM))]);
-        caller_env.move_in(storage, querier);
-        region_ptr
-    }
 
     #[test]
     fn read_single_region_works() {
@@ -456,151 +410,6 @@ mod tests {
                 ..
             }
         ))
-    }
-
-    fn init_cache_with_two_instances() {
-        INSTANCE_CACHE.with(|lock| {
-            let mut cache = lock.write().unwrap();
-            cache.insert(
-                CALLEE_NAME_ADDR.to_string(),
-                RefCell::new(
-                    Instance::from_code(
-                        CONTRACT_CALLEE,
-                        mock_backend(&[]),
-                        HIGH_GAS_LIMIT_INSTANCE_OPTIONS,
-                        None,
-                    )
-                    .unwrap(),
-                ),
-            );
-            cache.insert(
-                CALLER_NAME_ADDR.to_string(),
-                RefCell::new(
-                    Instance::from_code(
-                        CONTRACT,
-                        mock_backend(&[]),
-                        HIGH_GAS_LIMIT_INSTANCE_OPTIONS,
-                        None,
-                    )
-                    .unwrap(),
-                ),
-            );
-        });
-    }
-
-    #[test]
-    fn native_dynamic_link_trampoline_works() {
-        init_cache_with_two_instances();
-
-        INSTANCE_CACHE.with(|lock| {
-            let cache = lock.read().unwrap();
-            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
-            let mut caller_env = &mut caller_instance.borrow_mut().env;
-            let target_func_info = FunctionMetadata {
-                module_name: CALLER_NAME_ADDR.to_string(),
-                name: "succeed".to_string(),
-                signature: ([Type::I32], []).into(),
-            };
-            let address_region = prepare_dynamic_call_data(
-                Some(Addr::unchecked(CALLEE_NAME_ADDR)),
-                target_func_info,
-                &mut caller_env,
-            )
-            .unwrap();
-
-            let result = native_dynamic_link_trampoline(
-                &caller_env,
-                &[WasmerVal::I32(address_region as i32)],
-            )
-            .unwrap();
-            assert_eq!(result.len(), 0);
-        });
-    }
-
-    #[test]
-    fn native_dynamic_link_trampoline_do_not_specify_callee_address_fail() {
-        init_cache_with_two_instances();
-
-        INSTANCE_CACHE.with(|lock| {
-            let cache = lock.read().unwrap();
-            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
-            let mut caller_env = &mut caller_instance.borrow_mut().env;
-            let target_func_info = FunctionMetadata {
-                module_name: CALLER_NAME_ADDR.to_string(),
-                name: "foo".to_string(),
-                signature: ([Type::I32], []).into(),
-            };
-            let none = prepare_dynamic_call_data(None, target_func_info, &mut caller_env);
-            assert_eq!(none, None);
-
-            let result = native_dynamic_link_trampoline(&caller_env, &[]);
-            assert!(matches!(result, Err(RuntimeError { .. })));
-
-            assert_eq!(
-                result.unwrap_err().message(),
-                "No args are passed to trampoline. The first arg must be callee contract address."
-            );
-        });
-    }
-
-    #[test]
-    fn native_dynamic_link_trampoline_not_exist_callee_address_fails() {
-        init_cache_with_two_instances();
-
-        INSTANCE_CACHE.with(|lock| {
-            let cache = lock.read().unwrap();
-            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
-            let mut caller_env = &mut caller_instance.borrow_mut().env;
-            let target_func_info = FunctionMetadata {
-                module_name: CALLER_NAME_ADDR.to_string(),
-                name: "foo".to_string(),
-                signature: ([Type::I32], []).into(),
-            };
-            let address_region = prepare_dynamic_call_data(
-                Some(Addr::unchecked("invalid_address")),
-                target_func_info,
-                &mut caller_env,
-            ).unwrap();
-
-            let result = native_dynamic_link_trampoline(&caller_env, &[WasmerVal::I32(address_region as i32)]);
-            assert!(matches!(
-                result,
-                Err(RuntimeError { .. })
-            ));
-
-            assert_eq!(result.unwrap_err().message(),
-            "func_info:{module_name:caller, name:foo, signature:[] -> []}, error:Error in dynamic link: \"cannot found contract\""
-            );
-        });
-    }
-
-    #[test]
-    fn dynamic_link_callee_contract_fails() {
-        init_cache_with_two_instances();
-
-        INSTANCE_CACHE.with(|lock| {
-            let cache = lock.read().unwrap();
-            let caller_instance = cache.get(CALLER_NAME_ADDR).unwrap();
-            let mut caller_env = &mut caller_instance.borrow_mut().env;
-            let target_func_info = FunctionMetadata {
-                module_name: CALLER_NAME_ADDR.to_string(),
-                name: "fail".to_string(),
-                signature: ([Type::I32], []).into(),
-            };
-            let address_region = prepare_dynamic_call_data(
-                Some(Addr::unchecked(CALLEE_NAME_ADDR)),
-                target_func_info,
-                &mut caller_env,
-            )
-            .unwrap();
-
-            let result = native_dynamic_link_trampoline(
-                &caller_env,
-                &[WasmerVal::I32(address_region as i32)],
-            );
-            assert!(matches!(result, Err(RuntimeError { .. })));
-            assert!(result.unwrap_err().message().starts_with("func_info:{module_name:caller, name:fail, signature:[] -> []}, error:Error in dynamic link: \"Error executing Wasm: Wasmer runtime error: RuntimeError: unreachable"));
-        });
     }
 
     #[test]

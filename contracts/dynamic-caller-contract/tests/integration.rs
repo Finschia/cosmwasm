@@ -34,6 +34,11 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
             ([Type::I32], [Type::I32]).into(),
         ),
         (
+            String::from("do_nothing"),
+            module_name.to_string(),
+            ([Type::I32], []).into(),
+        ),
+        (
             String::from("do_panic"),
             module_name.to_string(),
             ([Type::I32], []).into(),
