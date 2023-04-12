@@ -2,9 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::ptr::NonNull;
 use std::sync::Mutex;
 
-use wasmer::{
-    Exports, Function, FunctionType, ImportObject, Instance as WasmerInstance, Module, Val,
-};
+use wasmer::{Exports, Function, ImportObject, Instance as WasmerInstance, Module, Val};
 
 use crate::backend::{Backend, BackendApi, Querier, Storage};
 use crate::capabilities::required_capabilities_from_module;
@@ -404,17 +402,6 @@ where
     pub(crate) fn write_memory(&mut self, region_ptr: u32, data: &[u8]) -> VmResult<()> {
         write_region(&self.env.memory(), region_ptr, data)?;
         Ok(())
-    }
-
-    /// Calls a function exported by the instance.
-    /// TODO: remove after make wasmvm not using this
-    pub fn call_function_strict(
-        &self,
-        _type: &FunctionType,
-        name: &str,
-        args: &[Val],
-    ) -> VmResult<Box<[Val]>> {
-        self.env.call_function(name, args)
     }
 
     /// Calls a function exported by the instance.

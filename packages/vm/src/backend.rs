@@ -6,10 +6,6 @@ use thiserror::Error;
 use cosmwasm_std::{Binary, ContractResult, SystemResult};
 #[cfg(feature = "iterator")]
 use cosmwasm_std::{Order, Record};
-use wasmer::Module;
-
-use crate::environment::Environment;
-use crate::{FunctionMetadata, WasmerVal};
 
 /// A structure that represents gas cost to be deducted from the remaining gas.
 /// This is always needed when computations are performed outside of
@@ -137,19 +133,6 @@ pub trait Storage {
 pub trait BackendApi: Copy + Clone + Send {
     fn canonical_address(&self, human: &str) -> BackendResult<Vec<u8>>;
     fn human_address(&self, canonical: &[u8]) -> BackendResult<String>;
-    // TODO: remove contract_call and get_wasmer_module after solving #273
-    fn contract_call<A, S, Q>(
-        &self,
-        caller_env: &Environment<A, S, Q>,
-        contract_addr: &str,
-        target_info: &FunctionMetadata,
-        args: &[WasmerVal],
-    ) -> BackendResult<Box<[WasmerVal]>>
-    where
-        A: BackendApi + 'static,
-        S: Storage + 'static,
-        Q: Querier + 'static;
-    fn get_wasmer_module(&self, contract_addr: &str) -> BackendResult<Module>;
     fn call_callable_point(
         &self,
         contract_addr: &str,

@@ -377,49 +377,6 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
         })
     }
 
-    // TODO: remove it after make wasmvm not using this
-    pub fn remove_latest_dynamic_call_trace(&self) {
-        self.with_context_data_mut(|ctx| {
-            ctx.dynamic_callstack.pop();
-        })
-    }
-
-    // try_pass_callstack will be called through wasmvm.
-    // checking between the previous callers in the virtual_callstack and target.
-    // if it failed, it will be returned ReEntrancyErr.
-    // TODO: remove it after make wasmvm not using this
-    pub fn try_pass_callstack<A2, S2, Q2>(
-        &self,
-        target: &mut Environment<A2, S2, Q2>,
-    ) -> VmResult<()>
-    where
-        A2: BackendApi + 'static,
-        S2: Storage + 'static,
-        Q2: Querier + 'static,
-    {
-        //TODO::need check the race condition when calling the contract oneself(recursive).
-        self.with_context_data_mut(|self_ctx| {
-            target.with_context_data_mut(|target_ctx| {
-                let target_contract_env: Env = match &target_ctx.serialized_env {
-                    Some(env) => from_slice(env, DESERIALIZATION_LIMIT),
-                    None => Err(VmError::uninitialized_context_data("serialized_env")),
-                }?;
-
-                match self_ctx
-                    .dynamic_callstack
-                    .iter()
-                    .find(|x| **x == target_contract_env.contract.address)
-                {
-                    Some(_) => Err(VmError::re_entrancy_err()),
-                    None => {
-                        target_ctx.dynamic_callstack = self_ctx.dynamic_callstack.clone();
-                        Ok(())
-                    }
-                }
-            })
-        })
-    }
-
     /// this function sets callstack to environment and checks it is not re-entrance
     pub fn set_dynamic_callstack(&self, callstack: Vec<Addr>) -> VmResult<()> {
         // check callstack length
