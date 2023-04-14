@@ -76,11 +76,7 @@ fn callable_point_add_works() {
     // Before solving #213, it issues an error.
     // This is because `add` panics without number in deps.storage.
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
-            "add",
-            &[env_region_ptr.into(), param_region_ptr.into()],
-        )
+        .call_function("add", &[env_region_ptr.into(), param_region_ptr.into()])
         .unwrap_err();
     assert!(call_result
         .to_string()
@@ -103,11 +99,7 @@ fn callable_point_sub_works() {
     // Before solving #213, it issues an error.
     // This is because `sub` panics without number in deps.storage.
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
-            "sub",
-            &[env_region_ptr.into(), param_region_ptr.into()],
-        )
+        .call_function("sub", &[env_region_ptr.into(), param_region_ptr.into()])
         .unwrap_err();
     assert!(call_result
         .to_string()
@@ -130,11 +122,7 @@ fn callable_point_mul_works() {
     // Before solving #213, it issues an error.
     // This is because `mul` panics without number in deps.storage.
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
-            "mul",
-            &[env_region_ptr.into(), param_region_ptr.into()],
-        )
+        .call_function("mul", &[env_region_ptr.into(), param_region_ptr.into()])
         .unwrap_err();
     assert!(call_result
         .to_string()
@@ -153,7 +141,7 @@ fn callable_point_number_works() {
     // Before solving #213, it issues an error.
     // This is because `number` panics without number in deps.storage.
     let call_result = instance
-        .call_function_strict(&required_exports[0].1, "number", &[env_region_ptr.into()])
+        .call_function("number", &[env_region_ptr.into()])
         .unwrap_err();
     assert!(call_result
         .to_string()
