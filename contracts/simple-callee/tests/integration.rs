@@ -72,11 +72,7 @@ fn callable_point_succeed_works() {
 
     // check succeed
     instance
-        .call_function_strict(
-            &required_exports[export_index].1,
-            "succeed",
-            &[env_region_ptr.into()],
-        )
+        .call_function("succeed", &[env_region_ptr.into()])
         .unwrap();
 }
 
@@ -95,11 +91,7 @@ fn callable_point_succeed_readonly_works() {
 
     // check succeed_readonly
     instance
-        .call_function_strict(
-            &required_exports[export_index].1,
-            "succeed_readonly",
-            &[env_region_ptr.into()],
-        )
+        .call_function("succeed_readonly", &[env_region_ptr.into()])
         .unwrap();
 }
 
@@ -115,11 +107,7 @@ fn callable_fail_fails() {
 
     // check unreachable
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
-            "fail",
-            &[env_region_ptr.into()],
-        )
+        .call_function("fail", &[env_region_ptr.into()])
         .unwrap_err();
     assert!(call_result
         .to_string()

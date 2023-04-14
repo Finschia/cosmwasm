@@ -89,11 +89,7 @@ fn callable_point_pong_works() {
     let export_index = 0;
     assert_eq!("pong".to_string(), required_exports[export_index].0);
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
-            "pong",
-            &[env_region_ptr.into(), param_region_ptr.into()],
-        )
+        .call_function("pong", &[env_region_ptr.into(), param_region_ptr.into()])
         .unwrap();
     assert_eq!(call_result.len(), 1);
 
@@ -124,8 +120,7 @@ fn callable_point_pong_with_struct_works() {
         required_exports[export_index].0
     );
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
+        .call_function(
             "pong_with_struct",
             &[env_region_ptr.into(), param_region_ptr.into()],
         )
@@ -155,8 +150,7 @@ fn callable_point_pong_with_tuple_works() {
         required_exports[export_index].0
     );
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
+        .call_function(
             "pong_with_tuple",
             &[env_region_ptr.into(), param_region_ptr.into()],
         )
@@ -189,8 +183,7 @@ fn callable_point_pong_with_tuple_takes_2_args_works() {
         required_exports[export_index].0
     );
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
+        .call_function(
             "pong_with_tuple_takes_2_args",
             &[
                 env_region_ptr.into(),
@@ -221,11 +214,7 @@ fn callable_point_pong_env_works() {
     let export_index = 4;
     assert_eq!("pong_env".to_string(), required_exports[export_index].0);
     let call_result = instance
-        .call_function_strict(
-            &required_exports[export_index].1,
-            "pong_env",
-            &[env_region_ptr.into()],
-        )
+        .call_function("pong_env", &[env_region_ptr.into()])
         .unwrap();
     assert_eq!(call_result.len(), 1);
 
@@ -247,11 +236,7 @@ fn callable_point_do_panic_raises_runtime_error() {
         .set_serialized_env(&to_vec(&mock_env()).unwrap());
     let export_index = 5;
     assert_eq!("do_panic".to_string(), required_exports[export_index].0);
-    let call_result = instance.call_function_strict(
-        &required_exports[export_index].1,
-        "do_panic",
-        &[env_region_ptr.into()],
-    );
+    let call_result = instance.call_function("do_panic", &[env_region_ptr.into()]);
 
     match call_result.unwrap_err() {
         VmError::RuntimeErr { msg, .. } => {
