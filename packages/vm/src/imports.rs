@@ -9,7 +9,7 @@ use cosmwasm_crypto::{
 use cosmwasm_crypto::{
     ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN, MESSAGE_HASH_MAX_LEN,
 };
-use cosmwasm_std::{from_slice, Attribute, Event};
+use cosmwasm_std::{Attribute, Event};
 
 #[cfg(feature = "iterator")]
 use cosmwasm_std::Order;
@@ -24,7 +24,7 @@ use crate::memory::{read_region, write_region};
 use crate::sections::decode_sections;
 #[allow(unused_imports)]
 use crate::sections::encode_sections;
-use crate::serde::to_vec;
+use crate::serde::{to_vec, from_slice};
 use crate::GasInfo;
 
 /// A kibi (kilo binary)
@@ -410,7 +410,7 @@ pub fn do_add_event<A: BackendApi, S: Storage, Q: Querier>(
     event_ptr: u32,
 ) -> VmResult<u32> {
     let event_data = read_region(&env.memory(), event_ptr, MAX_LENGTH_EVENT_VALUES)?;
-    let event: Event = match from_slice(&event_data) {
+    let event: Event = match from_slice(&event_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(event) => event,
         Err(_) => return write_to_contract::<A, S, Q>(env, b"Input is not valid `Event`"),
     };
@@ -424,7 +424,7 @@ pub fn do_add_events<A: BackendApi, S: Storage, Q: Querier>(
     events_ptr: u32,
 ) -> VmResult<u32> {
     let events_data = read_region(&env.memory(), events_ptr, MAX_LENGTH_EVENT_VALUES)?;
-    let events: Vec<Event> = match from_slice(&events_data) {
+    let events: Vec<Event> = match from_slice(&events_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(events) => events,
         Err(_) => return write_to_contract::<A, S, Q>(env, b"Input is not valid `Vec<Event>`"),
     };
@@ -440,13 +440,13 @@ pub fn do_add_attribute<A: BackendApi, S: Storage, Q: Querier>(
 ) -> VmResult<u32> {
     let key_data = read_region(&env.memory(), key_ptr, MAX_LENGTH_EVENT_VALUES)?;
     let value_data = read_region(&env.memory(), value_ptr, MAX_LENGTH_EVENT_VALUES)?;
-    let key: String = match from_slice(&key_data) {
+    let key: String = match from_slice(&key_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(key) => key,
         Err(_) => {
             return write_to_contract::<A, S, Q>(env, b"Input (key) is not valid utf8 string")
         }
     };
-    let value: String = match from_slice(&value_data) {
+    let value: String = match from_slice(&value_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(value) => value,
         Err(_) => {
             return write_to_contract::<A, S, Q>(env, b"Input (value) is not valid utf8 string")
@@ -462,7 +462,7 @@ pub fn do_add_attributes<A: BackendApi, S: Storage, Q: Querier>(
     attributes_ptr: u32,
 ) -> VmResult<u32> {
     let attributes_data = read_region(&env.memory(), attributes_ptr, MAX_LENGTH_EVENT_VALUES)?;
-    let attributes: Vec<Attribute> = match from_slice(&attributes_data) {
+    let attributes: Vec<Attribute> = match from_slice(&attributes_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(attributes) => attributes,
         Err(_) => return write_to_contract::<A, S, Q>(env, b"Input is not valid Vec<Attribute>"),
     };
@@ -1803,7 +1803,7 @@ mod tests {
         let request: QueryRequest<Empty> = QueryRequest::Bank(BankQuery::AllBalances {
             address: INIT_ADDR.to_string(),
         });
-        let request_data = cosmwasm_std::to_vec(&request).unwrap();
+        let request_data = to_vec(&request).unwrap();
         let request_ptr = write_data(&env, &request_data);
 
         leave_default_data(&env);
@@ -1812,7 +1812,7 @@ mod tests {
         let response = force_read(&env, response_ptr);
 
         let query_result: cosmwasm_std::QuerierResult =
-            cosmwasm_std::from_slice(&response).unwrap();
+            from_slice(&response, usize::MAX).unwrap();
         let query_result_inner = query_result.unwrap();
         let query_result_inner_inner = query_result_inner.unwrap();
         let parsed_again: AllBalanceResponse = from_binary(&query_result_inner_inner).unwrap();
@@ -1833,7 +1833,7 @@ mod tests {
         let response = force_read(&env, response_ptr);
 
         let query_result: cosmwasm_std::QuerierResult =
-            cosmwasm_std::from_slice(&response).unwrap();
+            from_slice(&response, usize::MAX).unwrap();
         match query_result {
             SystemResult::Ok(_) => panic!("This must not succeed"),
             SystemResult::Err(SystemError::InvalidRequest { request: err, .. }) => {
@@ -1852,7 +1852,7 @@ mod tests {
             contract_addr: String::from("non-existent"),
             msg: Binary::from(b"{}" as &[u8]),
         });
-        let request_data = cosmwasm_std::to_vec(&request).unwrap();
+        let request_data = to_vec(&request).unwrap();
         let request_ptr = write_data(&env, &request_data);
 
         leave_default_data(&env);
@@ -1861,7 +1861,7 @@ mod tests {
         let response = force_read(&env, response_ptr);
 
         let query_result: cosmwasm_std::QuerierResult =
-            cosmwasm_std::from_slice(&response).unwrap();
+            from_slice(&response, usize::MAX).unwrap();
         match query_result {
             SystemResult::Ok(_) => panic!("This must not succeed"),
             SystemResult::Err(SystemError::NoSuchContract { addr }) => {

@@ -8,11 +8,12 @@ use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::imports::write_to_contract;
 use crate::instance::Instance;
 use crate::memory::read_region;
+use crate::serde::from_slice;
 use serde::{Deserialize, Serialize};
 use wasmer::{Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val};
 use wasmer_types::ImportIndex;
 
-use cosmwasm_std::{from_slice, Addr, Binary};
+use cosmwasm_std::{Addr, Binary};
 
 // The length of the address is 63 characters for strings and 65 characters with "" for []byte. Thus, 65<64*2 is used.
 const MAX_ADDRESS_LENGTH: usize = 64 * 2;
@@ -78,7 +79,7 @@ where
     };
     let address_region_ptr = ref_to_u32(&args[0])?;
     let contract_addr_binary = read_region(&env.memory(), address_region_ptr, MAX_ADDRESS_LENGTH)?;
-    let contract_addr: Addr = from_slice(&contract_addr_binary)
+    let contract_addr: Addr = from_slice(&contract_addr_binary, MAX_ADDRESS_LENGTH)
         .map_err(|_| RuntimeError::new("Invalid callee contract address"))?;
     let mut args_data: Vec<Binary> = vec![];
     for arg in &args[1..] {
@@ -257,7 +258,7 @@ where
     Q: Querier + 'static,
 {
     let contract_addr_raw = read_region(&env.memory(), address, MAX_ADDRESS_LENGTH)?;
-    let contract_addr: Addr = from_slice(&contract_addr_raw)
+    let contract_addr: Addr = from_slice(&contract_addr_raw, MAX_ADDRESS_LENGTH)
         .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
     let expected_interface_binary =
         read_region(&env.memory(), interface, MAX_INTERFACE_REGIONS_LENGTH)?;

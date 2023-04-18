@@ -6,7 +6,7 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 use tempfile::TempDir;
 
-use cosmwasm_std::{coins, to_vec, Addr, Empty};
+use cosmwasm_std::{coins, Addr, Empty};
 use cosmwasm_vm::testing::{
     mock_backend, mock_env, mock_info, mock_instance, mock_instance_options,
     write_data_to_mock_env, MockApi, MockInstanceOptions, MockQuerier, MockStorage, INSTANCE_CACHE,
@@ -17,6 +17,7 @@ use cosmwasm_vm::{
     Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum, Environment,
     FunctionMetadata, GasInfo, Instance, InstanceOptions, Querier, Size, Storage, WasmerVal,
 };
+use crate::serde::to_vec;
 use std::cell::RefCell;
 use wasmer::Module;
 use wasmer_types::Type;
