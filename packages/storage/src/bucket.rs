@@ -1,7 +1,9 @@
 use serde::{de::DeserializeOwned, ser::Serialize};
 use std::marker::PhantomData;
+use std::any::type_name;
+use serde_json::to_vec;
 
-use cosmwasm_std::{to_vec, StdError, StdResult, Storage};
+use cosmwasm_std::{StdError, StdResult, Storage};
 #[cfg(feature = "iterator")]
 use cosmwasm_std::{Order, Record};
 
@@ -61,7 +63,7 @@ where
 
     /// save will serialize the model and store, returns an error on serialization issues
     pub fn save(&mut self, key: &[u8], data: &T) -> StdResult<()> {
-        set_with_prefix(self.storage, &self.prefix, key, &to_vec(data)?);
+        set_with_prefix(self.storage, &self.prefix, key, &to_vec(data).map_err(|e| StdError::serialize_err(type_name::<T>(), e))?);
         Ok(())
     }
 
@@ -385,7 +387,7 @@ mod tests {
                     return Err(StdError::generic_err("Current age is negative").into());
                 }
                 if data.age > 10 {
-                    to_vec(&data)?; // Uses From to convert StdError to MyError
+                    to_vec(&data).map_err(|e| StdError::serialize_err(type_name::<Data>(), e))?; // Uses From to convert StdError to MyError
                 }
                 data.age += 1;
                 Ok(data)
