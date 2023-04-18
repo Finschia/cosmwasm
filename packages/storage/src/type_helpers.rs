@@ -1,10 +1,9 @@
 use serde::de::DeserializeOwned;
 use std::any::type_name;
-use serde_json::from_slice;
 
 #[cfg(feature = "iterator")]
 use cosmwasm_std::Record;
-use cosmwasm_std::{StdError, StdResult};
+use cosmwasm_std::{from_slice, StdError, StdResult};
 
 /// may_deserialize parses json bytes from storage (Option), returning Ok(None) if no data present
 ///
@@ -14,7 +13,7 @@ pub(crate) fn may_deserialize<T: DeserializeOwned>(
     value: &Option<Vec<u8>>,
 ) -> StdResult<Option<T>> {
     match value {
-        Some(data) => Ok(Some(from_slice(data).map_err(|e| StdError::parse_err(type_name::<T>(), e))?)),
+        Some(data) => Ok(Some(from_slice(data)?)),
         None => Ok(None),
     }
 }
@@ -22,7 +21,7 @@ pub(crate) fn may_deserialize<T: DeserializeOwned>(
 /// must_deserialize parses json bytes from storage (Option), returning NotFound error if no data present
 pub(crate) fn must_deserialize<T: DeserializeOwned>(value: &Option<Vec<u8>>) -> StdResult<T> {
     match value {
-        Some(data) => from_slice(data).map_err(|e| StdError::parse_err(type_name::<T>(), e)),
+        Some(data) => from_slice(data),
         None => Err(StdError::not_found(type_name::<T>())),
     }
 }
@@ -30,7 +29,7 @@ pub(crate) fn must_deserialize<T: DeserializeOwned>(value: &Option<Vec<u8>>) -> 
 #[cfg(feature = "iterator")]
 pub(crate) fn deserialize_kv<T: DeserializeOwned>(kv: Record<Vec<u8>>) -> StdResult<Record<T>> {
     let (k, v) = kv;
-    let t = from_slice::<T>(&v).map_err(|e| StdError::parse_err(type_name::<T>(), e))?;
+    let t = from_slice::<T>(&v)?;
     Ok((k, t))
 }
 

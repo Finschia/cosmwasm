@@ -2,11 +2,10 @@ use serde::de::DeserializeOwned;
 
 use cosmwasm_std::testing::{MockQuerier as StdMockQuerier, MockQuerierCustomHandlerResult};
 use cosmwasm_std::{
-    to_binary, Binary, Coin, ContractResult, CustomQuery, Empty, Querier as _,
+    to_binary, to_vec, Binary, Coin, ContractResult, CustomQuery, Empty, Querier as _,
     QueryRequest, SystemError, SystemResult,
 };
 
-use crate::serde::to_vec;
 use crate::{BackendError, BackendResult, GasInfo, Querier};
 
 const GAS_COST_QUERY_FLAT: u64 = 100_000;
