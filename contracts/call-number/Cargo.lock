@@ -136,7 +136,6 @@ dependencies = [
  "serde",
  "thiserror",
  "wasmer",
- "wasmer-types",
 ]
 
 [[package]]
@@ -205,6 +204,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn",
+ "wasmer-types",
 ]
 
 [[package]]

@@ -190,6 +190,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn",
+ "wasmer-types",
 ]
 
 [[package]]
@@ -795,10 +796,8 @@ dependencies = [
  "cosmwasm-vm",
  "schemars",
  "serde",
- "serde_json",
  "thiserror",
  "wasmer",
- "wasmer-types",
 ]
 
 [[package]]
