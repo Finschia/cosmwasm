@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
-use serde_json::from_slice;
 use std::any::type_name;
+use serde_json::from_slice;
 
 #[cfg(feature = "iterator")]
 use cosmwasm_std::Record;
@@ -14,9 +14,7 @@ pub(crate) fn may_deserialize<T: DeserializeOwned>(
     value: &Option<Vec<u8>>,
 ) -> StdResult<Option<T>> {
     match value {
-        Some(data) => Ok(Some(
-            from_slice(data).map_err(|e| StdError::parse_err(type_name::<T>(), e))?,
-        )),
+        Some(data) => Ok(Some(from_slice(data).map_err(|e| StdError::parse_err(type_name::<T>(), e))?)),
         None => Ok(None),
     }
 }

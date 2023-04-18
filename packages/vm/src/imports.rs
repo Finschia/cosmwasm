@@ -24,7 +24,7 @@ use crate::memory::{read_region, write_region};
 use crate::sections::decode_sections;
 #[allow(unused_imports)]
 use crate::sections::encode_sections;
-use crate::serde::{from_slice, to_vec};
+use crate::serde::{to_vec, from_slice};
 use crate::GasInfo;
 
 /// A kibi (kilo binary)
@@ -1811,7 +1811,8 @@ mod tests {
         let response_ptr = do_query_chain(&env, request_ptr).unwrap();
         let response = force_read(&env, response_ptr);
 
-        let query_result: cosmwasm_std::QuerierResult = from_slice(&response, usize::MAX).unwrap();
+        let query_result: cosmwasm_std::QuerierResult =
+            from_slice(&response, usize::MAX).unwrap();
         let query_result_inner = query_result.unwrap();
         let query_result_inner_inner = query_result_inner.unwrap();
         let parsed_again: AllBalanceResponse = from_binary(&query_result_inner_inner).unwrap();
@@ -1831,7 +1832,8 @@ mod tests {
         let response_ptr = do_query_chain(&env, request_ptr).unwrap();
         let response = force_read(&env, response_ptr);
 
-        let query_result: cosmwasm_std::QuerierResult = from_slice(&response, usize::MAX).unwrap();
+        let query_result: cosmwasm_std::QuerierResult =
+            from_slice(&response, usize::MAX).unwrap();
         match query_result {
             SystemResult::Ok(_) => panic!("This must not succeed"),
             SystemResult::Err(SystemError::InvalidRequest { request: err, .. }) => {
@@ -1858,7 +1860,8 @@ mod tests {
         let response_ptr = do_query_chain(&env, request_ptr).unwrap();
         let response = force_read(&env, response_ptr);
 
-        let query_result: cosmwasm_std::QuerierResult = from_slice(&response, usize::MAX).unwrap();
+        let query_result: cosmwasm_std::QuerierResult =
+            from_slice(&response, usize::MAX).unwrap();
         match query_result {
             SystemResult::Ok(_) => panic!("This must not succeed"),
             SystemResult::Err(SystemError::NoSuchContract { addr }) => {

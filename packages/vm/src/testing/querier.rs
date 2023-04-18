@@ -2,8 +2,8 @@ use serde::de::DeserializeOwned;
 
 use cosmwasm_std::testing::{MockQuerier as StdMockQuerier, MockQuerierCustomHandlerResult};
 use cosmwasm_std::{
-    to_binary, Binary, Coin, ContractResult, CustomQuery, Empty, Querier as _, QueryRequest,
-    SystemError, SystemResult,
+    to_binary, Binary, Coin, ContractResult, CustomQuery, Empty, Querier as _,
+    QueryRequest, SystemError, SystemResult,
 };
 
 use crate::serde::to_vec;
