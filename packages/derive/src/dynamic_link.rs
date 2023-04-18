@@ -1,9 +1,10 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::{
     parse_quote, AttributeArgs, Ident, ItemTrait, Lit, Meta, NestedMeta, ReturnType, Signature,
     TraitItem, TypeParamBound,
 };
+use wasmer_types::{ExportType, FunctionType, Type};
 
 use crate::utils::{abort_by, collect_available_arg_types, has_return_value, make_typed_return};
 
@@ -154,25 +155,28 @@ fn generate_extern_block(module_name: &str, methods: &[&Signature]) -> TokenStre
 }
 
 fn generate_validate_interface_method(methods: &[&Signature]) -> TokenStream {
-    let interfaces = methods.iter().map(|sig| {
-        let name = sig.ident.to_string();
-        // -1 for &self and +1 for arg `env`, so equals to len()
-        let input_len = sig.inputs.len();
-        let result_len = match sig.output {
-            ReturnType::Default => 0_usize,
-            ReturnType::Type(..) => 1_usize,
-        };
-        quote! {
-            wasmer_types::ExportType::new(#name, ([wasmer_types::Type::I32; #input_len], [wasmer_types::Type::I32; #result_len]).into())
-        }
-    });
+    let interface: Vec<ExportType<FunctionType>> = methods
+        .iter()
+        .map(|sig| {
+            let name = sig.ident.to_string();
+            // -1 for &self and +1 for arg `env`, so equals to len()
+            let input_len = sig.inputs.len();
+            let result_len = match sig.output {
+                ReturnType::Default => 0_usize,
+                ReturnType::Type(..) => 1_usize,
+            };
+            ExportType::new(
+                &name,
+                FunctionType::new(vec![Type::I32; input_len], vec![Type::I32; result_len]),
+            )
+        })
+        .collect();
+    let serialized_interface = serde_json::to_vec(&interface).unwrap();
+    let interface_lit = syn::LitByteStr::new(&serialized_interface, Span::call_site());
     quote! {
         fn validate_interface(&self, deps: cosmwasm_std::Deps) -> cosmwasm_std::StdResult<()> {
             let address = self.get_address();
-            let expected_interface: Vec<wasmer_types::ExportType<wasmer_types::FunctionType>> = vec![
-                #(#interfaces,)*
-            ];
-            deps.api.validate_dynamic_link_interface(&address, &expected_interface)
+            deps.api.validate_dynamic_link_interface(&address, #interface_lit)
         }
     }
 }
@@ -471,6 +475,14 @@ mod tests {
             &method_sigs,
         )
         .to_string();
+        let expected_interface: Vec<wasmer_types::ExportType<wasmer_types::FunctionType>> = vec![
+            ExportType::new("foo", ([Type::I32; 3], [Type::I32; 1]).into()),
+            ExportType::new("bar", ([Type::I32; 1], [Type::I32; 0]).into()),
+            ExportType::new("foobar", ([Type::I32; 3], [Type::I32; 1]).into()),
+        ];
+        let serialized_interface = serde_json::to_vec(&expected_interface).unwrap();
+        let interface_lit = syn::LitByteStr::new(&serialized_interface, Span::call_site());
+
         let expected: TokenStream = parse_quote! {
             impl Callee for CalleeContract {
                 fn foo(&self, arg0: u64, arg1: String) -> u64 {
@@ -511,12 +523,7 @@ mod tests {
 
                 fn validate_interface(&self, deps: cosmwasm_std::Deps) -> cosmwasm_std::StdResult<()> {
                     let address = self.get_address();
-                    let expected_interface: Vec<wasmer_types::ExportType<wasmer_types::FunctionType>> = vec![
-                        wasmer_types::ExportType::new("foo",  ([wasmer_types::Type::I32; 3usize],  [wasmer_types::Type::I32; 1usize]).into()),
-                        wasmer_types::ExportType::new("bar",  ([wasmer_types::Type::I32; 1usize],  [wasmer_types::Type::I32; 0usize]).into()),
-                        wasmer_types::ExportType::new("foobar",  ([wasmer_types::Type::I32; 3usize],  [wasmer_types::Type::I32; 1usize]).into()),
-                    ];
-                    deps.api.validate_dynamic_link_interface(&address, &expected_interface)
+                    deps.api.validate_dynamic_link_interface(&address, #interface_lit)
                 }
             }
         };

@@ -1,7 +1,6 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::marker::PhantomData;
 use std::ops::Deref;
-use wasmer_types::{ExportType, FunctionType};
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
@@ -144,11 +143,7 @@ pub trait Api {
     /// This calls the API to validate interface
     /// Contract is the address of the contract to validate.
     /// Interface is the arg for expected interface that the contract has.
-    fn validate_dynamic_link_interface(
-        &self,
-        contract: &Addr,
-        interface: &[ExportType<FunctionType>],
-    ) -> StdResult<()>;
+    fn validate_dynamic_link_interface(&self, contract: &Addr, interface: &[u8]) -> StdResult<()>;
 
     /// Emits a debugging message that is handled depending on the environment (typically printed to console or ignored).
     /// Those messages are not persisted to chain.

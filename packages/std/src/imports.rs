@@ -1,6 +1,5 @@
 use std::convert::TryInto;
 use std::vec::Vec;
-use wasmer_types::{ExportType, FunctionType};
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::errors::{
@@ -404,14 +403,10 @@ impl Api for ExternalApi {
     //
     // contract is the address of the contract to validate.
     // interface is the arg for expected interface that the contract has.
-    fn validate_dynamic_link_interface(
-        &self,
-        contract: &Addr,
-        interface: &[ExportType<FunctionType>],
-    ) -> StdResult<()> {
+    fn validate_dynamic_link_interface(&self, contract: &Addr, interface: &[u8]) -> StdResult<()> {
         let contract_region = release_buffer(to_vec(contract)?);
         let contract_ptr = contract_region as u32;
-        let interface_region = release_buffer(to_vec(interface)?);
+        let interface_region = release_buffer(interface.to_vec());
         let interface_ptr = interface_region as u32;
         let result = unsafe { validate_dynamic_link_interface(contract_ptr, interface_ptr) };
         if result != 0 {
