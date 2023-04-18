@@ -8,7 +8,7 @@ use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::imports::write_to_contract;
 use crate::instance::Instance;
 use crate::memory::read_region;
-use crate::serde::from_slice;
+use crate::serde::{to_vec, from_slice};
 use serde::{Deserialize, Serialize};
 use wasmer::{Exports, Function, FunctionType, ImportObject, Module, RuntimeError, Val};
 use wasmer_types::ImportIndex;
@@ -87,7 +87,7 @@ where
         let arg_data = read_region(&env.memory(), arg_ptr, MAX_REGIONS_LENGTH_INPUT)?;
         args_data.push(Binary(arg_data))
     }
-    let args_binary = serde_json::to_vec(&args_data).map_err(|e| {
+    let args_binary = to_vec(&args_data).map_err(|e| {
         RuntimeError::new(format!(
             "Error during serializing args for a callable point: {}",
             e
@@ -97,7 +97,7 @@ where
         Ok(func_info.clone_and_drop_callee_addr_arg())
     })?;
     let callstack = env.get_dynamic_callstack()?;
-    let callstack_binary = serde_json::to_vec(&callstack).map_err(|e| {
+    let callstack_binary = to_vec(&callstack).map_err(|e| {
         RuntimeError::new(format!(
             "Error during serializing callstack of callable points: {}",
             e
@@ -113,7 +113,7 @@ where
     );
     process_gas_info::<A, S, Q>(env, gas_info)?;
     match call_result {
-        Ok(ret) => match serde_json::from_slice::<Option<Binary>>(&ret).map_err(|e| {
+        Ok(ret) => match from_slice::<Option<Binary>>(&ret).map_err(|e| {
             RuntimeError::new(format!(
                 r#"Error during deserializing result of callable point "{}" of "{}": {}"#,
                 func_info.name, contract_addr, e
@@ -272,7 +272,7 @@ where
             e
         ))
     })?;
-    let result: Option<String> = serde_json::from_slice(&result_data).map_err(|e| {
+    let result: Option<String> = from_slice(&result_data).map_err(|e| {
         RuntimeError::new(format!(
             "Error during deserializing the result of validate_dynamic_link_interface: {}",
             e
@@ -319,7 +319,7 @@ where
         )));
     };
 
-    let properties: HashMap<String, CalleeProperty> = serde_json::from_slice(&ret_datas[0])
+    let properties: HashMap<String, CalleeProperty> = from_slice(&ret_datas[0])
         .map_err(|e| VmError::dynamic_call_err(e.to_string()))?;
 
     let property = properties.get(callable_point).ok_or_else(|| {
