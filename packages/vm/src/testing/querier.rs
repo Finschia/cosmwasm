@@ -2,8 +2,8 @@ use serde::de::DeserializeOwned;
 
 use cosmwasm_std::testing::{MockQuerier as StdMockQuerier, MockQuerierCustomHandlerResult};
 use cosmwasm_std::{
-    to_binary, Binary, Coin, ContractResult, CustomQuery, Empty, Querier as _, QueryRequest,
-    SystemError, SystemResult,
+    Binary, Coin, ContractResult, CustomQuery, Empty, Querier as _, QueryRequest, SystemError,
+    SystemResult,
 };
 
 use crate::serde::to_vec;
@@ -74,7 +74,7 @@ impl<C: CustomQuery + DeserializeOwned> Querier for MockQuerier<C> {
             GAS_COST_QUERY_FLAT
                 + (GAS_COST_QUERY_REQUEST_MULTIPLIER * (bin_request.len() as u64))
                 + (GAS_COST_QUERY_RESPONSE_MULTIPLIER
-                    * (to_binary(&response).unwrap().len() as u64)),
+                    * (to_vec(&response).map(Binary).unwrap().len() as u64)),
         );
 
         // In a production implementation, this should stop the query execution in the middle of the computation.
