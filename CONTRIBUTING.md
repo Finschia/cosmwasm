@@ -1,4 +1,4 @@
-# How to contribute to `line/cosmwasm`
+# How to contribute to `Finschia/cosmwasm`
 
 First of all, thank you so much for taking your time to contribute!
 It will be amazing if you could help us by doing any of the following:
@@ -13,7 +13,7 @@ It will be amazing if you could help us by doing any of the following:
 
 When you are sending a pull request and it's a non-trivial change beyond fixing typos, please sign
 the ICLA (individual contributor license agreement). Please
-[contact us](mailto:dl_oss_dev@linecorp.com) if you need the CCLA (corporate contributor license agreement).
+[contact us](mailto:dev@finschia.org) if you need the CCLA (corporate contributor license agreement).
 
 ## Code of conduct
 
