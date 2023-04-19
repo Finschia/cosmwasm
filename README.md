@@ -1,6 +1,6 @@
 # CosmWasm
 
-[![Tests](https://github.com/line/cosmwasm/actions/workflows/tests.yml/badge.svg)](https://github.com/line/cosmwasm/actions/workflows/tests.yml)
+[![Tests](https://github.com/Finschia/cosmwasm/actions/workflows/tests.yml/badge.svg)](https://github.com/Finschia/cosmwasm/actions/workflows/tests.yml)
 
 **WebAssembly Smart Contracts for the LBM**
 

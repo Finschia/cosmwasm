@@ -3,11 +3,11 @@
 First of all, thank you so much for taking your time to contribute!
 It will be amazing if you could help us by doing any of the following:
 
-- File an issue in [the issue tracker](https://github.com/line/cosmwasm/issues) to report bugs and propose new features and
+- File an issue in [the issue tracker](https://github.com/Finschia/cosmwasm/issues) to report bugs and propose new features and
   improvements.
-- Ask a question by creating a new issue in [the issue tracker](https://github.com/line/cosmwasm/issues).
-  - Browse [the list of previously answered questions](https://github.com/line/cosmwasm/issues?q=label%3Aquestion).
-- Contribute your work by sending [a pull request](https://github.com/line/cosmwasm/pulls).
+- Ask a question by creating a new issue in [the issue tracker](https://github.com/Finschia/cosmwasm/issues).
+  - Browse [the list of previously answered questions](https://github.com/Finschia/cosmwasm/issues?q=label%3Aquestion).
+- Contribute your work by sending [a pull request](https://github.com/Finschia/cosmwasm/pulls).
 
 ## Contributor license agreement
 

@@ -4,7 +4,7 @@ version = "1.1.9-0.7.0"
 authors = ["LINE Plus Corporation"]
 edition = "2021"
 description = "VM bindings to run cosmwams contracts"
-repository = "https://github.com/line/cosmwasm/tree/main/packages/vm"
+repository = "https://github.com/Finschia/cosmwasm/tree/main/packages/vm"
 license = "Apache-2.0"
 
 [features]

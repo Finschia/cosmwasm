@@ -2,7 +2,7 @@ style: github
 template: CHANGELOG.tpl.md
 info:
   title: CHANGELOG
-  repository_url: https://github.com/line/cosmwasm
+  repository_url: https://github.com/Finschia/cosmwasm
 options:
   tag_filter_pattern: '^v\d+\.\d+\.\d+-\d+\.\d+\.\d+'
   commits:
