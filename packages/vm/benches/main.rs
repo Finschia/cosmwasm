@@ -6,7 +6,6 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 use tempfile::TempDir;
 
-use crate::serde::to_vec;
 use cosmwasm_std::{coins, Addr, Empty};
 use cosmwasm_vm::testing::{
     mock_backend, mock_env, mock_info, mock_instance, mock_instance_options,
@@ -14,12 +13,11 @@ use cosmwasm_vm::testing::{
 };
 use cosmwasm_vm::{
     call_execute, call_instantiate, capabilities_from_csv,
-    native_dynamic_link_trampoline_for_bench, read_region, ref_to_u32, to_u32, write_region,
-    Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum, Environment,
-    FunctionMetadata, GasInfo, Instance, InstanceOptions, Querier, Size, Storage, WasmerVal,
+    native_dynamic_link_trampoline_for_bench, read_region, ref_to_u32, to_u32, to_vec,
+    write_region, Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum,
+    Environment, FunctionMetadata, GasInfo, Instance, InstanceOptions, Size, WasmerVal,
 };
 use std::cell::RefCell;
-use wasmer::Module;
 use wasmer_types::Type;
 
 // Instance
@@ -63,22 +61,24 @@ impl BackendApi for DummyApi {
         )
     }
 
-    fn contract_call<A, S, Q>(
+    fn call_callable_point(
         &self,
-        _caller_env: &Environment<A, S, Q>,
         _contract_addr: &str,
-        _func_info: &FunctionMetadata,
-        _args: &[WasmerVal],
-    ) -> BackendResult<Box<[WasmerVal]>>
-    where
-        A: BackendApi + 'static,
-        S: Storage + 'static,
-        Q: Querier + 'static,
-    {
-        (Ok(Box::from([])), GasInfo::with_cost(0))
+        _name: &str,
+        _args: &[u8],
+        _is_readonly: bool,
+        _callstack: &[u8],
+        _gas_limit: u64,
+    ) -> BackendResult<Vec<u8>> {
+        // does nothing but ends with succeed for `bench_dynamic_link`
+        (Ok(vec![]), GasInfo::with_cost(0))
     }
 
-    fn get_wasmer_module(&self, _contract_addr: &str) -> BackendResult<Module> {
+    fn validate_dynamic_link_interface(
+        &self,
+        _contract_addr: &str,
+        _expected_interface: &[u8],
+    ) -> BackendResult<Vec<u8>> {
         (
             Err(BackendError::unknown("not implemented")),
             GasInfo::with_cost(0),
@@ -155,17 +155,13 @@ fn bench_instance(c: &mut Criterion) {
             call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg).unwrap();
         assert!(contract_result.into_result().is_ok());
 
-        let mut gas_used = 0;
         b.iter(|| {
-            let gas_before = instance.get_gas_left();
             let info = mock_info("hasher", &[]);
             let msg = br#"{"argon2":{"mem_cost":256,"time_cost":3}}"#;
             let contract_result =
                 call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg).unwrap();
             assert!(contract_result.into_result().is_ok());
-            gas_used = gas_before - instance.get_gas_left();
         });
-        println!("Gas used: {}", gas_used);
     });
 
     group.finish();
@@ -301,7 +297,7 @@ fn bench_dynamic_link(c: &mut Criterion) {
     let mut group = c.benchmark_group("DynamicLink");
 
     group.bench_function(
-        "native_dynamic_link_trampoline with dummy contract_call",
+        "native_dynamic_link_trampoline with dummy apis",
         |b| {
             let backend = Backend {
                 api: DummyApi {},
