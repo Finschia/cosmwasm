@@ -195,8 +195,9 @@ pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, Con
             "not_exist",
             ([wasmer_types::Type::I32], [wasmer_types::Type::I32]).into(),
         )];
+    let binary_err_interface = serde_json::to_vec(&err_interface).unwrap();
     deps.api
-        .validate_dynamic_link_interface(&address, &err_interface)?;
+        .validate_dynamic_link_interface(&address, &binary_err_interface)?;
     Ok(Response::default())
 }
 

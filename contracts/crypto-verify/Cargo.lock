@@ -196,6 +196,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn",
+ "wasmer-types",
 ]
 
 [[package]]

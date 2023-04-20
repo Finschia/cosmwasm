@@ -1,5 +1,4 @@
-use proc_macro2::Span;
-use proc_macro2::TokenTree;
+use proc_macro2::{Span, TokenTree};
 use quote::quote;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
