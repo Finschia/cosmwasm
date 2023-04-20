@@ -6,7 +6,8 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 use tempfile::TempDir;
 
-use cosmwasm_std::{coins, to_vec, Addr, Empty};
+use crate::serde::to_vec;
+use cosmwasm_std::{coins, Addr, Empty};
 use cosmwasm_vm::testing::{
     mock_backend, mock_env, mock_info, mock_instance, mock_instance_options,
     write_data_to_mock_env, MockApi, MockInstanceOptions, MockQuerier, MockStorage, INSTANCE_CACHE,
