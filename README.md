@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/Finschia/cosmwasm/actions/workflows/tests.yml/badge.svg)](https://github.com/Finschia/cosmwasm/actions/workflows/tests.yml)
 
-**WebAssembly Smart Contracts for the LBM**
+**WebAssembly Smart Contracts for the Finschia**
 
 This repository is forked from [CosmWasm/cosmwasm](https://github.com/CosmWasm/cosmwasm).
 
