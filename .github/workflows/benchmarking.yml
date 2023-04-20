@@ -8,6 +8,7 @@ on:
       - dynamic_link
       - /^[0-9]+\.[0-9]+$/
       # 👇Add your branch here if benchmarking matters to your work
+  pull_request:
 
 jobs:
   benchmarking:
