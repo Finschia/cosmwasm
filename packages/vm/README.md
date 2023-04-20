@@ -113,6 +113,6 @@ RUSTFLAGS="-g" cargo build --release --example module_size
 
 ## License
 
-This package is part of the line/cosmwasm repository, licensed under the Apache
+This package is part of the Finschia/cosmwasm repository, licensed under the Apache
 License 2.0 (see [NOTICE](https://github.com/Finschia/cosmwasm/blob/main/NOTICE)
 and [LICENSE](https://github.com/Finschia/cosmwasm/blob/main/LICENSE)).
