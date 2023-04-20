@@ -4,7 +4,7 @@ version = "1.1.9-0.7.0"
 authors = ["LINE Plus Corporation"]
 edition = "2021"
 description = "A dev-dependency for CosmWasm contracts to generate JSON Schema files."
-repository = "https://github.com/line/cosmwasm/tree/main/packages/schema"
+repository = "https://github.com/Finschia/cosmwasm/tree/main/packages/schema"
 license = "Apache-2.0"
 
 [dependencies]

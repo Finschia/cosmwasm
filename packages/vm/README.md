@@ -42,9 +42,9 @@ compatibility list:
 
 There are demo files in `testdata/*.wasm`. Those are compiled and optimized
 versions of
-[contracts/hackatom](https://github.com/line/cosmwasm/tree/main/contracts/hackatom)
+[contracts/hackatom](https://github.com/Finschia/cosmwasm/tree/main/contracts/hackatom)
 and
-[contracts/staking](https://github.com/line/cosmwasm/tree/main/contracts/staking)
+[contracts/staking](https://github.com/Finschia/cosmwasm/tree/main/contracts/staking)
 run through [rust-optimizer](https://github.com/CosmWasm/rust-optimizer).
 
 To rebuild the test contracts, go to the repo root and do
@@ -113,6 +113,6 @@ RUSTFLAGS="-g" cargo build --release --example module_size
 
 ## License
 
-This package is part of the line/cosmwasm repository, licensed under the Apache
-License 2.0 (see [NOTICE](https://github.com/line/cosmwasm/blob/main/NOTICE)
-and [LICENSE](https://github.com/line/cosmwasm/blob/main/LICENSE)).
+This package is part of the Finschia/cosmwasm repository, licensed under the Apache
+License 2.0 (see [NOTICE](https://github.com/Finschia/cosmwasm/blob/main/NOTICE)
+and [LICENSE](https://github.com/Finschia/cosmwasm/blob/main/LICENSE)).

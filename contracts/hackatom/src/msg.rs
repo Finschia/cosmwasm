@@ -20,7 +20,7 @@ pub struct MigrateMsg {
     pub verifier: String,
 }
 
-/// SudoMsg is only exposed for internal lbm-sdk modules to call.
+/// SudoMsg is only exposed for internal finschia-sdk modules to call.
 /// This is showing how we can expose "admin" functionality than can not be called by
 /// external users or contracts, but only trusted (native/Go) code in the blockchain
 #[cw_serde]

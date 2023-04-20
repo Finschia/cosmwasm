@@ -85,8 +85,8 @@ pub struct BlockInfo {
 ///
 /// It contains the essential info for authorization - identity of the call, and payment.
 ///
-/// [MsgInstantiateContract]: https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L45-L62
-/// [MsgExecuteContract]: https://github.com/line/lbm-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L71-L82
+/// [MsgInstantiateContract]: https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L45-L62
+/// [MsgExecuteContract]: https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L71-L82
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct MessageInfo {
     /// The `sender` field from `MsgInstantiateContract` and `MsgExecuteContract`.

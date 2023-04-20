@@ -4,7 +4,7 @@ version = "1.1.9-0.7.0"
 authors = ["LINE Plus Corporation"]
 edition = "2021"
 description = "CosmWasm library with useful helpers for Storage patterns"
-repository = "https://github.com/line/cosmwasm/tree/main/packages/storage"
+repository = "https://github.com/Finschia/cosmwasm/tree/main/packages/storage"
 license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
