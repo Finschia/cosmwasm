@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use rand::Rng;
 use std::sync::Arc;
@@ -17,7 +17,6 @@ use cosmwasm_vm::{
     write_region, Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum,
     Environment, FunctionMetadata, GasInfo, Instance, InstanceOptions, Size, WasmerVal,
 };
-use std::cell::RefCell;
 use wasmer_types::Type;
 
 // Instance
@@ -40,7 +39,6 @@ static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 
 // For Dynamic Call
 const CALLEE_NAME_ADDR: &str = "callee";
-const CALLER_NAME_ADDR: &str = "caller";
 
 // DummyApi is Api with dummy `call_contract` which does nothing
 #[derive(Copy, Clone)]
@@ -71,7 +69,7 @@ impl BackendApi for DummyApi {
         _gas_limit: u64,
     ) -> BackendResult<Vec<u8>> {
         // does nothing but ends with succeed for `bench_dynamic_link`
-        (Ok(vec![]), GasInfo::with_cost(0))
+        (Ok(b"null".to_vec()), GasInfo::with_cost(0))
     }
 
     fn validate_dynamic_link_interface(
