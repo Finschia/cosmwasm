@@ -2,15 +2,9 @@ use cosmwasm_std::testing::{digit_sum, riffle_shuffle};
 use cosmwasm_std::{
     Addr, BlockInfo, Coin, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo,
 };
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::sync::RwLock;
-use std::thread_local;
-use wasmer::Module;
 
 use super::querier::MockQuerier;
 use super::storage::MockStorage;
-use crate::instance::Instance;
 use crate::{Backend, BackendApi, BackendError, BackendResult, GasInfo};
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
@@ -39,13 +33,6 @@ pub fn mock_backend_with_balances(
     }
 }
 
-type MockInstance = Instance<MockApi, MockStorage, MockQuerier>;
-thread_local! {
-    // INSTANCE_CACHE and MODULE_CACHE are intended to replace wasmvm's cache layer in the mock.
-    // Unlike wasmvm, you have to initialize them yourself in the place where you test the dynamic call.
-    pub static INSTANCE_CACHE: RwLock<HashMap<String, RefCell<MockInstance>>> = RwLock::new(HashMap::new());
-    pub static MODULE_CACHE: RwLock<HashMap<String, RefCell<Module>>> = RwLock::new(HashMap::new());
-}
 /// Length of canonical addresses created with this API. Contracts should not make any assumtions
 /// what this value is.
 /// The value here must be restorable with `SHUFFLES_ENCODE` + `SHUFFLES_DECODE` in-shuffles.
