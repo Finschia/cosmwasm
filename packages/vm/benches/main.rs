@@ -296,41 +296,38 @@ fn prepare_dynamic_call_data<A: BackendApi>(
 fn bench_dynamic_link(c: &mut Criterion) {
     let mut group = c.benchmark_group("DynamicLink");
 
-    group.bench_function(
-        "native_dynamic_link_trampoline with dummy apis",
-        |b| {
-            let backend = Backend {
-                api: DummyApi {},
-                storage: MockStorage::default(),
-                querier: MockQuerier::new(&[]),
-            };
-            let mock_options = MockInstanceOptions::default();
-            let options = InstanceOptions {
-                gas_limit: mock_options.gas_limit,
-                print_debug: mock_options.print_debug,
-            };
-            let instance =
-                Instance::from_code(CONTRACT, backend, options, mock_options.memory_limit).unwrap();
-            let mut dummy_env = instance.env;
-            let callee_address = Addr::unchecked(CALLEE_NAME_ADDR);
-            let target_func_info = FunctionMetadata {
-                module_name: CALLEE_NAME_ADDR.to_string(),
-                name: "foo".to_string(),
-                signature: ([Type::I32], []).into(),
-            };
+    group.bench_function("native_dynamic_link_trampoline with dummy apis", |b| {
+        let backend = Backend {
+            api: DummyApi {},
+            storage: MockStorage::default(),
+            querier: MockQuerier::new(&[]),
+        };
+        let mock_options = MockInstanceOptions::default();
+        let options = InstanceOptions {
+            gas_limit: mock_options.gas_limit,
+            print_debug: mock_options.print_debug,
+        };
+        let instance =
+            Instance::from_code(CONTRACT, backend, options, mock_options.memory_limit).unwrap();
+        let mut dummy_env = instance.env;
+        let callee_address = Addr::unchecked(CALLEE_NAME_ADDR);
+        let target_func_info = FunctionMetadata {
+            module_name: CALLEE_NAME_ADDR.to_string(),
+            name: "foo".to_string(),
+            signature: ([Type::I32], []).into(),
+        };
 
-            let address_region =
-                prepare_dynamic_call_data(callee_address, target_func_info, &mut dummy_env);
+        let address_region =
+            prepare_dynamic_call_data(callee_address, target_func_info, &mut dummy_env);
 
-            b.iter(|| {
-                let _ = native_dynamic_link_trampoline_for_bench(
-                    &dummy_env,
-                    &[WasmerVal::I32(address_region as i32)],
-                )
-                .unwrap();
-            })
-        },
-    );
+        b.iter(|| {
+            let _ = native_dynamic_link_trampoline_for_bench(
+                &dummy_env,
+                &[WasmerVal::I32(address_region as i32)],
+            )
+            .unwrap();
+        })
+    });
 
     group.finish()
 }
