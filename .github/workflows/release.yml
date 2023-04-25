@@ -51,7 +51,7 @@ jobs:
         if: ${{ steps.get_version.outputs.version != steps.get_latest_tag.outputs.tag }}
         run: |
           echo "Building all contracts under ./contracts"
-          docker run --volumes-from with_code cosmwasm/rust-optimizer:0.12.5 ./contracts/*/
+          docker run --volumes-from with_code cosmwasm/rust-optimizer:0.12.9 ./contracts/*/
       - name: Check development contracts
         if: ${{ steps.get_version.outputs.version != steps.get_latest_tag.outputs.tag }}
         working-directory: ./
