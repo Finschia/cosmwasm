@@ -57,7 +57,7 @@ jobs:
         working-directory: ./
         run: |
           echo "Checking all contracts under ./artifacts"
-          docker run --volumes-from with_code rust:1.60.0 /bin/bash -e -c 'cd ./code/packages/vm; export GLOBIGNORE=../../artifacts/floaty.wasm; ./examples/check_contract.sh ../../artifacts/*.wasm'
+          docker run --volumes-from with_code rust:1.60.0 /bin/bash -e -c 'cd ./code/packages/check; export GLOBIGNORE=../../artifacts/floaty.wasm; cargo run ../../artifacts/*.wasm'
           docker cp with_code:/code/artifacts .
 
       - name: Create Release
