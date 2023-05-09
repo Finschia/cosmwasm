@@ -56,6 +56,8 @@ const SUPPORTED_INTERFACE_VERSIONS: &[&str] = &[
 
 const MEMORY_LIMIT: u32 = 512; // in pages
 
+const GET_PROPERTY_FUNCTION: &str = "_get_callable_points_properties";
+
 /// Checks if the data is valid wasm and compatibility with the CosmWasm API (imports and exports)
 pub fn check_wasm(wasm_code: &[u8], available_capabilities: &HashSet<String>) -> VmResult<()> {
     let module = deserialize_wasm(wasm_code)?;
@@ -142,6 +144,12 @@ fn check_wasm_exports(module: &Module) -> VmResult<()> {
                 required_export, REQUIRED_EXPORTS
             )));
         }
+    }
+    if !available_exports.contains(GET_PROPERTY_FUNCTION) {
+        return Err(VmError::static_validation_err(format!(
+            "Wasm contract doesn't have \"{}\". Exports required by VM: {:?}.",
+            GET_PROPERTY_FUNCTION, GET_PROPERTY_FUNCTION
+        )));
     }
     Ok(())
 }
