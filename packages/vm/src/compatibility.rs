@@ -178,16 +178,14 @@ fn check_wasm_exports(module: &Module) -> VmResult<()> {
 
     // The contract, which can be called the callee of a dynamic link, exports the callable_point functions.
     // In this case, we do a static check to see if _get_callable_points_properties also exports.
-    if available_exports
+    let has_non_default_cosmwasm_exports = available_exports
         .iter()
-        .any(|v| !SUPPORTED_COSMWASM_EXPORTS.contains(&v.as_str()))
-    {
-        if !available_exports.contains(GET_PROPERTY_FUNCTION) {
-            return Err(VmError::static_validation_err(format!(
-                "Wasm contract with callable_points must have \"{}\" as its export.",
-                GET_PROPERTY_FUNCTION
-            )));
-        }
+        .any(|v| !SUPPORTED_COSMWASM_EXPORTS.contains(&v.as_str()));
+    if has_non_default_cosmwasm_exports && !available_exports.contains(GET_PROPERTY_FUNCTION) {
+        return Err(VmError::static_validation_err(format!(
+            "Wasm contract with callable_points must have \"{}\" as its export.",
+            GET_PROPERTY_FUNCTION
+        )));
     }
 
     Ok(())
@@ -534,6 +532,7 @@ mod tests {
                 (type (func))
                 (func (type 0) nop)
                 (export "add_one" (func 0))
+                (export "_get_callable_points_properties" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
                 (export "instantiate" (func 0))
@@ -549,6 +548,7 @@ mod tests {
                 (type (func))
                 (func (type 0) nop)
                 (export "add_one" (func 0))
+                (export "_get_callable_points_properties" (func 0))
             )"#,
         )
         .unwrap();
@@ -567,6 +567,7 @@ mod tests {
                 (type (func))
                 (func (type 0) nop)
                 (export "add_one" (func 0))
+                (export "_get_callable_points_properties" (func 0))
                 (export "allocate" (func 0))
             )"#,
         )
@@ -576,6 +577,29 @@ mod tests {
             Err(VmError::StaticValidationErr { msg, .. }) => {
                 assert!(
                     msg.starts_with("Wasm contract doesn't have required export: \"deallocate\"")
+                );
+            }
+            Err(e) => panic!("Unexpected error {:?}", e),
+            Ok(_) => panic!("Didn't reject wasm with invalid api"),
+        }
+
+        // this is invalid, as it doesn't contain _get_callable_points_properties export
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        match check_wasm_exports(&module) {
+            Err(VmError::StaticValidationErr { msg, .. }) => {
+                assert!(
+                    msg.starts_with("Wasm contract with callable_points must have \"_get_callable_points_properties\" as its export.")
                 );
             }
             Err(e) => panic!("Unexpected error {:?}", e),
