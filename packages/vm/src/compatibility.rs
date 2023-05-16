@@ -56,6 +56,35 @@ const SUPPORTED_INTERFACE_VERSIONS: &[&str] = &[
 
 const MEMORY_LIMIT: u32 = 512; // in pages
 
+/// This is a list of functions that can be exported by default from CosmWasm.
+/// See packages/std/src/export.rs.
+const SUPPORTED_COSMWASM_EXPORTS: &[&str] = &[
+    "requires_iterator",
+    "requires_staking",
+    "requires_stargate",
+    "requires_cosmwasm_1_1",
+
+    "interface_version_8",
+    #[cfg(feature = "allow_interface_version_7")]
+    "interface_version_7",
+
+    "allocate",
+    "deallocate",
+    "instantiate",
+    "execute",
+    "migrate",
+    "sudo",
+    "reply",
+    "query",
+
+    "ibc_channel_open",
+    "ibc_channel_connect",
+    "ibc_channel_close",
+    "ibc_packet_receive",
+    "ibc_packet_ack",
+    "ibc_packet_timeout",
+];
+
 const GET_PROPERTY_FUNCTION: &str = "_get_callable_points_properties";
 
 /// Checks if the data is valid wasm and compatibility with the CosmWasm API (imports and exports)
@@ -145,12 +174,21 @@ fn check_wasm_exports(module: &Module) -> VmResult<()> {
             )));
         }
     }
+
+    // The contract, which can be called the callee of a dynamic link, exports the callable_point functions. 
+    // In this case, we do a static check to see if _get_callable_points_properties also exports.
+    if available_exports
+        .iter()
+        .any(|v| !SUPPORTED_COSMWASM_EXPORTS.contains(&v.as_str()))
+    {
     if !available_exports.contains(GET_PROPERTY_FUNCTION) {
         return Err(VmError::static_validation_err(format!(
-            "Wasm contract doesn't have \"{}\". Exports required by VM: {:?}.",
-            GET_PROPERTY_FUNCTION, GET_PROPERTY_FUNCTION
+                "Wasm contract with callable_points must have \"{}\" as its export.",
+                GET_PROPERTY_FUNCTION
         )));
     }
+    }
+
     Ok(())
 }
 
