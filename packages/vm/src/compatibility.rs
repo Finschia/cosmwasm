@@ -542,6 +542,21 @@ mod tests {
         let module = deserialize_wasm(&wasm).unwrap();
         check_wasm_exports(&module).unwrap();
 
+        // valid
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "_get_callable_points_properties" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        check_wasm_exports(&module).unwrap();
+
         // this is invalid, as it doesn't any required export
         let wasm = wat::parse_str(
             r#"(module
