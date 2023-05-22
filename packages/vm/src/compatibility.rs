@@ -531,8 +531,6 @@ mod tests {
             r#"(module
                 (type (func))
                 (func (type 0) nop)
-                (export "add_one" (func 0))
-                (export "_get_callable_points_properties" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
                 (export "instantiate" (func 0))
@@ -547,6 +545,7 @@ mod tests {
             r#"(module
                 (type (func))
                 (func (type 0) nop)
+                (export "add_one" (func 0))
                 (export "_get_callable_points_properties" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
