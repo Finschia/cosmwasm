@@ -56,6 +56,38 @@ const SUPPORTED_INTERFACE_VERSIONS: &[&str] = &[
 
 const MEMORY_LIMIT: u32 = 512; // in pages
 
+/// This is a list of functions that can be exported by default from CosmWasm.
+/// See packages/std/src/export.rs.
+const SUPPORTED_COSMWASM_EXPORTS: &[&str] = &[
+    // capabilities
+    "requires_iterator",
+    "requires_staking",
+    "requires_stargate",
+    "requires_cosmwasm_1_1",
+    // interface version
+    "interface_version_8",
+    #[cfg(feature = "allow_interface_version_7")]
+    "interface_version_7",
+    // entry point
+    "allocate",
+    "deallocate",
+    "instantiate",
+    "execute",
+    "migrate",
+    "sudo",
+    "reply",
+    "query",
+    // ibc(stargate feature)
+    "ibc_channel_open",
+    "ibc_channel_connect",
+    "ibc_channel_close",
+    "ibc_packet_receive",
+    "ibc_packet_ack",
+    "ibc_packet_timeout",
+];
+
+const GET_PROPERTY_FUNCTION: &str = "_get_callable_points_properties";
+
 /// Checks if the data is valid wasm and compatibility with the CosmWasm API (imports and exports)
 pub fn check_wasm(wasm_code: &[u8], available_capabilities: &HashSet<String>) -> VmResult<()> {
     let module = deserialize_wasm(wasm_code)?;
@@ -143,6 +175,19 @@ fn check_wasm_exports(module: &Module) -> VmResult<()> {
             )));
         }
     }
+
+    // The contract, which can be called the callee of a dynamic link, exports the callable_point functions.
+    // In this case, we do a static check to see if _get_callable_points_properties also exports.
+    let has_non_default_cosmwasm_exports = available_exports
+        .iter()
+        .any(|v| !SUPPORTED_COSMWASM_EXPORTS.contains(&v.as_str()));
+    if has_non_default_cosmwasm_exports && !available_exports.contains(GET_PROPERTY_FUNCTION) {
+        return Err(VmError::static_validation_err(format!(
+            "Wasm contract with callable_points must have \"{}\" as its export.",
+            GET_PROPERTY_FUNCTION
+        )));
+    }
+
     Ok(())
 }
 
@@ -486,7 +531,22 @@ mod tests {
             r#"(module
                 (type (func))
                 (func (type 0) nop)
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        check_wasm_exports(&module).unwrap();
+
+        // valid
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
                 (export "add_one" (func 0))
+                (export "_get_callable_points_properties" (func 0))
                 (export "allocate" (func 0))
                 (export "deallocate" (func 0))
                 (export "instantiate" (func 0))
@@ -502,6 +562,7 @@ mod tests {
                 (type (func))
                 (func (type 0) nop)
                 (export "add_one" (func 0))
+                (export "_get_callable_points_properties" (func 0))
             )"#,
         )
         .unwrap();
@@ -520,6 +581,7 @@ mod tests {
                 (type (func))
                 (func (type 0) nop)
                 (export "add_one" (func 0))
+                (export "_get_callable_points_properties" (func 0))
                 (export "allocate" (func 0))
             )"#,
         )
@@ -529,6 +591,29 @@ mod tests {
             Err(VmError::StaticValidationErr { msg, .. }) => {
                 assert!(
                     msg.starts_with("Wasm contract doesn't have required export: \"deallocate\"")
+                );
+            }
+            Err(e) => panic!("Unexpected error {:?}", e),
+            Ok(_) => panic!("Didn't reject wasm with invalid api"),
+        }
+
+        // this is invalid, as it doesn't contain _get_callable_points_properties export
+        let wasm = wat::parse_str(
+            r#"(module
+                (type (func))
+                (func (type 0) nop)
+                (export "add_one" (func 0))
+                (export "allocate" (func 0))
+                (export "deallocate" (func 0))
+                (export "instantiate" (func 0))
+            )"#,
+        )
+        .unwrap();
+        let module = deserialize_wasm(&wasm).unwrap();
+        match check_wasm_exports(&module) {
+            Err(VmError::StaticValidationErr { msg, .. }) => {
+                assert!(
+                    msg.starts_with("Wasm contract with callable_points must have \"_get_callable_points_properties\" as its export.")
                 );
             }
             Err(e) => panic!("Unexpected error {:?}", e),
