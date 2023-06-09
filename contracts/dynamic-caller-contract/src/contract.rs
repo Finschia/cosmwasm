@@ -31,9 +31,11 @@ trait Callee: Contract {
     fn pong_with_tuple(&self, input: (String, i32)) -> (String, i32);
     fn pong_with_tuple_takes_2_args(&self, input1: String, input2: i32) -> (String, i32);
     fn pong_env(&self) -> Env;
-    fn reentrancy(&self, addr: Addr);
+    fn reentrancy(&self);
     fn do_nothing(&self);
     fn do_panic(&self);
+    fn caller_address(&self) -> Addr;
+    fn call_caller_address_of(&self, addr: Addr) -> Addr;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -61,7 +63,7 @@ impl Callee for CalleeContract {
         cosmwasm_std::testing::mock_env()
     }
 
-    fn reentrancy(&self, _addr: Addr) {
+    fn reentrancy(&self) {
         panic!()
     }
 
@@ -69,6 +71,14 @@ impl Callee for CalleeContract {
 
     fn do_panic(&self) {
         panic!()
+    }
+
+    fn caller_address(&self) -> Addr {
+        cosmwasm_std::testing::mock_env().contract.address
+    }
+
+    fn call_caller_address_of(&self, _target: Addr) -> Addr {
+        self.get_address()
     }
 
     fn validate_interface(&self, _deps: Deps) -> cosmwasm_std::StdResult<()> {
@@ -105,6 +115,9 @@ pub fn execute(
         ExecuteMsg::DoPanic {} => try_do_panic(deps, env),
         ExecuteMsg::ValidateInterface {} => try_validate_interface(deps.as_ref(), env),
         ExecuteMsg::ValidateInterfaceErr {} => try_validate_interface_err(deps.as_ref(), env),
+        ExecuteMsg::CallCallerAddressOf { target } => {
+            try_call_caller_address_of(deps.as_ref(), env, target)
+        }
     }
 }
 
@@ -124,6 +137,7 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
     let tuple_ret = contract.pong_with_tuple((String::from("hello"), 41));
     let tuple_ret2 = contract.pong_with_tuple_takes_2_args(String::from("hello"), 41);
     contract.do_nothing();
+    let my_addr = contract.caller_address();
 
     let res = Response::default()
         .add_attribute("returned_pong", pong_ret.to_string())
@@ -139,12 +153,13 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
         .add_attribute(
             "returned_contract_address",
             contract.pong_env().contract.address.to_string(),
-        );
+        )
+        .add_attribute("returned_caller_address", my_addr.to_string());
 
     Ok(res)
 }
 
-pub fn try_re_entrancy(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+pub fn try_re_entrancy(deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
     // It will be tried to call the should_never_be_called function below.
     // But, should be blocked by VM host side normally because it's a reentrancy case.
     let address = from_slice(
@@ -154,7 +169,7 @@ pub fn try_re_entrancy(deps: DepsMut, env: Env) -> Result<Response, ContractErro
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
     )?;
     let contract = CalleeContract { address };
-    contract.reentrancy(env.contract.address);
+    contract.reentrancy();
     Ok(Response::default())
 }
 
@@ -201,6 +216,29 @@ pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, Con
     Ok(Response::default())
 }
 
+// check the caller_address works
+pub fn try_call_caller_address_of(
+    deps: Deps,
+    _env: Env,
+    target: Addr,
+) -> Result<Response, ContractError> {
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(b"dynamic_callee_contract")
+            .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
+    )?;
+    let contract = CalleeContract {
+        address: address.clone(),
+    };
+    let result_addr = contract.call_caller_address_of(target);
+
+    let res =
+        Response::default().add_attribute("is_as_expected", (result_addr == address).to_string());
+
+    Ok(res)
+}
+
 #[callable_points]
 mod callable_points {
     use super::*;
@@ -245,7 +283,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(5, res.attributes.len());
+        assert_eq!(6, res.attributes.len());
 
         // returned pong
         assert_eq!("returned_pong", res.attributes[0].key);
@@ -279,5 +317,15 @@ mod tests {
                 .to_string(),
             res.attributes[4].value
         );
+
+        // returned_caller_address
+        assert_eq!("returned_caller_address", res.attributes[5].key);
+        assert_eq!(
+            cosmwasm_std::testing::mock_env()
+                .contract
+                .address
+                .to_string(),
+            res.attributes[5].value
+        )
     }
 }

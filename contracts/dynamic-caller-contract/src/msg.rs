@@ -15,6 +15,7 @@ pub enum ExecuteMsg {
     DoPanic {},
     ValidateInterface {},
     ValidateInterfaceErr {},
+    CallCallerAddressOf { target: Addr },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

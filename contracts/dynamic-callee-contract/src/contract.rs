@@ -37,13 +37,14 @@ pub struct ExampleStruct {
 }
 
 #[derive(Contract)]
-struct Caller {
+struct Callee {
     address: Addr,
 }
 
-#[dynamic_link(Caller)]
-trait ReEntrance: Contract {
+#[dynamic_link(Callee)]
+trait Child: Contract {
     fn should_never_be_called(&self);
+    fn caller_address(&self) -> Addr;
 }
 
 #[callable_points]
@@ -92,8 +93,20 @@ mod callable_points {
     }
 
     #[callable_point]
-    fn reentrancy(_deps: Deps, _env: Env, address: Addr) {
-        let caller = Caller { address };
-        caller.should_never_be_called()
+    fn reentrancy(_deps: Deps, env: Env) {
+        let address = env.contract.address;
+        let me = Callee { address };
+        me.should_never_be_called()
+    }
+
+    #[callable_point]
+    fn caller_address(deps: Deps, _env: Env) -> Addr {
+        deps.api.get_caller_addr().unwrap()
+    }
+
+    #[callable_point]
+    fn call_caller_address_of(_deps: Deps, _env: Env, address: Addr) -> Addr {
+        let child = Callee { address };
+        child.caller_address()
     }
 }
