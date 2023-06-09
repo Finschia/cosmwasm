@@ -13,8 +13,8 @@ use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::imports::{
     do_abort, do_add_attribute, do_add_attributes, do_add_event, do_add_events,
     do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
-    do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_query_chain,
-    do_secp256k1_recover_pubkey, do_secp256k1_verify, do_sha1_calculate,
+    do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_get_caller_addr,
+    do_query_chain, do_secp256k1_recover_pubkey, do_secp256k1_verify, do_sha1_calculate,
 };
 #[cfg(feature = "iterator")]
 use crate::imports::{do_db_next, do_db_scan};
@@ -265,6 +265,12 @@ where
         env_imports.insert(
             "add_attributes",
             Function::new_native_with_env(store, env.clone(), do_add_attributes),
+        );
+
+        // Returns caller address if it is a callee of the dynamic link
+        env_imports.insert(
+            "get_caller_addr",
+            Function::new_native_with_env(store, env.clone(), do_get_caller_addr),
         );
 
         import_obj.register("env", env_imports);

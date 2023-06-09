@@ -95,6 +95,10 @@ extern "C" {
     /// Executes a query on the chain (import). Not to be confused with the
     /// query export, which queries the state of the contract.
     fn query_chain(request: u32) -> u32;
+
+    /// Returns the caller address if it is a callee of dynamic link.
+    /// If it is not a callee, returns 0.
+    fn get_caller_addr() -> u32;
 }
 
 /// A stateless convenience wrapper around database imports provided by the VM.
@@ -475,6 +479,19 @@ impl Api for ExternalApi {
             )));
         };
         Ok(())
+    }
+
+    fn get_caller_addr(&self) -> StdResult<Addr> {
+        let result = unsafe { get_caller_addr() };
+        if result == 0 {
+            return Err(StdError::generic_err(format!(
+                "get_caller_addr errored: it is not a callee."
+            )));
+        };
+        let value_ptr = result as *mut Region;
+        let addr_data = unsafe { consume_region(value_ptr) };
+        let addr: Addr = from_slice(&addr_data)?;
+        Ok(addr)
     }
 
     fn debug(&self, message: &str) {
