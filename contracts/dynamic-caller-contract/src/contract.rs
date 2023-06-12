@@ -234,7 +234,7 @@ pub fn try_call_caller_address_of(
     let result_addr = contract.call_caller_address_of(target);
 
     let res =
-        Response::default().add_attribute("is_as_expected", (result_addr == address).to_string());
+        Response::default().add_attribute("call_caller_address_is_as_expected", (result_addr == address).to_string());
 
     Ok(res)
 }
