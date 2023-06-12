@@ -248,6 +248,10 @@ impl Api for MockApi {
     fn add_attributes(&self, _attributes: &[Attribute]) -> StdResult<()> {
         Ok(())
     }
+
+    fn get_caller_addr(&self) -> StdResult<Addr> {
+        Err(StdError::generic_err("This cannot be used in mock"))
+    }
 }
 
 /// Returns a default enviroment with height, time, chain_id, and contract address

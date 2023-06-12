@@ -525,6 +525,22 @@ pub fn do_query_chain<A: BackendApi, S: Storage, Q: Querier>(
     write_to_contract::<A, S, Q>(env, &serialized)
 }
 
+pub fn do_get_caller_addr<A: BackendApi, S: Storage, Q: Querier>(
+    env: &Environment<A, S, Q>,
+) -> VmResult<u32> {
+    // get dynamic callstack gets callstack including this contract
+    let callstack = env.get_dynamic_callstack()?;
+
+    // if callerstack's length < 2, it is a singleton of the self address
+    // and the contract is not a callee.
+    if callstack.len() < 2 {
+        return Ok(0);
+    }
+    let caller_addr_index = callstack.len() - 2;
+    let serialized = to_vec(&callstack[caller_addr_index])?;
+    write_to_contract::<A, S, Q>(env, &serialized)
+}
+
 #[cfg(feature = "iterator")]
 pub fn do_db_scan<A: BackendApi, S: Storage, Q: Querier>(
     env: &Environment<A, S, Q>,
@@ -585,8 +601,9 @@ fn to_low_half(data: u32) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{
-        coins, from_binary, AllBalanceResponse, BankQuery, Binary, Empty, QueryRequest,
+        coins, from_binary, Addr, AllBalanceResponse, BankQuery, Binary, Empty, QueryRequest,
         SystemError, SystemResult, WasmQuery,
     };
     use hex_literal::hex;
@@ -1839,6 +1856,35 @@ mod tests {
             }
             SystemResult::Err(err) => panic!("Unexpected error: {:?}", err),
         }
+    }
+
+    #[test]
+    fn do_get_caller_addr_works() {
+        let api = MockApi::default();
+        let (env, _instance) = make_instance(api);
+        let addr1 = Addr::unchecked("caller1");
+        let addr2 = Addr::unchecked("caller2");
+        let addr3 = Addr::unchecked("caller3");
+        let std_env_bin = to_vec(&mock_env()).unwrap();
+        env.set_serialized_env(&std_env_bin);
+        env.set_dynamic_callstack(vec![addr1, addr2, addr3.clone()])
+            .unwrap();
+
+        let caller_addr_ptr = do_get_caller_addr(&env).unwrap();
+        let caller_addr_bin = force_read(&env, caller_addr_ptr);
+        let caller_addr: Addr = from_slice(&caller_addr_bin, usize::MAX).unwrap();
+        assert_eq!(caller_addr, addr3);
+    }
+
+    #[test]
+    fn do_get_caller_addr_returns_ok_0_when_it_is_not_a_caller() {
+        let api = MockApi::default();
+        let (env, _instance) = make_instance(api);
+        let std_env_bin = to_vec(&mock_env()).unwrap();
+        env.set_serialized_env(&std_env_bin);
+        env.set_dynamic_callstack(vec![]).unwrap();
+        let ptr = do_get_caller_addr(&env).unwrap();
+        assert_eq!(ptr, 0);
     }
 
     #[test]

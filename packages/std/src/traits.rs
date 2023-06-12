@@ -160,6 +160,9 @@ pub trait Api {
 
     /// This issues attributes to the event manager in the context data
     fn add_attributes(&self, attributes: &[Attribute]) -> StdResult<()>;
+
+    /// Returns the caller address if it is a callee of dynamic link
+    fn get_caller_addr(&self) -> StdResult<Addr>;
 }
 
 /// A short-hand alias for the two-level query result (1. accessing the contract, 2. executing query in the contract)

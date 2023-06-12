@@ -43,6 +43,21 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
             module_name.to_string(),
             ([Type::I32], []).into(),
         ),
+        (
+            String::from("reentrancy"),
+            module_name.to_string(),
+            ([Type::I32], []).into(),
+        ),
+        (
+            String::from("caller_address"),
+            module_name.to_string(),
+            ([Type::I32], [Type::I32]).into(),
+        ),
+        (
+            String::from("call_caller_address_of"),
+            module_name.to_string(),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
     ]
 }
 

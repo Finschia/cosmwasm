@@ -27,6 +27,7 @@ const SUPPORTED_IMPORTS: &[&str] = &[
     "env.add_events",
     "env.add_attribute",
     "env.add_attributes",
+    "env.get_caller_addr",
     "env.debug",
     "env.query_chain",
     #[cfg(feature = "iterator")]
