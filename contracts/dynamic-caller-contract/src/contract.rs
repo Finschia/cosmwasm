@@ -24,6 +24,8 @@ struct CalleeContract {
     address: Addr,
 }
 
+// When `user_defined_mock = true`, user can and must write mock implement
+// of the trait for specified struct with `#[cfg(not(target_arch = "wasm32"))]`.
 #[dynamic_link(CalleeContract, user_defined_mock = true)]
 trait Callee: Contract {
     fn pong(&self, ping_num: u64) -> u64;
@@ -38,6 +40,7 @@ trait Callee: Contract {
     fn call_caller_address_of(&self, addr: Addr) -> Addr;
 }
 
+// This is the mock implementation specified by `#[cfg(not(target_arch = "wasm32"))]`.
 #[cfg(not(target_arch = "wasm32"))]
 impl Callee for CalleeContract {
     fn pong(&self, ping_num: u64) -> u64 {
