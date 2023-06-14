@@ -1,12 +1,12 @@
 use cosmwasm_std::{
-    callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Contract, Deps, DepsMut,
-    Env, MessageInfo, Response, Uint128,
+    callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Binary, Contract, Deps,
+    DepsMut, Env, MessageInfo, Response, Uint128,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 #[derive(Serialize, Deserialize)]
 pub struct ExampleStruct {
@@ -239,6 +239,31 @@ pub fn try_call_caller_address_of(
     );
 
     Ok(res)
+}
+
+#[entry_point]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
+    match msg {
+        QueryMsg::GetOwnAddressViaCalleesGetCallerAddress {} => {
+            get_own_address_via_callees_get_caller_address(deps, env)
+        }
+    }
+}
+
+fn get_own_address_via_callees_get_caller_address(
+    deps: Deps,
+    _env: Env,
+) -> Result<Binary, ContractError> {
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(b"dynamic_callee_contract")
+            .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
+    )?;
+    let contract = CalleeContract {
+        address: address.clone(),
+    };
+    Ok(Binary(to_vec(&contract.caller_address())?))
 }
 
 #[callable_points]
