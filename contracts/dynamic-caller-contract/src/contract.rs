@@ -260,9 +260,7 @@ fn get_own_address_via_callees_get_caller_address(
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
     )?;
-    let contract = CalleeContract {
-        address: address.clone(),
-    };
+    let contract = CalleeContract { address };
     Ok(Binary(to_vec(&contract.caller_address())?))
 }
 
