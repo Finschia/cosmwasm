@@ -89,11 +89,6 @@ mod callable_points {
     }
 
     #[callable_point]
-    fn pong_with_stdresult(_deps: Deps, _env: Env, x: u64) -> StdResult<u64> {
-        Ok(x + 100)
-    }
-
-    #[callable_point]
     fn pong_env(_deps: Deps, env: Env) -> Env {
         env
     }
@@ -122,5 +117,10 @@ mod callable_points {
     fn call_caller_address_of(_deps: Deps, _env: Env, address: Addr) -> Addr {
         let callee = Callee { address };
         callee.caller_address()
+    }
+
+    #[callable_point]
+    fn pong_with_stdresult(_deps: Deps, _env: Env, x: u64) -> StdResult<u64> {
+        Ok(x + 100)
     }
 }

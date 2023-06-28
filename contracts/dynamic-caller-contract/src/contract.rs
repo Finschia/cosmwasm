@@ -30,13 +30,13 @@ trait Callee: Contract {
     fn pong_with_struct(&self, example: ExampleStruct) -> ExampleStruct;
     fn pong_with_tuple(&self, input: (String, i32)) -> (String, i32);
     fn pong_with_tuple_takes_2_args(&self, input1: String, input2: i32) -> (String, i32);
-    fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64>;
     fn pong_env(&self) -> Env;
     fn reentrancy(&self);
     fn do_nothing(&self);
     fn do_panic(&self);
     fn caller_address(&self) -> Addr;
     fn call_caller_address_of(&self, addr: Addr) -> Addr;
+    fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64>;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -58,10 +58,6 @@ impl Callee for CalleeContract {
 
     fn pong_with_tuple_takes_2_args(&self, input1: String, input2: i32) -> (String, i32) {
         (input1 + " world", input2 + 1)
-    }
-
-    fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64> {
-        Ok(ping_num + 100)
     }
 
     fn pong_env(&self) -> Env {
@@ -88,6 +84,10 @@ impl Callee for CalleeContract {
 
     fn validate_interface(&self, _deps: Deps) -> cosmwasm_std::StdResult<()> {
         Ok(())
+    }
+
+    fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64> {
+        Ok(ping_num + 100)
     }
 }
 
@@ -141,9 +141,9 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
     });
     let tuple_ret = contract.pong_with_tuple((String::from("hello"), 41));
     let tuple_ret2 = contract.pong_with_tuple_takes_2_args(String::from("hello"), 41);
-    let stdresult_ret = contract.pong_with_stdresult(ping_num.u128() as u64);
     contract.do_nothing();
     let my_addr = contract.caller_address();
+    let stdresult_ret = contract.pong_with_stdresult(ping_num.u128() as u64);
 
     let res = Response::default()
         .add_attribute("returned_pong", pong_ret.to_string())
@@ -156,12 +156,12 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
             "returned_pong_with_tuple_takes_2_args",
             format!("({}, {})", tuple_ret2.0, tuple_ret2.1),
         )
-        .add_attribute("returned_pong_with_stdresult", stdresult_ret.to_string())
         .add_attribute(
             "returned_contract_address",
             contract.pong_env().contract.address.to_string(),
         )
-        .add_attribute("returned_caller_address", my_addr.to_string());
+        .add_attribute("returned_caller_address", my_addr.to_string()
+        .add_attribute("returned_pong_with_stdresult", stdresult_ret.unwarp()));
 
     Ok(res)
 }
@@ -359,5 +359,9 @@ mod tests {
                 .to_string(),
             res.attributes[5].value
         )
+
+        // returned pong_with_stdresult
+        assert_eq!("returned_pong_with_stdresult", res.attributes[6].key);
+        assert_eq!("15=41", res.attributes[6].value);
     }
 }
