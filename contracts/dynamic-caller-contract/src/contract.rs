@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Binary, Contract, Deps,
-    DepsMut, Env, MessageInfo, Response, Uint128, StdResult,
+    DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
