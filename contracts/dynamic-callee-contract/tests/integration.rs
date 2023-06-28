@@ -29,10 +29,6 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             String::from("pong_with_tuple_takes_2_args"),
             ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
         ),
-        (
-            String::from("pong_with_stdresult"),
-            ([Type::I32, Type::I32], [Type::I32]).into(),
-        ),
         (String::from("pong_env"), ([Type::I32], [Type::I32]).into()),
         (String::from("do_panic"), ([Type::I32], []).into()),
         (
@@ -46,6 +42,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
         (String::from("reentrancy"), ([Type::I32], []).into()),
         (
             String::from("call_caller_address_of"),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
+        (
+            String::from("pong_with_stdresult"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
     ]
@@ -259,4 +259,27 @@ fn callable_point_do_panic_raises_runtime_error() {
         }
         e => panic!("Unexpected error: {:?}", e),
     }
+}
+
+#[test]
+fn callable_point_pong_with_stdresult_works() {
+    let instance = make_callee_instance();
+    let env = to_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
+
+    let serialized_param = to_vec(&10u64).unwrap();
+    let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
+
+    let required_exports = required_exports();
+    let export_index = 0;
+    assert_eq!("pong_with_stdresult".to_string(), required_exports[export_index].0);
+    let call_result = instance
+        .call_function("pong_with_stdresult", &[env_region_ptr.into(), param_region_ptr.into()])
+        .unwrap();
+    assert_eq!(call_result.len(), 1);
+
+    let serialized_return =
+        read_data_from_mock_env(&instance.env, &call_result[0], u32::MAX as usize).unwrap();
+    let result: u64 = from_slice(&serialized_return).unwrap();
+    assert_eq!(result, 110u64);
 }

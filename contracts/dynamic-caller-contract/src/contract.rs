@@ -161,7 +161,7 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
             contract.pong_env().contract.address.to_string(),
         )
         .add_attribute("returned_caller_address", my_addr.to_string())
-        .add_attribute("returned_pong_with_stdresult", stdresult_ret.unwarp());
+        .add_attribute("returned_pong_with_stdresult", stdresult_ret.wrap());
 
     Ok(res)
 }
