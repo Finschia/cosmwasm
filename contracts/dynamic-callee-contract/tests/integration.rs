@@ -273,13 +273,12 @@ fn callable_point_pong_with_stdresult_works() {
     let required_exports = required_exports();
     let export_index = 10;
     assert_eq!(
-        "pong_with_stdresult".to_string(), 
+        "pong_with_stdresult".to_string(),
         required_exports[export_index].0
     );
     let call_result = instance
-        .call_function(
-            "pong_with_stdresult", 
-            &[env_region_ptr.into(), param_region_ptr.into()]
+        .call_function("pong_with_stdresult",
+            &[env_region_ptr.into(), param_region_ptr.into()],
         )
         .unwrap();
     assert_eq!(call_result.len(), 1);
