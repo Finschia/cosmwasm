@@ -3,10 +3,12 @@ use std::backtrace::Backtrace;
 use std::fmt::Debug;
 use thiserror::Error;
 
+use serde::{Deserialize, Serialize};
+
 #[cfg(not(target_arch = "wasm32"))]
 use cosmwasm_crypto::CryptoError;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum VerificationError {
     #[error("Batch error")]
     BatchErr,

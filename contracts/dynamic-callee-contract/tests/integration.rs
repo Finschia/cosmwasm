@@ -29,6 +29,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             String::from("pong_with_tuple_takes_2_args"),
             ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
         ),
+        (
+            String::from("pong_with_stdresult"),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
         (String::from("pong_env"), ([Type::I32], [Type::I32]).into()),
         (String::from("do_panic"), ([Type::I32], []).into()),
         (

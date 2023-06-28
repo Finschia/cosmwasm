@@ -5,7 +5,9 @@ use std::backtrace::Backtrace;
 use std::fmt::Debug;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum RecoverPubkeyError {
     #[error("Invalid hash format")]
     InvalidHashFormat,

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Binary, Contract, Deps,
-    DepsMut, Env, MessageInfo, Response, Uint128,
+    DepsMut, Env, MessageInfo, Response, Uint128, StdResult,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -30,6 +30,7 @@ trait Callee: Contract {
     fn pong_with_struct(&self, example: ExampleStruct) -> ExampleStruct;
     fn pong_with_tuple(&self, input: (String, i32)) -> (String, i32);
     fn pong_with_tuple_takes_2_args(&self, input1: String, input2: i32) -> (String, i32);
+    fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64>;
     fn pong_env(&self) -> Env;
     fn reentrancy(&self);
     fn do_nothing(&self);
@@ -57,6 +58,10 @@ impl Callee for CalleeContract {
 
     fn pong_with_tuple_takes_2_args(&self, input1: String, input2: i32) -> (String, i32) {
         (input1 + " world", input2 + 1)
+    }
+
+    fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64> {
+        Ok(ping_num + 100)
     }
 
     fn pong_env(&self) -> Env {
@@ -136,6 +141,7 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
     });
     let tuple_ret = contract.pong_with_tuple((String::from("hello"), 41));
     let tuple_ret2 = contract.pong_with_tuple_takes_2_args(String::from("hello"), 41);
+    let stdresult_ret = contract.pong_with_stdresult(ping_num.u128() as u64);
     contract.do_nothing();
     let my_addr = contract.caller_address();
 
@@ -150,6 +156,7 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
             "returned_pong_with_tuple_takes_2_args",
             format!("({}, {})", tuple_ret2.0, tuple_ret2.1),
         )
+        .add_attribute("returned_pong_with_stdresult", stdresult_ret.to_string())
         .add_attribute(
             "returned_contract_address",
             contract.pong_env().contract.address.to_string(),
