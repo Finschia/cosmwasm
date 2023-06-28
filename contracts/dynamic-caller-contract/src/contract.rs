@@ -160,8 +160,8 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
             "returned_contract_address",
             contract.pong_env().contract.address.to_string(),
         )
-        .add_attribute("returned_caller_address", my_addr.to_string()
-        .add_attribute("returned_pong_with_stdresult", stdresult_ret.unwarp()));
+        .add_attribute("returned_caller_address", my_addr.to_string())
+        .add_attribute("returned_pong_with_stdresult", stdresult_ret.unwarp());
 
     Ok(res)
 }
@@ -362,6 +362,6 @@ mod tests {
 
         // returned pong_with_stdresult
         assert_eq!("returned_pong_with_stdresult", res.attributes[6].key);
-        assert_eq!("15=41", res.attributes[6].value);
+        assert_eq!("141", res.attributes[6].value);
     }
 }
