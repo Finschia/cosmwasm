@@ -271,7 +271,7 @@ fn callable_point_pong_with_stdresult_works() {
     let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
 
     let required_exports = required_exports();
-    let export_index = 0;
+    let export_index = 10;
     assert_eq!(
         "pong_with_stdresult".to_string(), 
         required_exports[export_index].0
