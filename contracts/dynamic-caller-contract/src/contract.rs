@@ -358,7 +358,7 @@ mod tests {
                 .address
                 .to_string(),
             res.attributes[5].value
-        )
+        );
 
         // returned pong_with_stdresult
         assert_eq!("returned_pong_with_stdresult", res.attributes[6].key);
