@@ -515,12 +515,6 @@ impl From<DivideByZeroError> for StdError {
     }
 }
 
-// impl From<ConversionOverflowError> for StdError {
-//     fn from(source: ConversionOverflowError) -> Self {
-//         Self::conversion_overflow(source)
-//     }
-// }
-
 /// The return type for init, execute and query. Since the error type cannot be serialized to JSON,
 /// this is only available within the contract and its unit tests.
 ///
