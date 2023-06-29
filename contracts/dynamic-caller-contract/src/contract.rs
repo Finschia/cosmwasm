@@ -37,6 +37,7 @@ trait Callee: Contract {
     fn caller_address(&self) -> Addr;
     fn call_caller_address_of(&self, addr: Addr) -> Addr;
     fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64>;
+    fn pong_with_stdresult_err(&self) -> StdResult<u64>;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
