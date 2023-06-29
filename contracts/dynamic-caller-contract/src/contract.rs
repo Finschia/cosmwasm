@@ -144,6 +144,7 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
     contract.do_nothing();
     let my_addr = contract.caller_address();
     let stdresult_ret = contract.pong_with_stdresult(ping_num.u128() as u64);
+    let sdtresult_err_ret = contract.pong_with_stdresult_err();
 
     let res = Response::default()
         .add_attribute("returned_pong", pong_ret.to_string())
@@ -164,6 +165,10 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
         .add_attribute(
             "returned_pong_with_stdresult",
             stdresult_ret.unwrap().to_string(),
+        )
+        .add_attribute(
+            "returned_pong_with_stdresult_err",
+            sdtresult_err_ret.unwrap_err().to_string(),
         );
 
     Ok(res)
@@ -366,5 +371,9 @@ mod tests {
         // returned pong_with_stdresult
         assert_eq!("returned_pong_with_stdresult", res.attributes[6].key);
         assert_eq!("141", res.attributes[6].value);
+
+        // returned pong_with_stdresult_err
+        assert_eq!("returned_pong_with_stdresult_err", res.attributes[7].key);
+        assert_eq!("pong_with_stdresult_err", res.attributes[7].value);
     }
 }

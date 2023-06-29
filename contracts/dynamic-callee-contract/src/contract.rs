@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     callable_points, dynamic_link, entry_point, Addr, Contract, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult,
+    Response, StdError, StdResult,
 };
 use serde::{Deserialize, Serialize};
 
@@ -122,5 +122,10 @@ mod callable_points {
     #[callable_point]
     fn pong_with_stdresult(_deps: Deps, _env: Env, x: u64) -> StdResult<u64> {
         Ok(x + 100)
+    }
+
+    #[callable_point]
+    fn pong_with_stdresult_err(_deps: Deps, _env: Env) -> StdResult<u64> {
+        Err(StdError::generic_err("pong_with_stdresult_err"))
     }
 }
