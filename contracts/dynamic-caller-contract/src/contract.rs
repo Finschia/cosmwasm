@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Binary, Contract, Deps,
-    DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -89,6 +89,10 @@ impl Callee for CalleeContract {
 
     fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64> {
         Ok(ping_num + 100)
+    }
+
+    fn pong_with_stdresult_err(&self) -> StdResult<u64> {
+        Err(StdError::generic_err("pong_with_stdresult_err"))
     }
 }
 
