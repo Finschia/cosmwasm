@@ -328,7 +328,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(7, res.attributes.len());
+        assert_eq!(8, res.attributes.len());
 
         // returned pong
         assert_eq!("returned_pong", res.attributes[0].key);
