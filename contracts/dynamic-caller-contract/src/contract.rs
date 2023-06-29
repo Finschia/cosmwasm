@@ -83,7 +83,7 @@ impl Callee for CalleeContract {
         self.get_address()
     }
 
-    fn validate_interface(&self, _deps: Deps) -> cosmwasm_std::StdResult<()> {
+    fn validate_interface(&self, _deps: Deps) -> StdResult<()> {
         Ok(())
     }
 

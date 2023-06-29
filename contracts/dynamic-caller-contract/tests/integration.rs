@@ -29,11 +29,6 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
             ([Type::I32, Type::I32, Type::I32], [Type::I32]).into(),
         ),
         (
-            String::from("pong_with_stdresult"),
-            module_name.to_string(),
-            ([Type::I32, Type::I32], [Type::I32]).into(),
-        ),
-        (
             String::from("pong_env"),
             module_name.to_string(),
             ([Type::I32], [Type::I32]).into(),
@@ -62,6 +57,16 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
             String::from("call_caller_address_of"),
             module_name.to_string(),
             ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
+        (
+            String::from("pong_with_stdresult"),
+            module_name.to_string(),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
+        (
+            String::from("pong_with_stdresult_err"),
+            module_name.to_string(),
+            ([Type::I32], [Type::I32]).into(),
         ),
     ]
 }

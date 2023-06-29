@@ -48,6 +48,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
             String::from("pong_with_stdresult"),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
+        (
+            String::from("pong_with_stdresult_err"),
+            ([Type::I32], [Type::I32]).into(),
+        ),
     ]
 }
 
