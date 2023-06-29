@@ -379,6 +379,9 @@ mod tests {
 
         // returned pong_with_stdresult_err
         assert_eq!("returned_pong_with_stdresult_err", res.attributes[7].key);
-        assert_eq!("Generic error: pong_with_stdresult_err", res.attributes[7].value);
+        assert_eq!(
+            "Generic error: pong_with_stdresult_err",
+            res.attributes[7].value
+        );
     }
 }
