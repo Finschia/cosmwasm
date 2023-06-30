@@ -226,14 +226,6 @@ impl StdError {
             backtrace: Backtrace::capture(),
         }
     }
-
-    pub fn conversion_overflow(source: ConversionOverflowError) -> Self {
-        StdError::ConversionOverflow {
-            source,
-            #[cfg(feature = "backtraces")]
-            backtrace: Backtrace::capture(),
-        }
-    }
 }
 
 impl PartialEq<StdError> for StdError {
