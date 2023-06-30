@@ -1,7 +1,11 @@
 use cosmwasm_std::{
     callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Binary, Contract, Deps,
-    DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
+    DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use cosmwasm_std::StdError;
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
