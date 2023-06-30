@@ -1,7 +1,11 @@
 use cosmwasm_std::{
     callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Binary, Contract, Deps,
-    DepsMut, Env, MessageInfo, Response, Uint128,
+    DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use cosmwasm_std::StdError;
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -36,6 +40,8 @@ trait Callee: Contract {
     fn do_panic(&self);
     fn caller_address(&self) -> Addr;
     fn call_caller_address_of(&self, addr: Addr) -> Addr;
+    fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64>;
+    fn pong_with_stdresult_err(&self) -> StdResult<u64>;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -81,8 +87,16 @@ impl Callee for CalleeContract {
         self.get_address()
     }
 
-    fn validate_interface(&self, _deps: Deps) -> cosmwasm_std::StdResult<()> {
+    fn validate_interface(&self, _deps: Deps) -> StdResult<()> {
         Ok(())
+    }
+
+    fn pong_with_stdresult(&self, ping_num: u64) -> StdResult<u64> {
+        Ok(ping_num + 100)
+    }
+
+    fn pong_with_stdresult_err(&self) -> StdResult<u64> {
+        Err(StdError::generic_err("pong_with_stdresult_err"))
     }
 }
 
@@ -138,6 +152,8 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
     let tuple_ret2 = contract.pong_with_tuple_takes_2_args(String::from("hello"), 41);
     contract.do_nothing();
     let my_addr = contract.caller_address();
+    let stdresult_ret = contract.pong_with_stdresult(ping_num.u128() as u64);
+    let sdtresult_err_ret = contract.pong_with_stdresult_err();
 
     let res = Response::default()
         .add_attribute("returned_pong", pong_ret.to_string())
@@ -154,7 +170,15 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
             "returned_contract_address",
             contract.pong_env().contract.address.to_string(),
         )
-        .add_attribute("returned_caller_address", my_addr.to_string());
+        .add_attribute("returned_caller_address", my_addr.to_string())
+        .add_attribute(
+            "returned_pong_with_stdresult",
+            stdresult_ret.unwrap().to_string(),
+        )
+        .add_attribute(
+            "returned_pong_with_stdresult_err",
+            sdtresult_err_ret.unwrap_err().to_string(),
+        );
 
     Ok(res)
 }
@@ -308,7 +332,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert_eq!(6, res.attributes.len());
+        assert_eq!(8, res.attributes.len());
 
         // returned pong
         assert_eq!("returned_pong", res.attributes[0].key);
@@ -351,6 +375,17 @@ mod tests {
                 .address
                 .to_string(),
             res.attributes[5].value
-        )
+        );
+
+        // returned pong_with_stdresult
+        assert_eq!("returned_pong_with_stdresult", res.attributes[6].key);
+        assert_eq!("141", res.attributes[6].value);
+
+        // returned pong_with_stdresult_err
+        assert_eq!("returned_pong_with_stdresult_err", res.attributes[7].key);
+        assert_eq!(
+            "Generic error: pong_with_stdresult_err",
+            res.attributes[7].value
+        );
     }
 }

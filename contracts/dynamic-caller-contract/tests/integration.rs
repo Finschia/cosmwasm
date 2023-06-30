@@ -58,6 +58,16 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
             module_name.to_string(),
             ([Type::I32, Type::I32], [Type::I32]).into(),
         ),
+        (
+            String::from("pong_with_stdresult"),
+            module_name.to_string(),
+            ([Type::I32, Type::I32], [Type::I32]).into(),
+        ),
+        (
+            String::from("pong_with_stdresult_err"),
+            module_name.to_string(),
+            ([Type::I32], [Type::I32]).into(),
+        ),
     ]
 }
 
