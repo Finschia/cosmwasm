@@ -25,7 +25,7 @@ struct CalleeContract {
 }
 
 // When `user_defined_mock = true`, user can and must write mock implement
-// with `#[cfg(not(target_arch = "wasm32"))]` for test of the trait for specified struct .
+// with `#[cfg(not(target_arch = "wasm32"))]` for test of the trait for specified struct.
 #[dynamic_link(CalleeContract, user_defined_mock = true)]
 trait Callee: Contract {
     fn pong(&self, ping_num: u64) -> u64;
