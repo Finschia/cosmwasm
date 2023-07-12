@@ -58,7 +58,7 @@ fn handle_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -82,7 +82,7 @@ fn handle_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -106,7 +106,7 @@ fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -130,7 +130,7 @@ fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractErro
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let execute_msg = SubMsg::reply_on_success(
         wasm_execute(address, &NumberExecuteMsg::Add { value: by }, vec![])?,
         0,
@@ -146,7 +146,7 @@ fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractErro
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let execute_msg = SubMsg::reply_on_success(
         wasm_execute(address, &NumberExecuteMsg::Sub { value: by }, vec![])?,
         0,
@@ -162,7 +162,7 @@ fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractErro
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let execute_msg = SubMsg::reply_on_success(
         wasm_execute(address, &NumberExecuteMsg::Mul { value: by }, vec![])?,
         0,
@@ -178,7 +178,7 @@ fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let res: NumberResponse = deps
         .querier
         .query_wasm_smart(address, &QueryMsg::Number {})?;
@@ -195,7 +195,7 @@ fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract { address };
     let value_dyn = contract.number();
 
@@ -212,7 +212,7 @@ pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, Contract
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -245,7 +245,7 @@ fn query_number_dyn(deps: Deps) -> Result<NumberResponse, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract { address };
     let value = contract.number();
     Ok(NumberResponse { value })
@@ -258,7 +258,7 @@ fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract { address };
     contract.add(by);
     let value = contract.number();
@@ -272,7 +272,7 @@ fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract { address };
     contract.sub(by);
     let value = contract.number();
@@ -286,7 +286,7 @@ fn query_mul(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let contract = NumberContract { address };
     contract.mul(by);
     let value = contract.number();
@@ -300,7 +300,7 @@ fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )
-    .unwrap();
+    .unwrap()?;
     let response: NumberResponse = deps
         .querier
         .query_wasm_smart(address, &QueryMsg::Number {})?;
