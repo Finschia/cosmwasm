@@ -52,7 +52,13 @@ pub fn execute(
 }
 
 fn handle_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -70,7 +76,13 @@ fn handle_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -88,7 +100,13 @@ fn handle_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -106,9 +124,15 @@ fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let contract_addr: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let execute_msg = SubMsg::reply_on_success(
-        wasm_execute(contract_addr, &NumberExecuteMsg::Add { value: by }, vec![])?,
+        wasm_execute(address, &NumberExecuteMsg::Add { value: by }, vec![])?,
         0,
     );
     let response = Response::default().add_submessage(execute_msg);
@@ -116,9 +140,15 @@ fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractErro
 }
 
 fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let contract_addr: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let execute_msg = SubMsg::reply_on_success(
-        wasm_execute(contract_addr, &NumberExecuteMsg::Sub { value: by }, vec![])?,
+        wasm_execute(address, &NumberExecuteMsg::Sub { value: by }, vec![])?,
         0,
     );
     let response = Response::default().add_submessage(execute_msg);
@@ -126,9 +156,15 @@ fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractErro
 }
 
 fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let contract_addr: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let execute_msg = SubMsg::reply_on_success(
-        wasm_execute(contract_addr, &NumberExecuteMsg::Mul { value: by }, vec![])?,
+        wasm_execute(address, &NumberExecuteMsg::Mul { value: by }, vec![])?,
         0,
     );
     let response = Response::default().add_submessage(execute_msg);
@@ -136,7 +172,13 @@ fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractErro
 }
 
 fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let res: NumberResponse = deps
         .querier
         .query_wasm_smart(address, &QueryMsg::Number {})?;
@@ -147,7 +189,13 @@ fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
 }
 
 fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract { address };
     let value_dyn = contract.number();
 
@@ -158,7 +206,13 @@ fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
 
 #[entry_point]
 pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -185,14 +239,26 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 }
 
 fn query_number_dyn(deps: Deps) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract { address };
     let value = contract.number();
     Ok(NumberResponse { value })
 }
 
 fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract { address };
     contract.add(by);
     let value = contract.number();
@@ -200,7 +266,13 @@ fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
 }
 
 fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract { address };
     contract.sub(by);
     let value = contract.number();
@@ -208,7 +280,13 @@ fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
 }
 
 fn query_mul(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_slice(
+        &deps
+            .storage
+            .get(ADDRESS_KEY)
+            .ok_or(ContractError::StorageError)?,
+    )
+    .unwrap();
     let contract = NumberContract { address };
     contract.mul(by);
     let value = contract.number();
