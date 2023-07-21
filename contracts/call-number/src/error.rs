@@ -7,6 +7,6 @@ pub enum ContractError {
     Std(#[from] StdError),
     #[error("Overflow Error")]
     Overflow,
-    #[error("Storage does not have the number")]
-    StorageError,
+    #[error("Cannot get callee address of the Storage")]
+    CannotGetAddress,
 }
