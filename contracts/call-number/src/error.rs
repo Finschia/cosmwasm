@@ -8,5 +8,5 @@ pub enum ContractError {
     #[error("Overflow Error")]
     Overflow,
     #[error("Storage does not have the address")]
-    StorageError {},
+    StorageError,
 }
