@@ -241,6 +241,9 @@ fn query_number_dyn(deps: Deps) -> Result<NumberResponse, ContractError> {
     Ok(NumberResponse { value })
 }
 
+// This function is used to check if an appropriate error has been occurred in the VM
+// when a caller with read-only permissions attempts to call a callable point with read/write permissions.
+// https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_slice(
         &deps
@@ -254,6 +257,9 @@ fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
     Ok(NumberResponse { value })
 }
 
+// This function is used to check if an appropriate error has been occurred in the VM
+// when a caller with read-only permissions attempts to call a callable point with read/write permissions.
+// https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_slice(
         &deps
@@ -267,6 +273,9 @@ fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
     Ok(NumberResponse { value })
 }
 
+// This function is used to check if an appropriate error has been occurred in the VM
+// when a caller with read-only permissions attempts to call a callable point with read/write permissions.
+// https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_mul(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_slice(
         &deps
