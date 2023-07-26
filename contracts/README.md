@@ -46,6 +46,11 @@ docker run --rm -v "$(pwd)":/code \
   cosmwasm/rust-optimizer:0.12.9 ./contracts/ibc-reflect-send
 
 docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_query_queue",target=/code/contracts/query-queue/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.9 ./contracts/query-queue
+
+docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_queue",target=/code/contracts/queue/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.12.9 ./contracts/queue
