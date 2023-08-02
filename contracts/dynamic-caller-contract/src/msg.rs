@@ -1,14 +1,14 @@
+use cosmwasm_schema::{cw_serde, QueryResponses};
+#[cfg(not(target_arch = "wasm32"))]
+use cosmwasm_std::Binary;
 use cosmwasm_std::{Addr, Uint128};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub callee_addr: Addr,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     Ping { ping_num: Uint128 },
     TryReEntrancy {},
@@ -18,8 +18,9 @@ pub enum ExecuteMsg {
     CallCallerAddressOf { target: Addr },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(Binary)]
     GetOwnAddressViaCalleesGetCallerAddress {},
 }
