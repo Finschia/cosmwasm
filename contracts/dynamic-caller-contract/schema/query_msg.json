@@ -9,7 +9,8 @@
       ],
       "properties": {
         "get_own_address_via_callees_get_caller_address": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

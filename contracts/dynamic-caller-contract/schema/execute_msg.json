@@ -17,7 +17,8 @@
             "ping_num": {
               "$ref": "#/definitions/Uint128"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -29,7 +30,8 @@
       ],
       "properties": {
         "try_re_entrancy": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -41,7 +43,8 @@
       ],
       "properties": {
         "do_panic": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -53,7 +56,8 @@
       ],
       "properties": {
         "validate_interface": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -65,7 +69,8 @@
       ],
       "properties": {
         "validate_interface_err": {
-          "type": "object"
+          "type": "object",
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -85,7 +90,8 @@
             "target": {
               "$ref": "#/definitions/Addr"
             }
-          }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

@@ -25,6 +25,7 @@ overflow-checks = true
 backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
+cosmwasm-schema = { path = "../../packages/schema" }
 cosmwasm-std = { path = "../../packages/std", features = ["iterator"] }
 cosmwasm-storage = { path = "../../packages/storage", features = ["iterator"] }
 schemars = "0.8.1"
@@ -33,6 +34,5 @@ thiserror = "1.0.24"
 wasmer-types = "2.3"
 
 [dev-dependencies]
-cosmwasm-schema = { path = "../../packages/schema" }
 cosmwasm-vm = { path = "../../packages/vm", default-features = false, features = ["iterator"] }
 wasmer = { version = "=2.3.0", default-features = false, features = ["cranelift", "universal", "singlepass"] }

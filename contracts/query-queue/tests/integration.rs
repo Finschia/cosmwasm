@@ -32,8 +32,7 @@ use cosmwasm_vm::{
     Backend, Instance, InstanceOptions, Storage, VmResult,
 };
 
-use query_queue::contract::{RawResponse, SumResponse};
-use query_queue::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use query_queue::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, RawResponse, SumResponse};
 
 static WASM: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/release/query_queue.wasm");
 static QUEUE_WASM: &[u8] =
