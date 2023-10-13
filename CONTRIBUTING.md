@@ -41,6 +41,6 @@ TBD
 
 ## Releases
 
-Release is maintained in a release branch named `vX.X.X+Y.Y.Y-ZZZ` where `vX.X.X` is the original CosmWasm's release version, `Y.Y.Y` is our release version and `ZZZ` is additional information (e.g. rc, alpha).  
+Release is maintained in a release branch named `vX.X.X-ZZZ+Y.Y.Y` where `vX.X.X` is the original CosmWasm's release version, `Y.Y.Y` is our release version and if `ZZZ` is needed additional information(e.g. rc, alpha) should be added.  
 
 The reason we use build metadata (`+`) instead of pre-release versioning (`-`) is because CosmWasm's release version overrides the pre-release version.
