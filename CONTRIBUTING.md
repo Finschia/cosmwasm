@@ -39,3 +39,8 @@ TBD
 4. You may merge the pull request in once you have the sign-off of two other developers, or if you
    do not have permission to do that, you may request the second reviewer to merge it for you.
 
+## Releases
+
+Release is maintained in a release branch named `vX.X.X+Y.Y.Y-ZZZ` where `vX.X.X` is the original CosmWasm's release version, `Y.Y.Y` is our release version and `ZZZ` is additional information (e.g. rc, alpha).  
+
+The reason we use build metadata (`+`) instead of pre-release versioning (`-`) is because CosmWasm's release version overrides the pre-release version.
