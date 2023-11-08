@@ -139,7 +139,7 @@ mod tests {
             r#"(module
             (type $t0 (func (param i32) (result i32)))
             (func $add_one (export "add_one") (type $t0) (param $p0 i32) (result i32)
-                get_local $p0
+                local.get $p0
                 i32.const 1
                 i32.add)
             )"#,
@@ -192,7 +192,7 @@ mod tests {
             r#"(module
             (type $t0 (func (param i32) (result i32)))
             (func $add_one (export "add_one") (type $t0) (param $p0 i32) (result i32)
-                get_local $p0
+                local.get $p0
                 i32.const 1
                 i32.add)
             )"#,
@@ -203,7 +203,7 @@ mod tests {
             r#"(module
             (type $t0 (func (param i32) (result i32)))
             (func $add_one (export "add_two") (type $t0) (param $p0 i32) (result i32)
-                get_local $p0
+                local.get $p0
                 i32.const 2
                 i32.add)
             )"#,
@@ -214,7 +214,7 @@ mod tests {
             r#"(module
             (type $t0 (func (param i32) (result i32)))
             (func $add_one (export "add_three") (type $t0) (param $p0 i32) (result i32)
-                get_local $p0
+                local.get $p0
                 i32.const 3
                 i32.add)
             )"#,
@@ -252,7 +252,7 @@ mod tests {
             r#"(module
             (type $t0 (func (param i32) (result i32)))
             (func $add_one (export "add_one") (type $t0) (param $p0 i32) (result i32)
-                get_local $p0
+                local.get $p0
                 i32.const 1
                 i32.add)
             )"#,
@@ -263,7 +263,7 @@ mod tests {
             r#"(module
             (type $t0 (func (param i32) (result i32)))
             (func $add_one (export "add_two") (type $t0) (param $p0 i32) (result i32)
-                get_local $p0
+                local.get $p0
                 i32.const 2
                 i32.add)
             )"#,
@@ -274,7 +274,7 @@ mod tests {
             r#"(module
             (type $t0 (func (param i32) (result i32)))
             (func $add_one (export "add_three") (type $t0) (param $p0 i32) (result i32)
-                get_local $p0
+                local.get $p0
                 i32.const 3
                 i32.add)
             )"#,
