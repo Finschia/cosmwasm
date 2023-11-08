@@ -448,28 +448,30 @@ pub fn do_ed25519_batch_verify<
     Ok(code)
 }
 
-pub fn do_sha1_calculate<A: BackendApi, S: Storage, Q: Querier>(
-    env: &Environment<A, S, Q>,
+pub fn do_sha1_calculate<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 'static>(
+    mut env: FunctionEnvMut<Environment<A, S, Q>>,
     hash_inputs_ptr: u32,
 ) -> VmResult<u64> {
+    let (data, mut store) = env.data_and_store_mut();
+
     let hash_inputs = read_region(
-        &env.memory(),
+        &data.memory(&mut store),
         hash_inputs_ptr,
         (MAX_LENGTH_SHA1_MESSAGE + 4) * MAX_COUNT_SHA1_INPUT,
     )?;
 
     let hash_inputs = decode_sections(&hash_inputs);
     let result = sha1_calculate(&hash_inputs);
-    let mut gas_cost = env.gas_config.sha1_calculate_cost;
+    let mut gas_cost = data.gas_config.sha1_calculate_cost;
     //For sha1, the execution time does not increase linearly by the number of updates(count of inputs).
     if hash_inputs.len() > 1 {
-        gas_cost += (env.gas_config.sha1_calculate_cost * (hash_inputs.len() - 1) as u64) / 2;
+        gas_cost += (data.gas_config.sha1_calculate_cost * (hash_inputs.len() - 1) as u64) / 2;
     }
     let gas_info = GasInfo::with_cost(gas_cost);
-    process_gas_info::<A, S, Q>(env, gas_info)?;
+    process_gas_info::<A, S, Q>(data, &mut store, gas_info)?;
     match result {
         Ok(hash) => {
-            let hash_ptr = write_to_contract::<A, S, Q>(env, &hash)?;
+            let hash_ptr = write_to_contract(data, &mut store, &hash)?;
             Ok(to_low_half(hash_ptr))
         }
         Err(err) => match err {
