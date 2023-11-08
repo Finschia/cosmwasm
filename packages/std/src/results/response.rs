@@ -387,7 +387,7 @@ mod tests {
         let event2 =
             Event::new("act").add_attributes(vec![attr("name", "burn"), attr("amount", "21")]);
         let expected = Response::<Empty>::new().add_events(vec![event1, event2]);
-        let actual = Response::<Empty>::new().add_events(vec![act1, act2]);
+        let actual: Response = Response::<Empty>::new().add_event(act1).add_event(act2);
         assert_eq!(actual, expected);
     }
 
