@@ -17,7 +17,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.60.0
+          toolchain: 1.67.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -57,7 +57,7 @@ jobs:
         working-directory: ./
         run: |
           echo "Checking all contracts under ./artifacts"
-          docker run --volumes-from with_code rust:1.60.0 /bin/bash -e -c 'cd ./code/packages/check; export GLOBIGNORE=../../artifacts/floaty.wasm; cargo run ../../artifacts/*.wasm'
+          docker run --volumes-from with_code rust:1.67.0 /bin/bash -e -c 'cd ./code/packages/check; export GLOBIGNORE=../../artifacts/floaty.wasm; cargo run ../../artifacts/*.wasm'
           docker cp with_code:/code/artifacts .
 
       - name: Create Release
