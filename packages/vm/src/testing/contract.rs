@@ -1,10 +1,10 @@
-use wasmer::Module;
+use wasmer::{Module, Store};
 
 use crate::backend::{Backend, Storage};
 use crate::compatibility::check_wasm;
 use crate::instance::Instance;
 use crate::size::Size;
-use crate::wasm_backend::compile;
+use crate::wasm_backend::{compile, make_compiling_engine};
 
 use super::instance::MockInstanceOptions;
 use super::mock::MockApi;
@@ -29,7 +29,8 @@ impl Contract {
         memory_limit: Option<Size>,
     ) -> TestingResult<Self> {
         check_wasm(wasm, &options.available_capabilities)?;
-        let module = compile(wasm, memory_limit, &[])?;
+        let engine = make_compiling_engine(memory_limit);
+        let module = compile(&engine, wasm)?;
         let storage = MockStorage::new();
         let contract = Self { module, storage };
         Ok(contract)
@@ -45,7 +46,8 @@ impl Contract {
         memory_limit: Option<Size>,
     ) -> TestingResult<()> {
         check_wasm(wasm, &options.available_capabilities)?;
-        let module = compile(wasm, memory_limit, &[])?;
+        let engine = make_compiling_engine(memory_limit);
+        let module = compile(&engine, wasm)?;
         self.module = module;
         Ok(())
     }
@@ -57,13 +59,16 @@ impl Contract {
         querier: MockQuerier,
         options: &MockInstanceOptions,
     ) -> TestingResult<Instance<MockApi, MockStorage, MockQuerier>> {
+        let engine = make_compiling_engine(None);
         let storage = self.storage.clone();
         let backend = Backend {
             api,
             storage,
             querier,
         };
+        let store = Store::new(engine);
         let instance = Instance::from_module(
+            store,
             &self.module,
             backend,
             options.gas_limit,
