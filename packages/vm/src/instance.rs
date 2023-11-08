@@ -198,7 +198,7 @@ where
         // Ownership of the hash pointer is transferred to the contract.
         env_imports.insert(
             "sha1_calculate",
-            Function::new_native_with_env(store, env.clone(), do_sha1_calculate),
+            Function::new_typed_with_env(&mut store, &fe, do_sha1_calculate),
         );
 
         // Allows the contract to emit debug logs that the host can either process or ignore.
