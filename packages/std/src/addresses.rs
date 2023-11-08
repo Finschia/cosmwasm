@@ -1,10 +1,15 @@
+use alloc::borrow::Cow;
+use core::fmt;
+use core::ops::Deref;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
-use std::fmt;
-use std::ops::Deref;
+use sha2::{
+    digest::{Digest, Update},
+    Sha256,
+};
+use thiserror::Error;
 
-use crate::{binary::Binary, HexBinary};
+use crate::{binary::Binary, forward_ref_partial_eq, HexBinary};
 
 /// A human readable address.
 ///
@@ -26,6 +31,8 @@ use crate::{binary::Binary, HexBinary};
     Serialize, Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, JsonSchema,
 )]
 pub struct Addr(String);
+
+forward_ref_partial_eq!(Addr, Addr);
 
 impl Addr {
     /// Creates a new `Addr` instance from the given input without checking the validity
@@ -81,6 +88,9 @@ impl AsRef<str> for Addr {
 }
 
 /// Implement `Addr == &str`
+///
+/// Deprecated. This comparison unsafe. Convert both sides to Addr first.
+/// Will be removed soon: https://github.com/CosmWasm/cosmwasm/issues/1669
 impl PartialEq<&str> for Addr {
     fn eq(&self, rhs: &&str) -> bool {
         self.0 == *rhs
@@ -88,6 +98,9 @@ impl PartialEq<&str> for Addr {
 }
 
 /// Implement `&str == Addr`
+///
+/// Deprecated. This comparison unsafe. Convert both sides to Addr first.
+/// Will be removed soon: https://github.com/CosmWasm/cosmwasm/issues/1669
 impl PartialEq<Addr> for &str {
     fn eq(&self, rhs: &Addr) -> bool {
         *self == rhs.0
@@ -95,6 +108,9 @@ impl PartialEq<Addr> for &str {
 }
 
 /// Implement `Addr == String`
+///
+/// Deprecated. This comparison unsafe. Convert both sides to Addr first.
+/// Will be removed soon: https://github.com/CosmWasm/cosmwasm/issues/1669
 impl PartialEq<String> for Addr {
     fn eq(&self, rhs: &String) -> bool {
         &self.0 == rhs
@@ -102,6 +118,9 @@ impl PartialEq<String> for Addr {
 }
 
 /// Implement `String == Addr`
+///
+/// Deprecated. This comparison unsafe. Convert both sides to Addr first.
+/// Will be removed soon: https://github.com/CosmWasm/cosmwasm/issues/1669
 impl PartialEq<Addr> for String {
     fn eq(&self, rhs: &Addr) -> bool {
         self == &rhs.0
@@ -265,18 +284,123 @@ impl CanonicalAddr {
 impl fmt::Display for CanonicalAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for byte in self.0.as_slice() {
-            write!(f, "{:02X}", byte)?;
+            write!(f, "{byte:02X}")?;
         }
         Ok(())
     }
 }
 
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum Instantiate2AddressError {
+    /// Checksum must be 32 bytes
+    InvalidChecksumLength,
+    /// Salt must be between 1 and 64 bytes
+    InvalidSaltLength,
+}
+
+impl fmt::Display for Instantiate2AddressError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Instantiate2AddressError::InvalidChecksumLength => write!(f, "invalid checksum length"),
+            Instantiate2AddressError::InvalidSaltLength => write!(f, "invalid salt length"),
+        }
+    }
+}
+
+/// Creates a contract address using the predictable address format introduced with
+/// wasmd 0.29. When using instantiate2, this is a way to precompute the address.
+/// When using instantiate, the contract address will use a different algorithm and
+/// cannot be pre-computed as it contains inputs from the chain's state at the time of
+/// message execution.
+///
+/// The predicable address format of instantiate2 is stable. But bear in mind this is
+/// a powerful tool that requires multiple software components to work together smoothly.
+/// It should be used carefully and tested thoroughly to avoid the loss of funds.
+///
+/// This method operates on [`CanonicalAddr`] to be implemented without chain interaction.
+/// The typical usage looks like this:
+///
+/// ```
+/// # use cosmwasm_std::{
+/// #     HexBinary,
+/// #     Storage, Api, Querier, DepsMut, Deps, entry_point, Env, StdError, MessageInfo,
+/// #     Response, QueryResponse,
+/// # };
+/// # type ExecuteMsg = ();
+/// use cosmwasm_std::instantiate2_address;
+///
+/// #[entry_point]
+/// pub fn execute(
+///     deps: DepsMut,
+///     env: Env,
+///     info: MessageInfo,
+///     msg: ExecuteMsg,
+/// ) -> Result<Response, StdError> {
+///     let canonical_creator = deps.api.addr_canonicalize(env.contract.address.as_str())?;
+///     let checksum = HexBinary::from_hex("9af782a3a1bcbcd22dbb6a45c751551d9af782a3a1bcbcd22dbb6a45c751551d")?;
+///     let salt = b"instance 1231";
+///     let canonical_addr = instantiate2_address(&checksum, &canonical_creator, salt)
+///         .map_err(|_| StdError::generic_err("Could not calculate addr"))?;
+///     let addr = deps.api.addr_humanize(&canonical_addr)?;
+///
+/// #   Ok(Default::default())
+/// }
+/// ```
+pub fn instantiate2_address(
+    checksum: &[u8],
+    creator: &CanonicalAddr,
+    salt: &[u8],
+) -> Result<CanonicalAddr, Instantiate2AddressError> {
+    // Non-empty msg values are discouraged.
+    // See https://medium.com/cosmwasm/dev-note-3-limitations-of-instantiate2-and-how-to-deal-with-them-a3f946874230.
+    let msg = b"";
+    instantiate2_address_impl(checksum, creator, salt, msg)
+}
+
+/// The instantiate2 address derivation implementation. This API is used for
+/// testing puposes only. The `msg` field is discouraged and should not be used.
+/// Use [`instantiate2_address`].
+#[doc(hidden)]
+fn instantiate2_address_impl(
+    checksum: &[u8],
+    creator: &CanonicalAddr,
+    salt: &[u8],
+    msg: &[u8],
+) -> Result<CanonicalAddr, Instantiate2AddressError> {
+    if checksum.len() != 32 {
+        return Err(Instantiate2AddressError::InvalidChecksumLength);
+    }
+
+    if salt.is_empty() || salt.len() > 64 {
+        return Err(Instantiate2AddressError::InvalidSaltLength);
+    };
+
+    let mut key = Vec::<u8>::new();
+    key.extend_from_slice(b"wasm\0");
+    key.extend_from_slice(&(checksum.len() as u64).to_be_bytes());
+    key.extend_from_slice(checksum);
+    key.extend_from_slice(&(creator.len() as u64).to_be_bytes());
+    key.extend_from_slice(creator);
+    key.extend_from_slice(&(salt.len() as u64).to_be_bytes());
+    key.extend_from_slice(salt);
+    key.extend_from_slice(&(msg.len() as u64).to_be_bytes());
+    key.extend_from_slice(msg);
+    let address_data = hash("module", &key);
+    Ok(address_data.into())
+}
+
+/// The "Basic Address" Hash from
+/// https://github.com/cosmos/cosmos-sdk/blob/v0.45.8/docs/architecture/adr-028-public-key-addresses.md
+fn hash(ty: &str, key: &[u8]) -> Vec<u8> {
+    let inner = Sha256::digest(ty.as_bytes());
+    Sha256::new().chain(inner).chain(key).finalize().to_vec()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::hash_map::DefaultHasher;
-    use std::collections::HashSet;
-    use std::hash::{Hash, Hasher};
+    use crate::{assert_hash_works, HexBinary};
+    use hex_literal::hex;
 
     #[test]
     fn addr_unchecked_works() {
@@ -305,7 +429,7 @@ mod tests {
     #[test]
     fn addr_implements_display() {
         let addr = Addr::unchecked("cos934gh9034hg04g0h134");
-        let embedded = format!("Address: {}", addr);
+        let embedded = format!("Address: {addr}");
         assert_eq!(embedded, "Address: cos934gh9034hg04g0h134");
         assert_eq!(addr.to_string(), "cos934gh9034hg04g0h134");
     }
@@ -316,24 +440,34 @@ mod tests {
         assert_eq!(addr.as_ref(), "literal-string");
     }
 
+    // Please note that this will be removed soon
+    // https://github.com/CosmWasm/cosmwasm/issues/1669
     #[test]
-    fn addr_implements_partial_eq_with_str() {
+    fn addr_implements_partial_eq_with_str_and_string() {
         let addr = Addr::unchecked("cos934gh9034hg04g0h134");
 
         // `Addr == &str`
         assert_eq!(addr, "cos934gh9034hg04g0h134");
         // `&str == Addr`
         assert_eq!("cos934gh9034hg04g0h134", addr);
-    }
-
-    #[test]
-    fn addr_implements_partial_eq_with_string() {
-        let addr = Addr::unchecked("cos934gh9034hg04g0h134");
-
         // `Addr == String`
         assert_eq!(addr, String::from("cos934gh9034hg04g0h134"));
         // `String == Addr`
         assert_eq!(String::from("cos934gh9034hg04g0h134"), addr);
+    }
+
+    #[test]
+    fn addr_implements_partial_eq_addr_ref() {
+        let addr = Addr::unchecked("cos934gh9034hg04g0h134");
+        let addr_ref = &addr;
+        let addr_ref2 = &addr;
+
+        // `Addr == &Addr`
+        assert_eq!(addr, addr_ref);
+        // `&Addr == Addr`
+        assert_eq!(addr_ref, addr);
+        // `&Addr == &Addr`
+        assert_eq!(addr_ref, addr_ref2);
     }
 
     #[test]
@@ -492,7 +626,7 @@ mod tests {
             0xff,
         ];
         let address = CanonicalAddr::from(bytes);
-        let embedded = format!("Address: {}", address);
+        let embedded = format!("Address: {address}");
         assert_eq!(embedded, "Address: 1203AB00FF");
         assert_eq!(address.to_string(), "1203AB00FF");
     }
@@ -512,43 +646,13 @@ mod tests {
         assert_eq!(canonical_addr_slice, &[0u8, 187, 61, 11, 250, 0]);
     }
 
+    /// Tests that `CanonicalAddr` implements `EQ` and `Hash` correctly and thus
+    /// can be used with hash maps and sets.
     #[test]
-    fn canonical_addr_implements_hash() {
-        let alice1 = CanonicalAddr::from([0, 187, 61, 11, 250, 0]);
-        let mut hasher = DefaultHasher::new();
-        alice1.hash(&mut hasher);
-        let alice1_hash = hasher.finish();
-
-        let alice2 = CanonicalAddr::from([0, 187, 61, 11, 250, 0]);
-        let mut hasher = DefaultHasher::new();
-        alice2.hash(&mut hasher);
-        let alice2_hash = hasher.finish();
-
+    fn canonical_addr_implements_hash_eq() {
+        let alice = CanonicalAddr::from([0, 187, 61, 11, 250, 0]);
         let bob = CanonicalAddr::from([16, 21, 33, 0, 255, 9]);
-        let mut hasher = DefaultHasher::new();
-        bob.hash(&mut hasher);
-        let bob_hash = hasher.finish();
-
-        assert_eq!(alice1_hash, alice2_hash);
-        assert_ne!(alice1_hash, bob_hash);
-    }
-
-    /// This requires Hash and Eq to be implemented
-    #[test]
-    fn canonical_addr_can_be_used_in_hash_set() {
-        let alice1 = CanonicalAddr::from([0, 187, 61, 11, 250, 0]);
-        let alice2 = CanonicalAddr::from([0, 187, 61, 11, 250, 0]);
-        let bob = CanonicalAddr::from([16, 21, 33, 0, 255, 9]);
-
-        let mut set = HashSet::new();
-        set.insert(alice1.clone());
-        set.insert(alice2.clone());
-        set.insert(bob.clone());
-        assert_eq!(set.len(), 2);
-
-        let set1 = HashSet::<CanonicalAddr>::from_iter(vec![bob.clone(), alice1.clone()]);
-        let set2 = HashSet::from_iter(vec![alice1, alice2, bob]);
-        assert_eq!(set1, set2);
+        assert_hash_works!(alice, bob);
     }
 
     // helper to show we can handle Addr and &Addr equally
@@ -566,5 +670,162 @@ mod tests {
         assert_eq!(value, &flexible(&addr));
         // pass by value
         assert_eq!(value, &flexible(addr));
+    }
+
+    #[test]
+    fn instantiate2_address_impl_works() {
+        let checksum1 =
+            HexBinary::from_hex("13a1fc994cc6d1c81b746ee0c0ff6f90043875e0bf1d9be6b7d779fc978dc2a5")
+                .unwrap();
+        let creator1 = CanonicalAddr::from(hex!("9999999999aaaaaaaaaabbbbbbbbbbcccccccccc"));
+        let salt1 = hex!("61");
+        let salt2 = hex!("aabbccddeeffffeeddbbccddaa66551155aaaabbcc787878789900aabbccddeeffffeeddbbccddaa66551155aaaabbcc787878789900aabbbbcc221100acadae");
+        let msg1: &[u8] = b"";
+        let msg2: &[u8] = b"{}";
+        let msg3: &[u8] = b"{\"some\":123,\"structure\":{\"nested\":[\"ok\",true]}}";
+
+        // No msg
+        let expected = CanonicalAddr::from(hex!(
+            "5e865d3e45ad3e961f77fd77d46543417ced44d924dc3e079b5415ff6775f847"
+        ));
+        assert_eq!(
+            instantiate2_address_impl(&checksum1, &creator1, &salt1, msg1).unwrap(),
+            expected
+        );
+
+        // With msg
+        let expected = CanonicalAddr::from(hex!(
+            "0995499608947a5281e2c7ebd71bdb26a1ad981946dad57f6c4d3ee35de77835"
+        ));
+        assert_eq!(
+            instantiate2_address_impl(&checksum1, &creator1, &salt1, msg2).unwrap(),
+            expected
+        );
+
+        // Long msg
+        let expected = CanonicalAddr::from(hex!(
+            "83326e554723b15bac664ceabc8a5887e27003abe9fbd992af8c7bcea4745167"
+        ));
+        assert_eq!(
+            instantiate2_address_impl(&checksum1, &creator1, &salt1, msg3).unwrap(),
+            expected
+        );
+
+        // Long salt
+        let expected = CanonicalAddr::from(hex!(
+            "9384c6248c0bb171e306fd7da0993ec1e20eba006452a3a9e078883eb3594564"
+        ));
+        assert_eq!(
+            instantiate2_address_impl(&checksum1, &creator1, &salt2, b"").unwrap(),
+            expected
+        );
+
+        // Salt too short or too long
+        let empty = Vec::<u8>::new();
+        assert!(matches!(
+            instantiate2_address_impl(&checksum1, &creator1, &empty, b"").unwrap_err(),
+            Instantiate2AddressError::InvalidSaltLength
+        ));
+        let too_long = vec![0x11; 65];
+        assert!(matches!(
+            instantiate2_address_impl(&checksum1, &creator1, &too_long, b"").unwrap_err(),
+            Instantiate2AddressError::InvalidSaltLength
+        ));
+
+        // invalid checksum length
+        let broken_cs = hex!("13a1fc994cc6d1c81b746ee0c0ff6f90043875e0bf1d9be6b7d779fc978dc2");
+        assert!(matches!(
+            instantiate2_address_impl(&broken_cs, &creator1, &salt1, b"").unwrap_err(),
+            Instantiate2AddressError::InvalidChecksumLength
+        ));
+        let broken_cs = hex!("");
+        assert!(matches!(
+            instantiate2_address_impl(&broken_cs, &creator1, &salt1, b"").unwrap_err(),
+            Instantiate2AddressError::InvalidChecksumLength
+        ));
+        let broken_cs = hex!("13a1fc994cc6d1c81b746ee0c0ff6f90043875e0bf1d9be6b7d779fc978dc2aaaa");
+        assert!(matches!(
+            instantiate2_address_impl(&broken_cs, &creator1, &salt1, b"").unwrap_err(),
+            Instantiate2AddressError::InvalidChecksumLength
+        ));
+    }
+
+    #[test]
+    fn instantiate2_address_impl_works_for_cosmjs_testvectors() {
+        // Test data from https://github.com/cosmos/cosmjs/pull/1253
+        const COSMOS_ED25519_TESTS_JSON: &str = "./testdata/instantiate2_addresses.json";
+
+        #[derive(Deserialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        #[allow(dead_code)]
+        struct In {
+            checksum: HexBinary,
+            creator: String,
+            creator_data: HexBinary,
+            salt: HexBinary,
+            msg: Option<String>,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        #[allow(dead_code)]
+        struct Intermediate {
+            key: HexBinary,
+            address_data: HexBinary,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        #[allow(dead_code)]
+        struct Out {
+            address: String,
+        }
+
+        #[derive(Deserialize, Debug)]
+        #[allow(dead_code)]
+        struct Row {
+            #[serde(rename = "in")]
+            input: In,
+            intermediate: Intermediate,
+            out: Out,
+        }
+
+        fn read_tests() -> Vec<Row> {
+            use std::fs::File;
+            use std::io::BufReader;
+
+            // Open the file in read-only mode with buffer.
+            let file = File::open(COSMOS_ED25519_TESTS_JSON).unwrap();
+            let reader = BufReader::new(file);
+
+            serde_json::from_reader(reader).unwrap()
+        }
+
+        for Row {
+            input,
+            intermediate,
+            out: _,
+        } in read_tests()
+        {
+            let msg = input.msg.map(|msg| msg.into_bytes()).unwrap_or_default();
+            let addr = instantiate2_address_impl(
+                &input.checksum,
+                &input.creator_data.into(),
+                &input.salt,
+                &msg,
+            )
+            .unwrap();
+            assert_eq!(addr, intermediate.address_data);
+        }
+    }
+
+    #[test]
+    fn hash_works() {
+        // Test case from https://github.com/cosmos/cosmos-sdk/blob/v0.47.0-alpha1/types/address/hash_test.go#L19-L24
+        let expected = [
+            195, 235, 23, 251, 9, 99, 177, 195, 81, 122, 182, 124, 36, 113, 245, 156, 76, 188, 221,
+            83, 181, 192, 227, 82, 100, 177, 161, 133, 240, 160, 5, 25,
+        ];
+        assert_eq!(hash("1", &[1]), expected);
     }
 }

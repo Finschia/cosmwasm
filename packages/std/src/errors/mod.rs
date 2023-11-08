@@ -7,7 +7,8 @@ mod verification_error;
 pub use hash_calculation_error::HashCalculationError;
 pub use recover_pubkey_error::RecoverPubkeyError;
 pub use std_error::{
-    CheckedFromRatioError, CheckedMultiplyRatioError, ConversionOverflowError, DivideByZeroError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
+    CoinFromStrError, CoinsError, ConversionOverflowError, DivideByZeroError, DivisionError,
     OverflowError, OverflowOperation, RoundUpOverflowError, StdError, StdResult,
 };
 pub use system_error::SystemError;

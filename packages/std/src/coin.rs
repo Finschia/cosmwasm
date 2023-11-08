@@ -1,10 +1,10 @@
+use core::{fmt, str::FromStr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
-use crate::math::Uint128;
+use crate::{errors::CoinFromStrError, math::Uint128};
 
-#[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Default, PartialEq, Eq, JsonSchema)]
 pub struct Coin {
     pub denom: String,
     pub amount: Uint128,
@@ -16,6 +16,32 @@ impl Coin {
             amount: Uint128::new(amount),
             denom: denom.into(),
         }
+    }
+}
+
+impl fmt::Debug for Coin {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Coin {{ {} \"{}\" }}", self.amount, self.denom)
+    }
+}
+
+impl FromStr for Coin {
+    type Err = CoinFromStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let pos = s
+            .find(|c: char| !c.is_ascii_digit())
+            .ok_or(CoinFromStrError::MissingDenom)?;
+        let (amount, denom) = s.split_at(pos);
+
+        if amount.is_empty() {
+            return Err(CoinFromStrError::MissingAmount);
+        }
+
+        Ok(Coin {
+            amount: amount.parse::<u128>()?.into(),
+            denom: denom.to_string(),
+        })
     }
 }
 
@@ -94,7 +120,7 @@ mod tests {
             denom: "ucosm".to_string(),
         };
 
-        let embedded = format!("Amount: {}", a);
+        let embedded = format!("Amount: {a}");
         assert_eq!(embedded, "Amount: 123ucosm");
         assert_eq!(a.to_string(), "123ucosm");
     }
@@ -165,5 +191,60 @@ mod tests {
 
         // less than same type
         assert!(has_coins(&wallet, &coin(777, "ETH")));
+    }
+
+    #[test]
+    fn parse_coin() {
+        let expected = Coin::new(123, "ucosm");
+        assert_eq!("123ucosm".parse::<Coin>().unwrap(), expected);
+        // leading zeroes should be ignored
+        assert_eq!("00123ucosm".parse::<Coin>().unwrap(), expected);
+        // 0 amount parses correctly
+        assert_eq!("0ucosm".parse::<Coin>().unwrap(), Coin::new(0, "ucosm"));
+        // ibc denom should work
+        let ibc_str = "11111ibc/27394FB092D2ECCD56123C74F36E4C1F926001CEADA9CA97EA622B25F41E5EB2";
+        let ibc_coin = Coin::new(
+            11111,
+            "ibc/27394FB092D2ECCD56123C74F36E4C1F926001CEADA9CA97EA622B25F41E5EB2",
+        );
+        assert_eq!(ibc_str.parse::<Coin>().unwrap(), ibc_coin);
+
+        // error cases
+        assert_eq!(
+            Coin::from_str("123").unwrap_err(),
+            CoinFromStrError::MissingDenom
+        );
+        assert_eq!(
+            Coin::from_str("ucosm").unwrap_err(), // no amount
+            CoinFromStrError::MissingAmount
+        );
+        assert_eq!(
+            Coin::from_str("-123ucosm").unwrap_err(), // negative amount
+            CoinFromStrError::MissingAmount
+        );
+        assert_eq!(
+            Coin::from_str("").unwrap_err(), // empty input
+            CoinFromStrError::MissingDenom
+        );
+        assert_eq!(
+            Coin::from_str(" 1ucosm").unwrap_err(), // unsupported whitespace
+            CoinFromStrError::MissingAmount
+        );
+        assert_eq!(
+            Coin::from_str("�1ucosm").unwrap_err(), // other broken data
+            CoinFromStrError::MissingAmount
+        );
+        assert_eq!(
+            Coin::from_str("340282366920938463463374607431768211456ucosm")
+                .unwrap_err()
+                .to_string(),
+            "Invalid amount: number too large to fit in target type"
+        );
+    }
+
+    #[test]
+    fn debug_coin() {
+        let coin = Coin::new(123, "ucosm");
+        assert_eq!(format!("{coin:?}"), r#"Coin { 123 "ucosm" }"#);
     }
 }

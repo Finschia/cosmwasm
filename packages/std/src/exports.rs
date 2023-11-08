@@ -7,8 +7,8 @@
 //! and `do_sudo` should be wrapped with a extern "C" entry point including
 //! the contract-specific function pointer. This is done via the `#[entry_point]`
 //! macro attribute from cosmwasm-derive.
-use std::marker::PhantomData;
-use std::vec::Vec;
+use alloc::vec::Vec;
+use core::marker::PhantomData;
 
 use serde::de::DeserializeOwned;
 
@@ -44,6 +44,18 @@ extern "C" fn requires_stargate() -> () {}
 #[cfg(feature = "cosmwasm_1_1")]
 #[no_mangle]
 extern "C" fn requires_cosmwasm_1_1() -> () {}
+
+#[cfg(feature = "cosmwasm_1_2")]
+#[no_mangle]
+extern "C" fn requires_cosmwasm_1_2() -> () {}
+
+#[cfg(feature = "cosmwasm_1_3")]
+#[no_mangle]
+extern "C" fn requires_cosmwasm_1_3() -> () {}
+
+#[cfg(feature = "cosmwasm_1_4")]
+#[no_mangle]
+extern "C" fn requires_cosmwasm_1_4() -> () {}
 
 /// interface_version_* exports mark which Wasm VM interface level this contract is compiled for.
 /// They can be checked by cosmwasm_vm.

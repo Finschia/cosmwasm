@@ -1,5 +1,5 @@
 use serde::de::DeserializeOwned;
-use wasmer::Val;
+use wasmer::Value;
 
 use cosmwasm_std::{ContractResult, CustomMsg, Env, MessageInfo, QueryResponse, Reply, Response};
 #[cfg(feature = "stargate")]
@@ -206,9 +206,8 @@ where
         from_slice(&data, deserialization_limits::RESULT_QUERY)?;
     // Ensure query response is valid JSON
     if let ContractResult::Ok(binary_response) = &result {
-        serde_json::from_slice::<serde_json::Value>(binary_response.as_slice()).map_err(|e| {
-            VmError::generic_err(format!("Query response must be valid JSON. {}", e))
-        })?;
+        serde_json::from_slice::<serde_json::Value>(binary_response.as_slice())
+            .map_err(|e| VmError::generic_err(format!("Query response must be valid JSON. {e}")))?;
     }
 
     Ok(result)
@@ -574,7 +573,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
-    let mut arg_region_ptrs = Vec::<Val>::with_capacity(args.len());
+    let mut arg_region_ptrs = Vec::<Value>::with_capacity(args.len());
     for arg in args {
         let region_ptr = instance.allocate(arg.len())?;
         instance.write_memory(region_ptr, arg)?;
@@ -595,6 +594,7 @@ mod tests {
     use cosmwasm_std::{coins, Empty};
 
     static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
+    static CYBERPUNK: &[u8] = include_bytes!("../testdata/cyberpunk.wasm");
 
     #[test]
     fn call_instantiate_works() {
@@ -625,6 +625,70 @@ mod tests {
         call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg)
             .unwrap()
             .unwrap();
+    }
+
+    #[test]
+    fn call_execute_runs_out_of_gas() {
+        let mut instance = mock_instance(CYBERPUNK, &[]);
+
+        // init
+        let info = mock_info("creator", &[]);
+        call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, br#"{}"#)
+            .unwrap()
+            .unwrap();
+
+        // execute
+        let info = mock_info("looper", &[]);
+        let msg = br#"{"cpu_loop":{}}"#;
+        let err =
+            call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg).unwrap_err();
+        assert!(matches!(err, VmError::GasDepletion {}));
+    }
+
+    #[test]
+    fn call_execute_handles_panic() {
+        let mut instance = mock_instance(CYBERPUNK, &[]);
+
+        let info = mock_info("creator", &[]);
+        call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, br#"{}"#)
+            .unwrap()
+            .unwrap();
+
+        // execute
+        let info = mock_info("troll", &[]);
+        let msg = br#"{"panic":{}}"#;
+        let err =
+            call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg).unwrap_err();
+        match err {
+            VmError::RuntimeErr { msg } => {
+                assert!(msg.contains(
+                    "RuntimeError: Aborted: panicked at 'This page intentionally faulted'"
+                ))
+            }
+            err => panic!("Unexpected error: {err:?}"),
+        }
+    }
+
+    #[test]
+    fn call_execute_handles_unreachable() {
+        let mut instance = mock_instance(CYBERPUNK, &[]);
+
+        let info = mock_info("creator", &[]);
+        call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, br#"{}"#)
+            .unwrap()
+            .unwrap();
+
+        // execute
+        let info = mock_info("troll", &[]);
+        let msg = br#"{"unreachable":{}}"#;
+        let err =
+            call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg).unwrap_err();
+        match err {
+            VmError::RuntimeErr { msg } => {
+                assert!(msg.contains("RuntimeError: unreachable"))
+            }
+            err => panic!("Unexpected error: {err:?}"),
+        }
     }
 
     #[test]

@@ -145,6 +145,11 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
+    #[error("Maximum call depth exceeded.")]
+    MaxCallDepthExceeded {
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
 }
 
 impl VmError {
@@ -314,6 +319,13 @@ impl VmError {
             backtrace: Backtrace::capture(),
         }
     }
+
+    pub(crate) fn max_call_depth_exceeded() -> Self {
+        VmError::MaxCallDepthExceeded {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
 }
 
 impl From<BackendError> for VmError {
@@ -331,21 +343,29 @@ impl From<CryptoError> for VmError {
     }
 }
 
+impl From<wasmer::wasmparser::BinaryReaderError> for VmError {
+    fn from(original: wasmer::wasmparser::BinaryReaderError) -> Self {
+        VmError::static_validation_err(format!(
+            "Wasm bytecode could not be deserialized. Deserialization error: \"{original}\""
+        ))
+    }
+}
+
 impl From<wasmer::ExportError> for VmError {
     fn from(original: wasmer::ExportError) -> Self {
-        VmError::resolve_err(format!("Could not get export: {}", original))
+        VmError::resolve_err(format!("Could not get export: {original}"))
     }
 }
 
 impl From<wasmer::SerializeError> for VmError {
     fn from(original: wasmer::SerializeError) -> Self {
-        VmError::cache_err(format!("Could not serialize module: {}", original))
+        VmError::cache_err(format!("Could not serialize module: {original}"))
     }
 }
 
 impl From<wasmer::DeserializeError> for VmError {
     fn from(original: wasmer::DeserializeError) -> Self {
-        VmError::cache_err(format!("Could not deserialize module: {}", original))
+        VmError::cache_err(format!("Could not deserialize module: {original}"))
     }
 }
 
@@ -369,7 +389,7 @@ impl From<wasmer::RuntimeError> for VmError {
 
 impl From<wasmer::CompileError> for VmError {
     fn from(original: wasmer::CompileError) -> Self {
-        VmError::compile_err(format!("Could not compile: {}", original))
+        VmError::compile_err(format!("Could not compile: {original}"))
     }
 }
 
@@ -400,7 +420,7 @@ mod tests {
                 source: BackendError::Unknown { msg },
                 ..
             } => assert_eq!(msg, "something went wrong"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -409,7 +429,7 @@ mod tests {
         let error = VmError::cache_err("something went wrong");
         match error {
             VmError::CacheErr { msg, .. } => assert_eq!(msg, "something went wrong"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -418,7 +438,7 @@ mod tests {
         let error = VmError::compile_err("something went wrong");
         match error {
             VmError::CompileErr { msg, .. } => assert_eq!(msg, "something went wrong"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -436,7 +456,7 @@ mod tests {
                 assert_eq!(to_type, "u32");
                 assert_eq!(input, "-9");
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -448,7 +468,7 @@ mod tests {
                 source: CryptoError::GenericErr { msg, .. },
                 ..
             } => assert_eq!(msg, "something went wrong"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -457,19 +477,19 @@ mod tests {
         let error = VmError::gas_depletion();
         match error {
             VmError::GasDepletion { .. } => {}
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
     #[test]
     fn generic_err_works() {
         let guess = 7;
-        let error = VmError::generic_err(format!("{} is too low", guess));
+        let error = VmError::generic_err(format!("{guess} is too low"));
         match error {
             VmError::GenericErr { msg, .. } => {
                 assert_eq!(msg, String::from("7 is too low"));
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -478,7 +498,7 @@ mod tests {
         let error = VmError::instantiation_err("something went wrong");
         match error {
             VmError::InstantiationErr { msg, .. } => assert_eq!(msg, "something went wrong"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -487,7 +507,7 @@ mod tests {
         let error = VmError::integrity_err();
         match error {
             VmError::IntegrityErr { .. } => {}
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -501,7 +521,7 @@ mod tests {
                 assert_eq!(target_type, "Book");
                 assert_eq!(msg, "Missing field: title");
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -515,7 +535,7 @@ mod tests {
                 assert_eq!(source_type, "Book");
                 assert_eq!(msg, "Content too long");
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -524,7 +544,7 @@ mod tests {
         let error = VmError::resolve_err("function has different signature");
         match error {
             VmError::ResolveErr { msg, .. } => assert_eq!(msg, "function has different signature"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -542,7 +562,7 @@ mod tests {
                 assert_eq!(expected, 0);
                 assert_eq!(actual, 1);
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -551,7 +571,7 @@ mod tests {
         let error = VmError::runtime_err("something went wrong");
         match error {
             VmError::RuntimeErr { msg, .. } => assert_eq!(msg, "something went wrong"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -560,7 +580,7 @@ mod tests {
         let error = VmError::static_validation_err("export xy missing");
         match error {
             VmError::StaticValidationErr { msg, .. } => assert_eq!(msg, "export xy missing"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -569,7 +589,7 @@ mod tests {
         let error = VmError::uninitialized_context_data("foo");
         match error {
             VmError::UninitializedContextData { kind, .. } => assert_eq!(kind, "foo"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -578,7 +598,7 @@ mod tests {
         let error = VmError::write_access_denied();
         match error {
             VmError::WriteAccessDenied { .. } => {}
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 }
