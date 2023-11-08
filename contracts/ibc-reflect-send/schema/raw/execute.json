@@ -104,10 +104,10 @@
   ],
   "definitions": {
     "BankMsg": {
-      "description": "The message types of the bank module.\n\nSee https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/bank/v1beta1/tx.proto",
+      "description": "The message types of the bank module.\n\nSee https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmos/bank/v1beta1/tx.proto.",
       "oneOf": [
         {
-          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a [MsgSend](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/bank/v1beta1/tx.proto#L19-L28). `from_address` is automatically filled with the current contract's address.",
+          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a [MsgSend](https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmos/bank/v1beta1/tx.proto#L19-L28). `from_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "send"
@@ -536,10 +536,10 @@
       }
     },
     "StakingMsg": {
-      "description": "The message types of the staking module.\n\nSee https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto",
+      "description": "The message types of the staking module.\n\nSee https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto.",
       "oneOf": [
         {
-          "description": "This is translated to a [MsgDelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L81-L90). `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a [MsgDelegate](https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L79-L88). `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "delegate"
@@ -564,7 +564,7 @@
           "additionalProperties": false
         },
         {
-          "description": "This is translated to a [MsgUndelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L112-L121). `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a [MsgUndelegate](https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L110-L119). `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "undelegate"
@@ -589,7 +589,7 @@
           "additionalProperties": false
         },
         {
-          "description": "This is translated to a [MsgBeginRedelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L95-L105). `delegator_address` is automatically filled with the current contract's address.",
+          "description": "This is translated to a [MsgBeginRedelegate](https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmos/staking/v1beta1/tx.proto#L93-L103). `delegator_address` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "redelegate"
@@ -645,10 +645,10 @@
       ]
     },
     "WasmMsg": {
-      "description": "The message types of the wasm module.\n\nSee https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto",
+      "description": "The message types of the wasm module.\n\nSee https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto.",
       "oneOf": [
         {
-          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a [MsgExecuteContract](https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto#L68-L78). `sender` is automatically filled with the current contract's address.",
+          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a [MsgExecuteContract](https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L71-L82). `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "execute"
@@ -685,7 +685,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThe contract address is non-predictable. But it is guaranteed that when emitting the same Instantiate message multiple times, multiple instances on different addresses will be generated. See also Instantiate2.\n\nThis is translated to a [MsgInstantiateContract](https://github.com/CosmWasm/wasmd/blob/v0.29.2/proto/cosmwasm/wasm/v1/tx.proto#L53-L71). `sender` is automatically filled with the current contract's address.",
+          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThe contract address is non-predictable. But it is guaranteed that when emitting the same Instantiate message multiple times, multiple instances on different addresses will be generated. See also Instantiate2.\n\nThis is translated to a [MsgInstantiateContract](https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L45-L62). `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "instantiate"
@@ -735,7 +735,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a [MsgMigrateContract](https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto#L86-L96). `sender` is automatically filled with the current contract's address.",
+          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a [MsgMigrateContract](https://github.com/Finschia/finschia-sdk/blob/v0.46.0/proto/cosmwasm/wasm/v1/tx.proto#L90-L100). `sender` is automatically filled with the current contract's address.",
           "type": "object",
           "required": [
             "migrate"
