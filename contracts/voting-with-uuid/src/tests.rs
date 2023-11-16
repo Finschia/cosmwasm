@@ -1,7 +1,7 @@
 use crate::contract::{execute, instantiate, query, VOTING_TOKEN};
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg};
-use crate::state::{config_read, PollStatus, State};
+use crate::state::{load_config, PollStatus, State};
 use cosmwasm_std::testing::{
     mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
 };
@@ -49,7 +49,7 @@ fn proper_initialization() {
     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(0, res.messages.len());
 
-    let state = config_read(&deps.storage).load().unwrap();
+    let state = load_config(&deps.storage).unwrap();
     assert_eq!(
         state,
         State {
@@ -625,7 +625,7 @@ fn happy_days_withdraw_voting_tokens() {
     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_stake_tokens_result(11, execute_res, deps.as_mut());
 
-    let state = config_read(&deps.storage).load().unwrap();
+    let state = load_config(&deps.storage).unwrap();
     assert_eq!(
         state,
         State {
@@ -651,7 +651,7 @@ fn happy_days_withdraw_voting_tokens() {
         })
     );
 
-    let state = config_read(&deps.storage).load().unwrap();
+    let state = load_config(&deps.storage).unwrap();
     assert_eq!(
         state,
         State {
@@ -863,7 +863,7 @@ fn assert_create_poll_result(
     );
 
     //confirm poll count
-    let state = config_read(deps.storage).load().unwrap();
+    let state = load_config(deps.storage).unwrap();
     assert_eq!(
         state,
         State {
@@ -877,7 +877,7 @@ fn assert_create_poll_result(
 fn assert_stake_tokens_result(staked_tokens: u128, execute_res: Response, deps: DepsMut) {
     assert_eq!(execute_res, Response::default());
 
-    let state = config_read(deps.storage).load().unwrap();
+    let state = load_config(deps.storage).unwrap();
     assert_eq!(
         state,
         State {
