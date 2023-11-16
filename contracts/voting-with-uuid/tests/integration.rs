@@ -50,5 +50,5 @@ fn compare_gas_spent() {
     let gas_used_seq_id = before_gas2 - deps.get_gas_left();
 
     assert!(gas_used_seq_id < gas_used_uuid);
-    println!("gas_seq_id {} gas_uuid {}", gas_used_seq_id, gas_used_uuid);
+    println!("gas_seq_id {gas_used_seq_id} gas_uuid {gas_used_uuid}");
 }
