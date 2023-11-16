@@ -79,7 +79,7 @@ pub fn may_load_poll(storage: &dyn Storage, key: &Uuid) -> StdResult<Option<Poll
 }
 
 pub fn load_poll(storage: &dyn Storage, key: &Uuid) -> StdResult<Poll> {
-    may_load_poll(storage, key)?.ok_or_else(|| StdError::not_found(format!("poll {:?}", key)))
+    may_load_poll(storage, key)?.ok_or_else(|| StdError::not_found(format!("poll {key:?}")))
 }
 
 pub fn save_bank(
@@ -102,5 +102,5 @@ pub fn may_load_bank(storage: &dyn Storage, key: &Addr) -> StdResult<Option<Toke
 }
 
 pub fn load_bank(storage: &dyn Storage, key: &Addr) -> StdResult<TokenManager> {
-    may_load_bank(storage, key)?.ok_or_else(|| StdError::not_found(format!("bank {:?}", key)))
+    may_load_bank(storage, key)?.ok_or_else(|| StdError::not_found(format!("bank {key:?}")))
 }
