@@ -83,7 +83,7 @@ docker run --rm -v "$(pwd)":/code \
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_query_queue",target=/code/contracts/query-queue/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.12.9 ./contracts/query-queue
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/query-queue
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_queue",target=/code/contracts/queue/target \
@@ -103,7 +103,7 @@ docker run --rm -v "$(pwd)":/code \
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_voting_with_uuid",target=/code/contracts/voting-with-uuid/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/rust-optimizer:0.12.9 ./contracts/voting-with-uuid
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/voting-with-uuid
 
 docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_virus",target=/code/contracts/virus/target \
