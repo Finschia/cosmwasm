@@ -1,4 +1,4 @@
-use wasmer::{Module, Store};
+use wasmer::{Engine, Module, Store};
 
 use crate::backend::{Backend, Storage};
 use crate::compatibility::check_wasm;
@@ -12,8 +12,13 @@ use super::querier::MockQuerier;
 use super::result::{TestingError, TestingResult};
 use super::storage::MockStorage;
 
+/// This is Contract type for testing.
+///
+/// the engine and module need to correspond one-to-one.
+/// See: https://github.com/CosmWasm/cosmwasm/pull/1753
 #[derive(Clone)]
 pub struct Contract {
+    engine: Engine,
     module: Module,
     storage: MockStorage,
 }
@@ -32,13 +37,19 @@ impl Contract {
         let engine = make_compiling_engine(memory_limit);
         let module = compile(&engine, wasm)?;
         let storage = MockStorage::new();
-        let contract = Self { module, storage };
+        let contract = Self {
+            engine,
+            module,
+            storage,
+        };
         Ok(contract)
     }
 
     /// change the wasm code for testing migrate
     ///
     /// call this before `generate_instance` for testing `call_migrate`.
+    ///
+    /// the engine and module need to correspond one-to-one, and with changes in WASM, both the engine and module are being updated.  
     pub fn change_wasm(
         &mut self,
         wasm: &[u8],
@@ -48,6 +59,7 @@ impl Contract {
         check_wasm(wasm, &options.available_capabilities)?;
         let engine = make_compiling_engine(memory_limit);
         let module = compile(&engine, wasm)?;
+        self.engine = engine;
         self.module = module;
         Ok(())
     }
@@ -59,14 +71,13 @@ impl Contract {
         querier: MockQuerier,
         options: &MockInstanceOptions,
     ) -> TestingResult<Instance<MockApi, MockStorage, MockQuerier>> {
-        let engine = make_compiling_engine(None);
         let storage = self.storage.clone();
         let backend = Backend {
             api,
             storage,
             querier,
         };
-        let store = Store::new(engine);
+        let store = Store::new(self.engine.clone());
         let instance = Instance::from_module(
             store,
             &self.module,
@@ -108,9 +119,9 @@ mod test {
     use cosmwasm_std::{QueryResponse, Response};
 
     static CONTRACT_WITHOUT_MIGRATE: &[u8] =
-        include_bytes!("../../testdata/queue_1.0.0_without_migrate.wasm");
+        include_bytes!("../../testdata/queue_1.4.0_without_migrate.wasm");
     static CONTRACT_WITH_MIGRATE: &[u8] =
-        include_bytes!("../../testdata/queue_1.0.0_with_migrate.wasm");
+        include_bytes!("../../testdata/queue_1.4.0_with_migrate.wasm");
 
     #[test]
     fn test_sanity_integration_test_flow() {
