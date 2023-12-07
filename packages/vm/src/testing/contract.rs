@@ -24,6 +24,7 @@ pub struct Contract {
 }
 
 /// representing a contract in integration test
+///
 /// This enables tests to instantiate a new instance every time,
 /// they test call_(instantiate/execute/query/migrate),
 /// similar to the actual behavior of wasmd.
