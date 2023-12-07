@@ -24,8 +24,9 @@ pub struct Contract {
 }
 
 /// representing a contract in integration test
-///
-/// This enables tests instantiate a new instance every time testing call_(instantiate/execute/query/migrate) like actual wasmd's behavior.
+/// This enables tests to instantiate a new instance every time,
+/// they test call_(instantiate/execute/query/migrate),
+/// similar to the actual behavior of wasmd.
 /// This is like Cache but it is for single contract and cannot save data in disk.
 impl Contract {
     pub fn from_code(
@@ -49,7 +50,8 @@ impl Contract {
     ///
     /// call this before `generate_instance` for testing `call_migrate`.
     ///
-    /// the engine and module need to correspond one-to-one, and with changes in WASM, both the engine and module are being updated.  
+    /// the engine and module need to correspond one-to-one,
+    /// and with changes in WASM, both the engine and module are being updated.
     pub fn change_wasm(
         &mut self,
         wasm: &[u8],
