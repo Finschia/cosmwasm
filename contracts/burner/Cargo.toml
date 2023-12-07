@@ -1,7 +1,7 @@
 [package]
 name = "burner"
 version = "0.0.0"
-authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
+authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>", "Simon Warta <webmaster128@users.noreply.github.com>"]
 edition = "2021"
 publish = false
 license = "Apache-2.0"
@@ -33,7 +33,7 @@ backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
 
 [dependencies]
 cosmwasm-schema = { path = "../../packages/schema" }
-cosmwasm-std = { path = "../../packages/std", features = ["iterator"] }
+cosmwasm-std = { path = "../../packages/std", features = ["iterator", "cosmwasm_1_4"] }
 schemars = "0.8.3"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 

@@ -33,30 +33,30 @@ mod test {
     fn assert_sent_sufficient_coin_works() {
         match validate_sent_sufficient_coin(&[], Some(coin(0, "token"))) {
             Ok(()) => {}
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         };
 
         match validate_sent_sufficient_coin(&[], Some(coin(5, "token"))) {
             Ok(()) => panic!("Should have raised insufficient funds error"),
             Err(ContractError::InsufficientFundsSent {}) => {}
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         };
 
         match validate_sent_sufficient_coin(&coins(10, "smokin"), Some(coin(5, "token"))) {
             Ok(()) => panic!("Should have raised insufficient funds error"),
             Err(ContractError::InsufficientFundsSent {}) => {}
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         };
 
         match validate_sent_sufficient_coin(&coins(10, "token"), Some(coin(5, "token"))) {
             Ok(()) => {}
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         };
 
         let sent_coins = vec![coin(2, "smokin"), coin(5, "token"), coin(1, "earth")];
         match validate_sent_sufficient_coin(&sent_coins, Some(coin(5, "token"))) {
             Ok(()) => {}
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         };
     }
 }

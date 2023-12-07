@@ -1,5 +1,5 @@
-use std::fmt;
-use std::ops::Deref;
+use core::fmt;
+use core::ops::Deref;
 
 use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Deserializer, Serialize};
@@ -72,16 +72,10 @@ impl fmt::Debug for HexBinary {
         // but with a custom implementation to avoid the need for an intemediate hex string.
         write!(f, "HexBinary(")?;
         for byte in self.0.iter() {
-            write!(f, "{:02x}", byte)?;
+            write!(f, "{byte:02x}")?;
         }
         write!(f, ")")?;
         Ok(())
-    }
-}
-
-impl From<&[u8]> for HexBinary {
-    fn from(binary: &[u8]) -> Self {
-        Self(binary.to_vec())
     }
 }
 
@@ -98,14 +92,27 @@ impl Deref for HexBinary {
     }
 }
 
-// Reference
+impl AsRef<[u8]> for HexBinary {
+    fn as_ref(&self) -> &[u8] {
+        self.as_slice()
+    }
+}
+
+// Slice
+impl From<&[u8]> for HexBinary {
+    fn from(binary: &[u8]) -> Self {
+        Self(binary.to_vec())
+    }
+}
+
+// Array reference
 impl<const LENGTH: usize> From<&[u8; LENGTH]> for HexBinary {
     fn from(source: &[u8; LENGTH]) -> Self {
         Self(source.to_vec())
     }
 }
 
-// Owned
+// Owned array
 impl<const LENGTH: usize> From<[u8; LENGTH]> for HexBinary {
     fn from(source: [u8; LENGTH]) -> Self {
         Self(source.into())
@@ -136,7 +143,7 @@ impl From<HexBinary> for Binary {
     }
 }
 
-/// Implement `HexBinary == std::vec::Vec<u8>`
+/// Implement `HexBinary == alloc::vec::Vec<u8>`
 impl PartialEq<Vec<u8>> for HexBinary {
     fn eq(&self, rhs: &Vec<u8>) -> bool {
         // Use Vec<u8> == Vec<u8>
@@ -144,7 +151,7 @@ impl PartialEq<Vec<u8>> for HexBinary {
     }
 }
 
-/// Implement `std::vec::Vec<u8> == HexBinary`
+/// Implement `alloc::vec::Vec<u8> == HexBinary`
 impl PartialEq<HexBinary> for Vec<u8> {
     fn eq(&self, rhs: &HexBinary) -> bool {
         // Use Vec<u8> == Vec<u8>
@@ -231,7 +238,7 @@ impl<'de> de::Visitor<'de> for HexVisitor {
     {
         match HexBinary::from_hex(v) {
             Ok(data) => Ok(data),
-            Err(_) => Err(E::custom(format!("invalid hex: {}", v))),
+            Err(_) => Err(E::custom(format!("invalid hex: {v}"))),
         }
     }
 }
@@ -240,10 +247,7 @@ impl<'de> de::Visitor<'de> for HexVisitor {
 mod tests {
     use super::*;
 
-    use crate::{from_slice, to_vec, StdError};
-    use std::collections::hash_map::DefaultHasher;
-    use std::collections::HashSet;
-    use std::hash::{Hash, Hasher};
+    use crate::{assert_hash_works, from_slice, to_vec, StdError};
 
     #[test]
     fn from_hex_works() {
@@ -338,7 +342,7 @@ mod tests {
                 assert_eq!(expected, 8);
                 assert_eq!(actual, 3);
             }
-            err => panic!("Unexpected error: {:?}", err),
+            err => panic!("Unexpected error: {err:?}"),
         }
 
         // long array (32 bytes)
@@ -540,11 +544,11 @@ mod tests {
     fn hex_binary_implements_debug() {
         // Some data
         let data = HexBinary(vec![0x07, 0x35, 0xAA, 0xcb, 0x00, 0xff]);
-        assert_eq!(format!("{:?}", data), "HexBinary(0735aacb00ff)",);
+        assert_eq!(format!("{data:?}"), "HexBinary(0735aacb00ff)",);
 
         // Empty
         let data = HexBinary(vec![]);
-        assert_eq!(format!("{:?}", data), "HexBinary()",);
+        assert_eq!(format!("{data:?}"), "HexBinary()",);
     }
 
     #[test]
@@ -561,42 +565,20 @@ mod tests {
     }
 
     #[test]
-    fn hex_binary_implements_hash() {
-        let a1 = HexBinary::from([0, 187, 61, 11, 250, 0]);
-        let mut hasher = DefaultHasher::new();
-        a1.hash(&mut hasher);
-        let a1_hash = hasher.finish();
-
-        let a2 = HexBinary::from([0, 187, 61, 11, 250, 0]);
-        let mut hasher = DefaultHasher::new();
-        a2.hash(&mut hasher);
-        let a2_hash = hasher.finish();
-
-        let b = HexBinary::from([16, 21, 33, 0, 255, 9]);
-        let mut hasher = DefaultHasher::new();
-        b.hash(&mut hasher);
-        let b_hash = hasher.finish();
-
-        assert_eq!(a1_hash, a2_hash);
-        assert_ne!(a1_hash, b_hash);
+    fn hex_binary_implements_as_ref() {
+        let want = &[7u8, 35, 49, 101, 0, 255];
+        let data = HexBinary(want.to_vec());
+        assert_eq!(want, AsRef::<[u8]>::as_ref(&data));
+        assert_eq!(want, AsRef::<[u8]>::as_ref(&&data));
     }
 
-    /// This requires Hash and Eq to be implemented
+    /// Tests that `HexBinary` implements `EQ` and `Hash` correctly and thus can
+    /// be used with hash maps and sets.
     #[test]
-    fn hex_binary_can_be_used_in_hash_set() {
-        let a1 = HexBinary::from([0, 187, 61, 11, 250, 0]);
-        let a2 = HexBinary::from([0, 187, 61, 11, 250, 0]);
+    fn hex_binary_implements_hash_eq() {
+        let a = HexBinary::from([0, 187, 61, 11, 250, 0]);
         let b = HexBinary::from([16, 21, 33, 0, 255, 9]);
-
-        let mut set = HashSet::new();
-        set.insert(a1.clone());
-        set.insert(a2.clone());
-        set.insert(b.clone());
-        assert_eq!(set.len(), 2);
-
-        let set1 = HashSet::<HexBinary>::from_iter(vec![b.clone(), a1.clone()]);
-        let set2 = HashSet::from_iter(vec![a1, a2, b]);
-        assert_eq!(set1, set2);
+        assert_hash_works!(a, b);
     }
 
     #[test]

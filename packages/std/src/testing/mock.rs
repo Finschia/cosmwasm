@@ -1,8 +1,13 @@
+use alloc::collections::BTreeMap;
+use core::marker::PhantomData;
+#[cfg(feature = "cosmwasm_1_3")]
+use core::ops::Bound;
 use serde::de::DeserializeOwned;
 #[cfg(feature = "stargate")]
 use serde::Serialize;
+#[cfg(feature = "cosmwasm_1_3")]
+use std::collections::BTreeSet;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 use crate::addresses::{Addr, CanonicalAddr};
 use crate::binary::Binary;
@@ -28,13 +33,26 @@ use crate::query::{
     AllDelegationsResponse, AllValidatorsResponse, BondedDenomResponse, DelegationResponse,
     FullDelegation, StakingQuery, Validator, ValidatorResponse,
 };
+#[cfg(feature = "cosmwasm_1_3")]
+use crate::query::{DelegatorWithdrawAddressResponse, DistributionQuery};
 use crate::results::{ContractResult, Empty, SystemResult};
 use crate::serde::{from_slice, to_binary};
 use crate::storage::MemoryStorage;
 use crate::timestamp::Timestamp;
 use crate::traits::{Api, Querier, QuerierResult};
 use crate::types::{BlockInfo, ContractInfo, Env, MessageInfo, TransactionInfo};
-use crate::Attribute;
+#[cfg(feature = "cosmwasm_1_3")]
+use crate::{
+    query::{AllDenomMetadataResponse, DecCoin, DenomMetadataResponse},
+    PageRequest,
+};
+use crate::{Attribute, DenomMetadata};
+#[cfg(feature = "stargate")]
+use crate::{ChannelResponse, IbcQuery, ListChannelsResponse, PortIdResponse};
+#[cfg(feature = "cosmwasm_1_4")]
+use crate::{Decimal256, DelegationRewardsResponse, DelegatorValidatorsResponse};
+
+use super::riffle_shuffle;
 
 pub const MOCK_CONTRACT_ADDR: &str = "cosmos2contract";
 
@@ -77,12 +95,17 @@ pub fn mock_dependencies_with_balances(
 // We can later make simplifications here if needed
 pub type MockStorage = MemoryStorage;
 
-/// Length of canonical addresses created with this API. Contracts should not make any assumtions
+/// Length of canonical addresses created with this API. Contracts should not make any assumptions
 /// what this value is.
+///
+/// The mock API can only canonicalize and humanize addresses up to this length. So it must be
+/// long enough to store common bech32 addresses.
+///
 /// The value here must be restorable with `SHUFFLES_ENCODE` + `SHUFFLES_DECODE` in-shuffles.
-const CANONICAL_LENGTH: usize = 54;
+/// See <https://oeis.org/A002326/list> for a table of those values.
+const CANONICAL_LENGTH: usize = 90; // n = 45
 
-const SHUFFLES_ENCODE: usize = 18;
+const SHUFFLES_ENCODE: usize = 10;
 const SHUFFLES_DECODE: usize = 2;
 
 // MockPrecompiles zero pads all human addresses to make them fit the canonical_length
@@ -90,7 +113,7 @@ const SHUFFLES_DECODE: usize = 2;
 // not really smart, but allows us to see a difference (and consistent length for canonical adddresses)
 #[derive(Copy, Clone)]
 pub struct MockApi {
-    /// Length of canonical addresses created with this API. Contracts should not make any assumtions
+    /// Length of canonical addresses created with this API. Contracts should not make any assumptions
     /// what this value is.
     canonical_length: usize,
 }
@@ -118,14 +141,16 @@ impl Api for MockApi {
 
     fn addr_canonicalize(&self, input: &str) -> StdResult<CanonicalAddr> {
         // Dummy input validation. This is more sophisticated for formats like bech32, where format and checksum are validated.
-        if input.len() < 3 {
+        let min_length = 3;
+        let max_length = self.canonical_length;
+        if input.len() < min_length {
             return Err(StdError::generic_err(
-                "Invalid input: human address too short",
+                format!("Invalid input: human address too short for this mock implementation (must be >= {min_length})."),
             ));
         }
-        if input.len() > self.canonical_length {
+        if input.len() > max_length {
             return Err(StdError::generic_err(
-                "Invalid input: human address too long",
+                format!("Invalid input: human address too long for this mock implementation (must be <= {max_length})."),
             ));
         }
 
@@ -221,7 +246,7 @@ impl Api for MockApi {
     }
 
     fn debug(&self, message: &str) {
-        println!("{}", message);
+        println!("{message}");
     }
 }
 
@@ -431,7 +456,11 @@ pub struct MockQuerier<C: DeserializeOwned = Empty> {
     bank: BankQuerier,
     #[cfg(feature = "staking")]
     staking: StakingQuerier,
+    #[cfg(feature = "cosmwasm_1_3")]
+    distribution: DistributionQuerier,
     wasm: WasmQuerier,
+    #[cfg(feature = "stargate")]
+    ibc: IbcQuerier,
     /// A handler to handle custom queries. This is set to a dummy handler that
     /// always errors by default. Update it via `with_custom_handler`.
     ///
@@ -443,9 +472,13 @@ impl<C: DeserializeOwned> MockQuerier<C> {
     pub fn new(balances: &[(&str, &[Coin])]) -> Self {
         MockQuerier {
             bank: BankQuerier::new(balances),
+            #[cfg(feature = "cosmwasm_1_3")]
+            distribution: DistributionQuerier::default(),
             #[cfg(feature = "staking")]
             staking: StakingQuerier::default(),
             wasm: WasmQuerier::default(),
+            #[cfg(feature = "stargate")]
+            ibc: IbcQuerier::default(),
             // strange argument notation suggested as a workaround here: https://github.com/rust-lang/rust/issues/41078#issuecomment-294296365
             custom_handler: Box::from(|_: &_| -> MockQuerierCustomHandlerResult {
                 SystemResult::Err(SystemError::UnsupportedRequest {
@@ -464,6 +497,37 @@ impl<C: DeserializeOwned> MockQuerier<C> {
         self.bank.update_balance(addr, balance)
     }
 
+    pub fn set_denom_metadata(&mut self, denom_metadata: &[DenomMetadata]) {
+        self.bank.set_denom_metadata(denom_metadata);
+    }
+
+    #[cfg(feature = "cosmwasm_1_3")]
+    pub fn set_withdraw_address(
+        &mut self,
+        delegator_address: impl Into<String>,
+        withdraw_address: impl Into<String>,
+    ) {
+        self.distribution
+            .set_withdraw_address(delegator_address, withdraw_address);
+    }
+
+    /// Sets multiple withdraw addresses.
+    ///
+    /// This allows passing multiple tuples of `(delegator_address, withdraw_address)`.
+    /// It does not overwrite existing entries.
+    #[cfg(feature = "cosmwasm_1_3")]
+    pub fn set_withdraw_addresses(
+        &mut self,
+        withdraw_addresses: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
+    ) {
+        self.distribution.set_withdraw_addresses(withdraw_addresses);
+    }
+
+    #[cfg(feature = "cosmwasm_1_3")]
+    pub fn clear_withdraw_addresses(&mut self) {
+        self.distribution.clear_withdraw_addresses();
+    }
+
     #[cfg(feature = "staking")]
     pub fn update_staking(
         &mut self,
@@ -472,6 +536,11 @@ impl<C: DeserializeOwned> MockQuerier<C> {
         delegations: &[crate::query::FullDelegation],
     ) {
         self.staking = StakingQuerier::new(denom, validators, delegations);
+    }
+
+    #[cfg(feature = "stargate")]
+    pub fn update_ibc(&mut self, port_id: &str, channels: &[IbcChannel]) {
+        self.ibc = IbcQuerier::new(port_id, channels);
     }
 
     pub fn update_wasm<WH: 'static>(&mut self, handler: WH)
@@ -503,7 +572,7 @@ impl<C: CustomQuery + DeserializeOwned> Querier for MockQuerier<C> {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
-                    error: format!("Parsing query request: {}", e),
+                    error: format!("Parsing query request: {e}"),
                     request: bin_request.into(),
                 })
             }
@@ -519,15 +588,17 @@ impl<C: CustomQuery + DeserializeOwned> MockQuerier<C> {
             QueryRequest::Custom(custom_query) => (*self.custom_handler)(custom_query),
             #[cfg(feature = "staking")]
             QueryRequest::Staking(staking_query) => self.staking.query(staking_query),
+            #[cfg(feature = "cosmwasm_1_3")]
+            QueryRequest::Distribution(distribution_query) => {
+                self.distribution.query(distribution_query)
+            }
             QueryRequest::Wasm(msg) => self.wasm.query(msg),
             #[cfg(feature = "stargate")]
             QueryRequest::Stargate { .. } => SystemResult::Err(SystemError::UnsupportedRequest {
                 kind: "Stargate".to_string(),
             }),
             #[cfg(feature = "stargate")]
-            QueryRequest::Ibc(_) => SystemResult::Err(SystemError::UnsupportedRequest {
-                kind: "Ibc".to_string(),
-            }),
+            QueryRequest::Ibc(msg) => self.ibc.query(msg),
         }
     }
 }
@@ -560,13 +631,22 @@ impl WasmQuerier {
 impl Default for WasmQuerier {
     fn default() -> Self {
         let handler = Box::from(|request: &WasmQuery| -> QuerierResult {
-            let addr = match request {
-                WasmQuery::Smart { contract_addr, .. } => contract_addr,
-                WasmQuery::Raw { contract_addr, .. } => contract_addr,
-                WasmQuery::ContractInfo { contract_addr, .. } => contract_addr,
-            }
-            .clone();
-            SystemResult::Err(SystemError::NoSuchContract { addr })
+            let err = match request {
+                WasmQuery::Smart { contract_addr, .. } => SystemError::NoSuchContract {
+                    addr: contract_addr.clone(),
+                },
+                WasmQuery::Raw { contract_addr, .. } => SystemError::NoSuchContract {
+                    addr: contract_addr.clone(),
+                },
+                WasmQuery::ContractInfo { contract_addr, .. } => SystemError::NoSuchContract {
+                    addr: contract_addr.clone(),
+                },
+                #[cfg(feature = "cosmwasm_1_2")]
+                WasmQuery::CodeInfo { code_id, .. } => {
+                    SystemError::NoSuchCode { code_id: *code_id }
+                }
+            };
+            SystemResult::Err(err)
         });
         Self::new(handler)
     }
@@ -579,6 +659,8 @@ pub struct BankQuerier {
     supplies: HashMap<String, Uint128>,
     /// HashMap<address, coins>
     balances: HashMap<String, Vec<Coin>>,
+    /// Vec<Metadata>
+    denom_metadata: BTreeMap<Vec<u8>, DenomMetadata>,
 }
 
 impl BankQuerier {
@@ -591,6 +673,7 @@ impl BankQuerier {
         BankQuerier {
             supplies: Self::calculate_supplies(&balances),
             balances,
+            denom_metadata: BTreeMap::new(),
         }
     }
 
@@ -603,6 +686,13 @@ impl BankQuerier {
         self.supplies = Self::calculate_supplies(&self.balances);
 
         result
+    }
+
+    pub fn set_denom_metadata(&mut self, denom_metadata: &[DenomMetadata]) {
+        self.denom_metadata = denom_metadata
+            .iter()
+            .map(|d| (d.base.as_bytes().to_vec(), d.clone()))
+            .collect();
     }
 
     fn calculate_supplies(balances: &HashMap<String, Vec<Coin>>) -> HashMap<String, Uint128> {
@@ -657,6 +747,123 @@ impl BankQuerier {
                     amount: self.balances.get(address).cloned().unwrap_or_default(),
                 };
                 to_binary(&bank_res).into()
+            }
+            #[cfg(feature = "cosmwasm_1_3")]
+            BankQuery::DenomMetadata { denom } => {
+                let denom_metadata = self.denom_metadata.get(denom.as_bytes());
+                match denom_metadata {
+                    Some(m) => {
+                        let metadata_res = DenomMetadataResponse {
+                            metadata: m.clone(),
+                        };
+                        to_binary(&metadata_res).into()
+                    }
+                    None => return SystemResult::Err(SystemError::Unknown {}),
+                }
+            }
+            #[cfg(feature = "cosmwasm_1_3")]
+            BankQuery::AllDenomMetadata { pagination } => {
+                let default_pagination = PageRequest {
+                    key: None,
+                    limit: 100,
+                    reverse: false,
+                };
+                let pagination = pagination.as_ref().unwrap_or(&default_pagination);
+
+                // range of all denoms after the given key (or until the key for reverse)
+                let range = match (pagination.reverse, &pagination.key) {
+                    (_, None) => (Bound::Unbounded, Bound::Unbounded),
+                    (true, Some(key)) => (Bound::Unbounded, Bound::Included(key.as_slice())),
+                    (false, Some(key)) => (Bound::Included(key.as_slice()), Bound::Unbounded),
+                };
+                let iter = self.denom_metadata.range::<[u8], _>(range);
+                // using dynamic dispatch here to reduce code duplication and since this is only testing code
+                let iter: Box<dyn Iterator<Item = _>> = if pagination.reverse {
+                    Box::new(iter.rev())
+                } else {
+                    Box::new(iter)
+                };
+
+                let mut metadata: Vec<_> = iter
+                    // take the requested amount + 1 to get the next key
+                    .take((pagination.limit.saturating_add(1)) as usize)
+                    .map(|(_, m)| m.clone())
+                    .collect();
+
+                // if we took more than requested, remove the last element (the next key),
+                // otherwise this is the last batch
+                let next_key = if metadata.len() > pagination.limit as usize {
+                    metadata.pop().map(|m| Binary::from(m.base.as_bytes()))
+                } else {
+                    None
+                };
+
+                let metadata_res = AllDenomMetadataResponse { metadata, next_key };
+                to_binary(&metadata_res).into()
+            }
+        };
+        // system result is always ok in the mock implementation
+        SystemResult::Ok(contract_result)
+    }
+}
+
+#[cfg(feature = "stargate")]
+#[derive(Clone, Default)]
+pub struct IbcQuerier {
+    port_id: String,
+    channels: Vec<IbcChannel>,
+}
+
+#[cfg(feature = "stargate")]
+impl IbcQuerier {
+    /// Create a mock querier where:
+    /// - port_id is the port the "contract" is bound to
+    /// - channels are a list of ibc channels
+    pub fn new(port_id: &str, channels: &[IbcChannel]) -> Self {
+        IbcQuerier {
+            port_id: port_id.to_string(),
+            channels: channels.to_vec(),
+        }
+    }
+
+    pub fn query(&self, request: &IbcQuery) -> QuerierResult {
+        let contract_result: ContractResult<Binary> = match request {
+            IbcQuery::Channel {
+                channel_id,
+                port_id,
+            } => {
+                let channel = self
+                    .channels
+                    .iter()
+                    .find(|c| match port_id {
+                        Some(p) => c.endpoint.channel_id.eq(channel_id) && c.endpoint.port_id.eq(p),
+                        None => {
+                            c.endpoint.channel_id.eq(channel_id)
+                                && c.endpoint.port_id == self.port_id
+                        }
+                    })
+                    .cloned();
+                let res = ChannelResponse { channel };
+                to_binary(&res).into()
+            }
+            IbcQuery::ListChannels { port_id } => {
+                let channels = self
+                    .channels
+                    .iter()
+                    .filter(|c| match port_id {
+                        Some(p) => c.endpoint.port_id.eq(p),
+                        None => c.endpoint.port_id == self.port_id,
+                    })
+                    .cloned()
+                    .collect();
+                let res = ListChannelsResponse { channels };
+                to_binary(&res).into()
+            }
+            IbcQuery::PortId {} => {
+                let res = PortIdResponse {
+                    port_id: self.port_id.clone(),
+                };
+                to_binary(&res).into()
             }
         };
         // system result is always ok in the mock implementation
@@ -735,66 +942,160 @@ impl StakingQuerier {
     }
 }
 
-/// Performs a perfect shuffle (in shuffle)
-///
-/// https://en.wikipedia.org/wiki/Riffle_shuffle_permutation#Perfect_shuffles
-/// https://en.wikipedia.org/wiki/In_shuffle
-///
-/// The number of shuffles required to restore the original order are listed in
-/// https://oeis.org/A002326, e.g.:
-///
-/// ```ignore
-/// 2: 2
-/// 4: 4
-/// 6: 3
-/// 8: 6
-/// 10: 10
-/// 12: 12
-/// 14: 4
-/// 16: 8
-/// 18: 18
-/// 20: 6
-/// 22: 11
-/// 24: 20
-/// 26: 18
-/// 28: 28
-/// 30: 5
-/// 32: 10
-/// 34: 12
-/// 36: 36
-/// 38: 12
-/// 40: 20
-/// 42: 14
-/// 44: 12
-/// 46: 23
-/// 48: 21
-/// 50: 8
-/// 52: 52
-/// 54: 20
-/// 56: 18
-/// 58: 58
-/// 60: 60
-/// 62: 6
-/// 64: 12
-/// 66: 66
-/// 68: 22
-/// 70: 35
-/// 72: 9
-/// 74: 20
-/// ```
-pub fn riffle_shuffle<T: Clone>(input: &[T]) -> Vec<T> {
-    assert!(
-        input.len() % 2 == 0,
-        "Method only defined for even number of elements"
-    );
-    let mid = input.len() / 2;
-    let (left, right) = input.split_at(mid);
-    let mut out = Vec::<T>::with_capacity(input.len());
-    for i in 0..mid {
-        out.push(right[i].clone());
-        out.push(left[i].clone());
+#[cfg(feature = "cosmwasm_1_3")]
+#[derive(Clone, Default)]
+pub struct DistributionQuerier {
+    withdraw_addresses: HashMap<String, String>,
+    /// Mock of accumulated rewards, indexed first by delegator and then validator address.
+    rewards: BTreeMap<String, BTreeMap<String, Vec<DecCoin>>>,
+    /// Mock of validators that a delegator has bonded to.
+    validators: BTreeMap<String, BTreeSet<String>>,
+}
+
+#[cfg(feature = "cosmwasm_1_3")]
+impl DistributionQuerier {
+    pub fn new(withdraw_addresses: HashMap<String, String>) -> Self {
+        DistributionQuerier {
+            withdraw_addresses,
+            ..Default::default()
+        }
     }
-    out
+
+    pub fn set_withdraw_address(
+        &mut self,
+        delegator_address: impl Into<String>,
+        withdraw_address: impl Into<String>,
+    ) {
+        self.withdraw_addresses
+            .insert(delegator_address.into(), withdraw_address.into());
+    }
+
+    /// Sets multiple withdraw addresses.
+    ///
+    /// This allows passing multiple tuples of `(delegator_address, withdraw_address)`.
+    /// It does not overwrite existing entries.
+    pub fn set_withdraw_addresses(
+        &mut self,
+        withdraw_addresses: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
+    ) {
+        for (d, w) in withdraw_addresses {
+            self.set_withdraw_address(d, w);
+        }
+    }
+
+    pub fn clear_withdraw_addresses(&mut self) {
+        self.withdraw_addresses.clear();
+    }
+
+    /// Sets accumulated rewards for a given validator and delegator pair.
+    pub fn set_rewards(
+        &mut self,
+        validator: impl Into<String>,
+        delegator: impl Into<String>,
+        rewards: Vec<DecCoin>,
+    ) {
+        self.rewards
+            .entry(delegator.into())
+            .or_default()
+            .insert(validator.into(), rewards);
+    }
+
+    /// Sets the validators a given delegator has bonded to.
+    pub fn set_validators(
+        &mut self,
+        delegator: impl Into<String>,
+        validators: impl IntoIterator<Item = impl Into<String>>,
+    ) {
+        self.validators.insert(
+            delegator.into(),
+            validators.into_iter().map(Into::into).collect(),
+        );
+    }
+
+    pub fn query(&self, request: &DistributionQuery) -> QuerierResult {
+        let contract_result: ContractResult<Binary> = match request {
+            DistributionQuery::DelegatorWithdrawAddress { delegator_address } => {
+                let res = DelegatorWithdrawAddressResponse {
+                    withdraw_address: Addr::unchecked(
+                        self.withdraw_addresses
+                            .get(delegator_address)
+                            .unwrap_or(delegator_address),
+                    ),
+                };
+                to_binary(&res).into()
+            }
+            #[cfg(feature = "cosmwasm_1_4")]
+            DistributionQuery::DelegationRewards {
+                delegator_address,
+                validator_address,
+            } => {
+                let res = DelegationRewardsResponse {
+                    rewards: self
+                        .rewards
+                        .get(delegator_address)
+                        .and_then(|v| v.get(validator_address))
+                        .cloned()
+                        .unwrap_or_default(),
+                };
+                to_binary(&res).into()
+            }
+            #[cfg(feature = "cosmwasm_1_4")]
+            DistributionQuery::DelegationTotalRewards { delegator_address } => {
+                let validator_rewards = self
+                    .validator_rewards(delegator_address)
+                    .unwrap_or_default();
+                let res = crate::DelegationTotalRewardsResponse {
+                    total: validator_rewards
+                        .iter()
+                        .fold(BTreeMap::<&str, DecCoin>::new(), |mut acc, rewards| {
+                            for coin in &rewards.reward {
+                                acc.entry(&coin.denom)
+                                    .or_insert_with(|| DecCoin {
+                                        denom: coin.denom.clone(),
+                                        amount: Decimal256::zero(),
+                                    })
+                                    .amount += coin.amount;
+                            }
+
+                            acc
+                        })
+                        .into_values()
+                        .collect(),
+                    rewards: validator_rewards,
+                };
+                to_binary(&res).into()
+            }
+            #[cfg(feature = "cosmwasm_1_4")]
+            DistributionQuery::DelegatorValidators { delegator_address } => {
+                let res = DelegatorValidatorsResponse {
+                    validators: self
+                        .validators
+                        .get(delegator_address)
+                        .map(|set| set.iter().cloned().collect())
+                        .unwrap_or_default(),
+                };
+                to_binary(&res).into()
+            }
+        };
+        // system result is always ok in the mock implementation
+        SystemResult::Ok(contract_result)
+    }
+
+    /// Helper method to get all rewards for a given delegator.
+    #[cfg(feature = "cosmwasm_1_4")]
+    fn validator_rewards(&self, delegator_address: &str) -> Option<Vec<crate::DelegatorReward>> {
+        let validator_rewards = self.rewards.get(delegator_address)?;
+
+        Some(
+            validator_rewards
+                .iter()
+                .map(|(validator, rewards)| crate::DelegatorReward {
+                    validator_address: validator.clone(),
+                    reward: rewards.clone(),
+                })
+                .collect(),
+        )
+    }
 }
 
 pub fn digit_sum(input: &[u8]) -> usize {
@@ -813,6 +1114,8 @@ pub fn mock_wasmd_attr(key: impl Into<String>, value: impl Into<String>) -> Attr
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "cosmwasm_1_3")]
+    use crate::DenomUnit;
     use crate::{coin, coins, from_binary, to_binary, ContractInfoResponse, Response};
     #[cfg(feature = "staking")]
     use crate::{Decimal, Delegation};
@@ -886,23 +1189,34 @@ mod tests {
         let canonical = api.addr_canonicalize(&original).unwrap();
         let recovered = api.addr_humanize(&canonical).unwrap();
         assert_eq!(recovered, "cosmwasmchef");
+
+        // Long input (Juno contract address)
+        let original =
+            String::from("juno1v82su97skv6ucfqvuvswe0t5fph7pfsrtraxf0x33d8ylj5qnrysdvkc95");
+        let canonical = api.addr_canonicalize(&original).unwrap();
+        let recovered = api.addr_humanize(&canonical).unwrap();
+        assert_eq!(recovered, original);
     }
 
     #[test]
-    #[should_panic(expected = "address too short")]
     fn addr_canonicalize_min_input_length() {
         let api = MockApi::default();
         let human = String::from("1");
-        let _ = api.addr_canonicalize(&human).unwrap();
+        let err = api.addr_canonicalize(&human).unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("human address too short for this mock implementation (must be >= 3)"));
     }
 
     #[test]
-    #[should_panic(expected = "address too long")]
     fn addr_canonicalize_max_input_length() {
         let api = MockApi::default();
         let human =
-            String::from("some-extremely-long-address-not-supported-by-this-api-longer-than-54");
-        let _ = api.addr_canonicalize(&human).unwrap();
+            String::from("some-extremely-long-address-not-supported-by-this-api-longer-than-supported------------------------");
+        let err = api.addr_canonicalize(&human).unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("human address too long for this mock implementation (must be <= 90)"));
     }
 
     #[test]
@@ -991,7 +1305,7 @@ mod tests {
         let result = api.secp256k1_recover_pubkey(&hash, &signature, 42);
         match result.unwrap_err() {
             RecoverPubkeyError::InvalidRecoveryParam => {}
-            err => panic!("Unexpected error: {:?}", err),
+            err => panic!("Unexpected error: {err:?}"),
         }
     }
 
@@ -1020,7 +1334,7 @@ mod tests {
         let result = api.secp256k1_recover_pubkey(&malformed_hash, &signature, recovery_param);
         match result.unwrap_err() {
             RecoverPubkeyError::InvalidHashFormat => {}
-            err => panic!("Unexpected error: {:?}", err),
+            err => panic!("Unexpected error: {err:?}"),
         }
     }
 
@@ -1229,6 +1543,329 @@ mod tests {
         assert_eq!(res.amount, coin(0, "ELF"));
     }
 
+    #[cfg(feature = "cosmwasm_1_3")]
+    #[test]
+    fn bank_querier_metadata_works() {
+        let mut bank = BankQuerier::new(&[]);
+        bank.set_denom_metadata(
+            &(0..100)
+                .map(|i| DenomMetadata {
+                    symbol: format!("FOO{i}"),
+                    name: "Foo".to_string(),
+                    description: "Foo coin".to_string(),
+                    denom_units: vec![DenomUnit {
+                        denom: "ufoo".to_string(),
+                        exponent: 8,
+                        aliases: vec!["microfoo".to_string(), "foobar".to_string()],
+                    }],
+                    display: "FOO".to_string(),
+                    base: format!("ufoo{i}"),
+                    uri: "https://foo.bar".to_string(),
+                    uri_hash: "foo".to_string(),
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        // querying first 10 should work
+        let res = bank
+            .query(&BankQuery::AllDenomMetadata {
+                pagination: Some(PageRequest {
+                    key: None,
+                    limit: 10,
+                    reverse: false,
+                }),
+            })
+            .unwrap()
+            .unwrap();
+        let res: AllDenomMetadataResponse = from_binary(&res).unwrap();
+        assert_eq!(res.metadata.len(), 10);
+        assert!(res.next_key.is_some());
+
+        // querying next 10 should also work
+        let res2 = bank
+            .query(&BankQuery::AllDenomMetadata {
+                pagination: Some(PageRequest {
+                    key: res.next_key,
+                    limit: 10,
+                    reverse: false,
+                }),
+            })
+            .unwrap()
+            .unwrap();
+        let res2: AllDenomMetadataResponse = from_binary(&res2).unwrap();
+        assert_eq!(res2.metadata.len(), 10);
+        assert_ne!(res.metadata.last(), res2.metadata.first());
+        // should have no overlap
+        for m in res.metadata {
+            assert!(!res2.metadata.contains(&m));
+        }
+
+        // querying all 100 should work
+        let res = bank
+            .query(&BankQuery::AllDenomMetadata {
+                pagination: Some(PageRequest {
+                    key: None,
+                    limit: 100,
+                    reverse: true,
+                }),
+            })
+            .unwrap()
+            .unwrap();
+        let res: AllDenomMetadataResponse = from_binary(&res).unwrap();
+        assert_eq!(res.metadata.len(), 100);
+        assert!(res.next_key.is_none(), "no more data should be available");
+        assert_eq!(res.metadata[0].symbol, "FOO99", "should have been reversed");
+
+        let more_res = bank
+            .query(&BankQuery::AllDenomMetadata {
+                pagination: Some(PageRequest {
+                    key: res.next_key,
+                    limit: u32::MAX,
+                    reverse: true,
+                }),
+            })
+            .unwrap()
+            .unwrap();
+        let more_res: AllDenomMetadataResponse = from_binary(&more_res).unwrap();
+        assert_eq!(
+            more_res.metadata, res.metadata,
+            "should be same as previous query"
+        );
+    }
+
+    #[cfg(feature = "cosmwasm_1_3")]
+    #[test]
+    fn distribution_querier_delegator_withdraw_address() {
+        let mut distribution = DistributionQuerier::default();
+        distribution.set_withdraw_address("addr0", "withdraw0");
+
+        let query = DistributionQuery::DelegatorWithdrawAddress {
+            delegator_address: "addr0".to_string(),
+        };
+
+        let res = distribution.query(&query).unwrap().unwrap();
+        let res: DelegatorWithdrawAddressResponse = from_binary(&res).unwrap();
+        assert_eq!(res.withdraw_address, "withdraw0");
+
+        let query = DistributionQuery::DelegatorWithdrawAddress {
+            delegator_address: "addr1".to_string(),
+        };
+
+        let res = distribution.query(&query).unwrap().unwrap();
+        let res: DelegatorWithdrawAddressResponse = from_binary(&res).unwrap();
+        assert_eq!(res.withdraw_address, "addr1");
+    }
+
+    #[cfg(feature = "cosmwasm_1_4")]
+    #[test]
+    fn distribution_querier_delegator_validators() {
+        let mut distribution = DistributionQuerier::default();
+        distribution.set_validators("addr0", ["valoper1", "valoper2"]);
+
+        let query = DistributionQuery::DelegatorValidators {
+            delegator_address: "addr0".to_string(),
+        };
+
+        let res = distribution.query(&query).unwrap().unwrap();
+        let res: DelegatorValidatorsResponse = from_binary(&res).unwrap();
+        assert_eq!(res.validators, ["valoper1", "valoper2"]);
+
+        let query = DistributionQuery::DelegatorValidators {
+            delegator_address: "addr1".to_string(),
+        };
+
+        let res = distribution.query(&query).unwrap().unwrap();
+        let res: DelegatorValidatorsResponse = from_binary(&res).unwrap();
+        assert_eq!(res.validators, ([] as [String; 0]));
+    }
+
+    #[cfg(feature = "cosmwasm_1_4")]
+    #[test]
+    fn distribution_querier_delegation_rewards() {
+        use crate::{Decimal256, DelegationTotalRewardsResponse, DelegatorReward};
+
+        let mut distribution = DistributionQuerier::default();
+        let valoper0_rewards = vec![
+            DecCoin::new(Decimal256::from_atomics(1234u128, 0).unwrap(), "uatom"),
+            DecCoin::new(Decimal256::from_atomics(56781234u128, 4).unwrap(), "utest"),
+        ];
+        distribution.set_rewards("valoper0", "addr0", valoper0_rewards.clone());
+
+        // both exist / are set
+        let query = DistributionQuery::DelegationRewards {
+            delegator_address: "addr0".to_string(),
+            validator_address: "valoper0".to_string(),
+        };
+        let res = distribution.query(&query).unwrap().unwrap();
+        let res: DelegationRewardsResponse = from_binary(&res).unwrap();
+        assert_eq!(res.rewards, valoper0_rewards);
+
+        // delegator does not exist
+        let query = DistributionQuery::DelegationRewards {
+            delegator_address: "nonexistent".to_string(),
+            validator_address: "valoper0".to_string(),
+        };
+        let res = distribution.query(&query).unwrap().unwrap();
+        let res: DelegationRewardsResponse = from_binary(&res).unwrap();
+        assert_eq!(res.rewards.len(), 0);
+
+        // validator does not exist
+        let query = DistributionQuery::DelegationRewards {
+            delegator_address: "addr0".to_string(),
+            validator_address: "valopernonexistent".to_string(),
+        };
+        let res = distribution.query(&query).unwrap().unwrap();
+        let res: DelegationRewardsResponse = from_binary(&res).unwrap();
+        assert_eq!(res.rewards.len(), 0);
+
+        // add one more validator
+        let valoper1_rewards = vec![DecCoin::new(Decimal256::one(), "uatom")];
+        distribution.set_rewards("valoper1", "addr0", valoper1_rewards.clone());
+
+        // total rewards
+        let query = DistributionQuery::DelegationTotalRewards {
+            delegator_address: "addr0".to_string(),
+        };
+        let res = distribution.query(&query).unwrap().unwrap();
+        let res: DelegationTotalRewardsResponse = from_binary(&res).unwrap();
+        assert_eq!(
+            res.rewards,
+            vec![
+                DelegatorReward {
+                    validator_address: "valoper0".into(),
+                    reward: valoper0_rewards
+                },
+                DelegatorReward {
+                    validator_address: "valoper1".into(),
+                    reward: valoper1_rewards
+                },
+            ]
+        );
+        assert_eq!(
+            res.total,
+            [
+                DecCoin::new(
+                    Decimal256::from_atomics(1234u128, 0).unwrap() + Decimal256::one(),
+                    "uatom"
+                ),
+                // total for utest should still be the same
+                DecCoin::new(Decimal256::from_atomics(56781234u128, 4).unwrap(), "utest")
+            ]
+        );
+    }
+
+    #[cfg(feature = "stargate")]
+    #[test]
+    fn ibc_querier_channel_existing() {
+        let chan1 = mock_ibc_channel("channel-0", IbcOrder::Ordered, "ibc");
+        let chan2 = mock_ibc_channel("channel-1", IbcOrder::Ordered, "ibc");
+
+        let ibc = IbcQuerier::new("myport", &[chan1.clone(), chan2]);
+
+        // query existing
+        let query = &IbcQuery::Channel {
+            channel_id: "channel-0".to_string(),
+            port_id: Some("my_port".to_string()),
+        };
+        let raw = ibc.query(query).unwrap().unwrap();
+        let chan: ChannelResponse = from_binary(&raw).unwrap();
+        assert_eq!(chan.channel, Some(chan1));
+    }
+
+    #[cfg(feature = "stargate")]
+    #[test]
+    fn ibc_querier_channel_existing_no_port() {
+        let chan1 = IbcChannel {
+            endpoint: IbcEndpoint {
+                port_id: "myport".to_string(),
+                channel_id: "channel-0".to_string(),
+            },
+            counterparty_endpoint: IbcEndpoint {
+                port_id: "their_port".to_string(),
+                channel_id: "channel-7".to_string(),
+            },
+            order: IbcOrder::Ordered,
+            version: "ibc".to_string(),
+            connection_id: "connection-2".to_string(),
+        };
+        let chan2 = mock_ibc_channel("channel-1", IbcOrder::Ordered, "ibc");
+
+        let ibc = IbcQuerier::new("myport", &[chan1.clone(), chan2]);
+
+        // query existing
+        let query = &IbcQuery::Channel {
+            channel_id: "channel-0".to_string(),
+            port_id: Some("myport".to_string()),
+        };
+        let raw = ibc.query(query).unwrap().unwrap();
+        let chan: ChannelResponse = from_binary(&raw).unwrap();
+        assert_eq!(chan.channel, Some(chan1));
+    }
+
+    #[cfg(feature = "stargate")]
+    #[test]
+    fn ibc_querier_channel_none() {
+        let chan1 = mock_ibc_channel("channel-0", IbcOrder::Ordered, "ibc");
+        let chan2 = mock_ibc_channel("channel-1", IbcOrder::Ordered, "ibc");
+
+        let ibc = IbcQuerier::new("myport", &[chan1, chan2]);
+
+        // query non-existing
+        let query = &IbcQuery::Channel {
+            channel_id: "channel-0".to_string(),
+            port_id: None,
+        };
+        let raw = ibc.query(query).unwrap().unwrap();
+        let chan: ChannelResponse = from_binary(&raw).unwrap();
+        assert_eq!(chan.channel, None);
+    }
+
+    #[cfg(feature = "stargate")]
+    #[test]
+    fn ibc_querier_channels_matching() {
+        let chan1 = mock_ibc_channel("channel-0", IbcOrder::Ordered, "ibc");
+        let chan2 = mock_ibc_channel("channel-1", IbcOrder::Ordered, "ibc");
+
+        let ibc = IbcQuerier::new("myport", &[chan1.clone(), chan2.clone()]);
+
+        // query channels matching "my_port" (should match both above)
+        let query = &IbcQuery::ListChannels {
+            port_id: Some("my_port".to_string()),
+        };
+        let raw = ibc.query(query).unwrap().unwrap();
+        let res: ListChannelsResponse = from_binary(&raw).unwrap();
+        assert_eq!(res.channels, vec![chan1, chan2]);
+    }
+
+    #[cfg(feature = "stargate")]
+    #[test]
+    fn ibc_querier_channels_no_matching() {
+        let chan1 = mock_ibc_channel("channel-0", IbcOrder::Ordered, "ibc");
+        let chan2 = mock_ibc_channel("channel-1", IbcOrder::Ordered, "ibc");
+
+        let ibc = IbcQuerier::new("myport", &[chan1, chan2]);
+
+        // query channels matching "myport" (should be none)
+        let query = &IbcQuery::ListChannels { port_id: None };
+        let raw = ibc.query(query).unwrap().unwrap();
+        let res: ListChannelsResponse = from_binary(&raw).unwrap();
+        assert_eq!(res.channels, vec![]);
+    }
+
+    #[cfg(feature = "stargate")]
+    #[test]
+    fn ibc_querier_port() {
+        let chan1 = mock_ibc_channel("channel-0", IbcOrder::Ordered, "ibc");
+
+        let ibc = IbcQuerier::new("myport", &[chan1]);
+
+        // query channels matching "myport" (should be none)
+        let query = &IbcQuery::PortId {};
+        let raw = ibc.query(query).unwrap().unwrap();
+        let res: PortIdResponse = from_binary(&raw).unwrap();
+        assert_eq!(res.port_id, "myport");
+    }
+
     #[cfg(feature = "staking")]
     #[test]
     fn staking_querier_all_validators() {
@@ -1430,7 +2067,7 @@ mod tests {
 
         let any_addr = "foo".to_string();
 
-        // Query WasmQuery::Raw
+        // By default, querier errors for WasmQuery::Raw
         let system_err = querier
             .query(&WasmQuery::Raw {
                 contract_addr: any_addr.clone(),
@@ -1439,10 +2076,10 @@ mod tests {
             .unwrap_err();
         match system_err {
             SystemError::NoSuchContract { addr } => assert_eq!(addr, any_addr),
-            err => panic!("Unexpected error: {:?}", err),
+            err => panic!("Unexpected error: {err:?}"),
         }
 
-        // Query WasmQuery::Smart
+        // By default, querier errors for WasmQuery::Smart
         let system_err = querier
             .query(&WasmQuery::Smart {
                 contract_addr: any_addr.clone(),
@@ -1451,10 +2088,10 @@ mod tests {
             .unwrap_err();
         match system_err {
             SystemError::NoSuchContract { addr } => assert_eq!(addr, any_addr),
-            err => panic!("Unexpected error: {:?}", err),
+            err => panic!("Unexpected error: {err:?}"),
         }
 
-        // Query WasmQuery::ContractInfo
+        // By default, querier errors for WasmQuery::ContractInfo
         let system_err = querier
             .query(&WasmQuery::ContractInfo {
                 contract_addr: any_addr.clone(),
@@ -1462,7 +2099,19 @@ mod tests {
             .unwrap_err();
         match system_err {
             SystemError::NoSuchContract { addr } => assert_eq!(addr, any_addr),
-            err => panic!("Unexpected error: {:?}", err),
+            err => panic!("Unexpected error: {err:?}"),
+        }
+
+        #[cfg(feature = "cosmwasm_1_2")]
+        {
+            // By default, querier errors for WasmQuery::CodeInfo
+            let system_err = querier
+                .query(&WasmQuery::CodeInfo { code_id: 4 })
+                .unwrap_err();
+            match system_err {
+                SystemError::NoSuchCode { code_id } => assert_eq!(code_id, 4),
+                err => panic!("Unexpected error: {err:?}"),
+            }
         }
 
         querier.update_handler(|request| {
@@ -1518,6 +2167,24 @@ mod tests {
                         })
                     }
                 }
+                #[cfg(feature = "cosmwasm_1_2")]
+                WasmQuery::CodeInfo { code_id } => {
+                    use crate::{CodeInfoResponse, HexBinary};
+                    let code_id = *code_id;
+                    if code_id == 4 {
+                        let response = CodeInfoResponse {
+                            code_id,
+                            creator: "lalala".into(),
+                            checksum: HexBinary::from_hex(
+                                "84cf20810fd429caf58898c3210fcb71759a27becddae08dbde8668ea2f4725d",
+                            )
+                            .unwrap(),
+                        };
+                        SystemResult::Ok(ContractResult::Ok(to_binary(&response).unwrap()))
+                    } else {
+                        SystemResult::Err(SystemError::NoSuchCode { code_id })
+                    }
+                }
             }
         });
 
@@ -1528,7 +2195,7 @@ mod tests {
         });
         match result {
             SystemResult::Ok(ContractResult::Ok(value)) => assert_eq!(value, b"the value" as &[u8]),
-            res => panic!("Unexpected result: {:?}", res),
+            res => panic!("Unexpected result: {res:?}"),
         }
         let result = querier.query(&WasmQuery::Raw {
             contract_addr: "contract1".into(),
@@ -1536,7 +2203,7 @@ mod tests {
         });
         match result {
             SystemResult::Ok(ContractResult::Ok(value)) => assert_eq!(value, b"" as &[u8]),
-            res => panic!("Unexpected result: {:?}", res),
+            res => panic!("Unexpected result: {res:?}"),
         }
 
         // WasmQuery::Smart
@@ -1549,7 +2216,7 @@ mod tests {
                 value,
                 br#"{"messages":[],"attributes":[],"events":[],"data":"Z29vZA=="}"# as &[u8]
             ),
-            res => panic!("Unexpected result: {:?}", res),
+            res => panic!("Unexpected result: {res:?}"),
         }
         let result = querier.query(&WasmQuery::Smart {
             contract_addr: "contract1".into(),
@@ -1559,7 +2226,7 @@ mod tests {
             SystemResult::Ok(ContractResult::Err(err)) => {
                 assert_eq!(err, "Error parsing into type cosmwasm_std::testing::mock::tests::wasm_querier_works::{{closure}}::MyMsg: Invalid type")
             }
-            res => panic!("Unexpected result: {:?}", res),
+            res => panic!("Unexpected result: {res:?}"),
         }
 
         // WasmQuery::ContractInfo
@@ -1572,40 +2239,21 @@ mod tests {
                 br#"{"code_id":4,"creator":"lalala","admin":null,"pinned":false,"ibc_port":null}"#
                     as &[u8]
             ),
-            res => panic!("Unexpected result: {:?}", res),
+            res => panic!("Unexpected result: {res:?}"),
         }
-    }
 
-    #[test]
-    fn riffle_shuffle_works() {
-        // Example from https://en.wikipedia.org/wiki/In_shuffle
-        let start = [0xA, 0x2, 0x3, 0x4, 0x5, 0x6];
-        let round1 = riffle_shuffle(&start);
-        assert_eq!(round1, [0x4, 0xA, 0x5, 0x2, 0x6, 0x3]);
-        let round2 = riffle_shuffle(&round1);
-        assert_eq!(round2, [0x2, 0x4, 0x6, 0xA, 0x3, 0x5]);
-        let round3 = riffle_shuffle(&round2);
-        assert_eq!(round3, start);
-
-        // For 14 elements, the original order is restored after 4 executions
-        // See https://en.wikipedia.org/wiki/In_shuffle#Mathematics and https://oeis.org/A002326
-        let original = [12, 33, 76, 576, 0, 44, 1, 14, 78, 99, 871212, -7, 2, -1];
-        let mut result = Vec::from(original);
-        for _ in 0..4 {
-            result = riffle_shuffle(&result);
+        // WasmQuery::ContractInfo
+        #[cfg(feature = "cosmwasm_1_2")]
+        {
+            let result = querier.query(&WasmQuery::CodeInfo { code_id: 4 });
+            match result {
+                SystemResult::Ok(ContractResult::Ok(value)) => assert_eq!(
+                    value,
+                    br#"{"code_id":4,"creator":"lalala","checksum":"84cf20810fd429caf58898c3210fcb71759a27becddae08dbde8668ea2f4725d"}"#
+                ),
+                res => panic!("Unexpected result: {res:?}"),
+            }
         }
-        assert_eq!(result, original);
-
-        // For 24 elements, the original order is restored after 20 executions
-        let original = [
-            7, 4, 2, 4656, 23, 45, 23, 1, 12, 76, 576, 0, 12, 1, 14, 78, 99, 12, 1212, 444, 31,
-            111, 424, 34,
-        ];
-        let mut result = Vec::from(original);
-        for _ in 0..20 {
-            result = riffle_shuffle(&result);
-        }
-        assert_eq!(result, original);
     }
 
     #[test]

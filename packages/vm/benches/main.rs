@@ -32,6 +32,7 @@ const INSTANTIATION_THREADS: usize = 128;
 const CONTRACTS: u64 = 10;
 
 static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
+static CYBERPUNK: &[u8] = include_bytes!("../testdata/cyberpunk.wasm");
 
 fn bench_instance(c: &mut Criterion) {
     let mut group = c.benchmark_group("Instance");
@@ -94,12 +95,11 @@ fn bench_instance(c: &mut Criterion) {
             ..DEFAULT_INSTANCE_OPTIONS
         };
         let mut instance =
-            Instance::from_code(CONTRACT, backend, much_gas, Some(DEFAULT_MEMORY_LIMIT)).unwrap();
+            Instance::from_code(CYBERPUNK, backend, much_gas, Some(DEFAULT_MEMORY_LIMIT)).unwrap();
 
         let info = mock_info("creator", &coins(1000, "earth"));
-        let msg = br#"{"verifier": "verifies", "beneficiary": "benefits"}"#;
         let contract_result =
-            call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg).unwrap();
+            call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, b"{}").unwrap();
         assert!(contract_result.into_result().is_ok());
 
         let mut gas_used = 0;
@@ -112,7 +112,7 @@ fn bench_instance(c: &mut Criterion) {
             assert!(contract_result.into_result().is_ok());
             gas_used = gas_before - instance.get_gas_left();
         });
-        println!("Gas used: {}", gas_used);
+        println!("Gas used: {gas_used}");
     });
 
     group.finish();
@@ -149,6 +149,19 @@ fn bench_cache(c: &mut Criterion) {
         });
     });
 
+    group.bench_function("load wasm unchecked", |b| {
+        let options = CacheOptions { ..options.clone() };
+        let mut cache: Cache<MockApi, MockStorage, MockQuerier> =
+            unsafe { Cache::new(options).unwrap() };
+        cache.set_module_unchecked(true);
+        let checksum = cache.save_wasm(CONTRACT).unwrap();
+
+        b.iter(|| {
+            let result = cache.load_wasm(&checksum);
+            assert!(result.is_ok());
+        });
+    });
+
     group.bench_function("analyze", |b| {
         let cache: Cache<MockApi, MockStorage, MockQuerier> =
             unsafe { Cache::new(options.clone()).unwrap() };
@@ -169,6 +182,29 @@ fn bench_cache(c: &mut Criterion) {
         };
         let cache: Cache<MockApi, MockStorage, MockQuerier> =
             unsafe { Cache::new(non_memcache).unwrap() };
+        let checksum = cache.save_wasm(CONTRACT).unwrap();
+
+        b.iter(|| {
+            let _ = cache
+                .get_instance(&checksum, mock_backend(&[]), DEFAULT_INSTANCE_OPTIONS)
+                .unwrap();
+            assert_eq!(cache.stats().hits_pinned_memory_cache, 0);
+            assert_eq!(cache.stats().hits_memory_cache, 0);
+            assert!(cache.stats().hits_fs_cache >= 1);
+            assert_eq!(cache.stats().misses, 0);
+        });
+    });
+
+    group.bench_function("instantiate from fs unchecked", |b| {
+        let non_memcache = CacheOptions {
+            base_dir: TempDir::new().unwrap().into_path(),
+            available_capabilities: capabilities_from_csv("iterator,staking"),
+            memory_cache_size: Size(0),
+            instance_memory_limit: DEFAULT_MEMORY_LIMIT,
+        };
+        let mut cache: Cache<MockApi, MockStorage, MockQuerier> =
+            unsafe { Cache::new(non_memcache).unwrap() };
+        cache.set_module_unchecked(true);
         let checksum = cache.save_wasm(CONTRACT).unwrap();
 
         b.iter(|| {

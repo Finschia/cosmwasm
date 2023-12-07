@@ -1,4 +1,7 @@
-#![cfg_attr(feature = "backtraces", feature(backtrace))]
+#![cfg_attr(feature = "backtraces", feature(error_generic_member_access))]
+#![cfg_attr(feature = "backtraces", feature(provide_any))]
+
+extern crate alloc;
 
 // Exposed on all platforms
 
@@ -6,37 +9,49 @@ mod addresses;
 mod assertions;
 mod binary;
 mod coin;
+mod coins;
 mod conversion;
 mod deps;
 mod errors;
+mod forward_ref;
 mod hex_binary;
 mod ibc;
 mod import_helpers;
 #[cfg(feature = "iterator")]
 mod iterator;
 mod math;
+mod metadata;
+mod never;
+mod pagination;
 mod panic;
 mod query;
 mod results;
 mod sections;
 mod serde;
+mod stdack;
 mod storage;
 mod timestamp;
 mod traits;
 mod types;
 mod uuid;
 
-pub use crate::addresses::{Addr, CanonicalAddr};
+/// This modules is very advanced and will not be used directly by the vast majority of users.
+/// We want to offer it to ensure a stable storage key composition system but don't encourage
+/// contract devs to use it directly.
+pub mod storage_keys;
+
+pub use crate::addresses::{instantiate2_address, Addr, CanonicalAddr, Instantiate2AddressError};
 pub use crate::binary::Binary;
 pub use crate::coin::{coin, coins, has_coins, Coin};
+pub use crate::coins::Coins;
 pub use crate::deps::{Deps, DepsMut, OwnedDeps};
 pub use crate::errors::{
-    CheckedFromRatioError, CheckedMultiplyRatioError, ConversionOverflowError, DivideByZeroError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
+    CoinFromStrError, CoinsError, ConversionOverflowError, DivideByZeroError, DivisionError,
     OverflowError, OverflowOperation, RecoverPubkeyError, StdError, StdResult, SystemError,
     VerificationError,
 };
 pub use crate::hex_binary::HexBinary;
-#[cfg(feature = "stargate")]
 pub use crate::ibc::{
     Ibc3ChannelOpenResponse, IbcAcknowledgement, IbcBasicResponse, IbcChannel, IbcChannelCloseMsg,
     IbcChannelConnectMsg, IbcChannelOpenMsg, IbcChannelOpenResponse, IbcEndpoint, IbcMsg, IbcOrder,
@@ -46,24 +61,25 @@ pub use crate::ibc::{
 #[cfg(feature = "iterator")]
 pub use crate::iterator::{Order, Record};
 pub use crate::math::{
-    Decimal, Decimal256, Decimal256RangeExceeded, DecimalRangeExceeded, Fraction, Isqrt, Uint128,
-    Uint256, Uint512, Uint64,
+    Decimal, Decimal256, Decimal256RangeExceeded, DecimalRangeExceeded, Fraction, Int128, Int256,
+    Int512, Int64, Isqrt, Uint128, Uint256, Uint512, Uint64,
 };
-#[cfg(feature = "cosmwasm_1_1")]
-pub use crate::query::SupplyResponse;
+pub use crate::metadata::{DenomMetadata, DenomUnit};
+pub use crate::never::Never;
+pub use crate::pagination::PageRequest;
 pub use crate::query::{
-    AllBalanceResponse, BalanceResponse, BankQuery, ContractInfoResponse, CustomQuery,
-    QueryRequest, WasmQuery,
+    AllBalanceResponse, AllDelegationsResponse, AllDenomMetadataResponse, AllValidatorsResponse,
+    BalanceResponse, BankQuery, BondedDenomResponse, ChannelResponse, CodeInfoResponse,
+    ContractInfoResponse, CustomQuery, DecCoin, Delegation, DelegationResponse,
+    DelegationRewardsResponse, DelegationTotalRewardsResponse, DelegatorReward,
+    DelegatorValidatorsResponse, DelegatorWithdrawAddressResponse, DenomMetadataResponse,
+    DistributionQuery, FullDelegation, IbcQuery, ListChannelsResponse, PortIdResponse,
+    QueryRequest, StakingQuery, SupplyResponse, Validator, ValidatorResponse, WasmQuery,
 };
-#[cfg(feature = "staking")]
-pub use crate::query::{
-    AllDelegationsResponse, AllValidatorsResponse, BondedDenomResponse, Delegation,
-    DelegationResponse, FullDelegation, StakingQuery, Validator, ValidatorResponse,
-};
-#[cfg(feature = "stargate")]
-pub use crate::query::{ChannelResponse, IbcQuery, ListChannelsResponse, PortIdResponse};
 #[allow(deprecated)]
 pub use crate::results::SubMsgExecutionResponse;
+#[cfg(all(feature = "stargate", feature = "cosmwasm_1_2"))]
+pub use crate::results::WeightedVoteOption;
 pub use crate::results::{
     attr, wasm_execute, wasm_instantiate, Attribute, BankMsg, ContractResult, CosmosMsg, CustomMsg,
     Empty, Event, QueryResponse, Reply, ReplyOn, Response, SubMsg, SubMsgResponse, SubMsgResult,
@@ -74,6 +90,7 @@ pub use crate::results::{DistributionMsg, StakingMsg};
 #[cfg(feature = "stargate")]
 pub use crate::results::{GovMsg, VoteOption};
 pub use crate::serde::{from_binary, from_slice, to_binary, to_vec};
+pub use crate::stdack::StdAck;
 pub use crate::storage::MemoryStorage;
 pub use crate::timestamp::Timestamp;
 pub use crate::traits::{Api, Querier, QuerierResult, QuerierWrapper, Storage};
@@ -99,8 +116,8 @@ pub use crate::exports::{
 #[cfg(target_arch = "wasm32")]
 pub use crate::imports::{ExternalApi, ExternalQuerier, ExternalStorage};
 
-// Exposed for testing only
-// Both unit tests and integration tests are compiled to native code, so everything in here does not need to compile to Wasm.
+/// Exposed for testing only
+/// Both unit tests and integration tests are compiled to native code, so everything in here does not need to compile to Wasm.
 #[cfg(not(target_arch = "wasm32"))]
 pub mod testing;
 

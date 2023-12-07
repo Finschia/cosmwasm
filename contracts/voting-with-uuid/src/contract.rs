@@ -4,7 +4,8 @@ use crate::msg::{
     CreatePollResponse, ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg, TokenStakeResponse,
 };
 use crate::state::{
-    bank, bank_read, config, config_read, poll, poll_read, Poll, PollStatus, State, Voter,
+    load_bank, load_config, load_poll, may_load_bank, may_load_poll, save_bank, save_config,
+    save_poll, Poll, PollStatus, State, TokenManager, Voter,
 };
 use cosmwasm_std::{
     attr, coin, entry_point, new_uuid, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps,
@@ -30,8 +31,7 @@ pub fn instantiate(
         staked_tokens: Uint128::zero(),
     };
 
-    config(deps.storage).save(&state)?;
-
+    save_config(deps.storage, &state)?;
     Ok(Response::default())
 }
 
@@ -77,11 +77,12 @@ pub fn stake_voting_tokens(
     _env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let key = info.sender.as_str().as_bytes();
+    let sender_key = info.sender;
 
-    let mut token_manager = bank_read(deps.storage).may_load(key)?.unwrap_or_default();
+    let mut token_manager: TokenManager =
+        may_load_bank(deps.storage, &sender_key)?.unwrap_or_default();
 
-    let mut state = config(deps.storage).load()?;
+    let mut state = load_config(deps.storage)?;
 
     validate_sent_sufficient_coin(&info.funds, Some(coin(MIN_STAKE_AMOUNT, &state.denom)))?;
     let funds = info
@@ -94,9 +95,9 @@ pub fn stake_voting_tokens(
 
     let staked_tokens = state.staked_tokens.u128() + funds.amount.u128();
     state.staked_tokens = Uint128::from(staked_tokens);
-    config(deps.storage).save(&state)?;
+    save_config(deps.storage, &state)?;
 
-    bank(deps.storage).save(key, &token_manager)?;
+    save_bank(deps.storage, &sender_key, &token_manager)?;
 
     Ok(Response::default())
 }
@@ -108,10 +109,10 @@ pub fn withdraw_voting_tokens(
     info: MessageInfo,
     amount: Option<Uint128>,
 ) -> Result<Response, ContractError> {
-    let sender_address_raw = info.sender.as_str().as_bytes();
+    let sender_key = info.sender;
 
-    if let Some(mut token_manager) = bank_read(deps.storage).may_load(sender_address_raw)? {
-        let largest_staked = locked_amount(sender_address_raw, deps.storage);
+    if let Some(mut token_manager) = may_load_bank(deps.storage, &sender_key)? {
+        let largest_staked = locked_amount(&sender_key, deps.storage);
         let withdraw_amount = amount.unwrap_or(token_manager.token_balance);
         if largest_staked + withdraw_amount > token_manager.token_balance {
             let max_amount = token_manager.token_balance.checked_sub(largest_staked)?;
@@ -120,15 +121,15 @@ pub fn withdraw_voting_tokens(
             let balance = token_manager.token_balance.checked_sub(withdraw_amount)?;
             token_manager.token_balance = balance;
 
-            bank(deps.storage).save(sender_address_raw, &token_manager)?;
+            save_bank(deps.storage, &sender_key, &token_manager)?;
 
-            let mut state = config(deps.storage).load()?;
+            let mut state = load_config(deps.storage)?;
             let staked_tokens = state.staked_tokens.checked_sub(withdraw_amount)?;
             state.staked_tokens = staked_tokens;
-            config(deps.storage).save(&state)?;
+            save_config(deps.storage, &state)?;
 
             Ok(send_tokens(
-                &info.sender,
+                &sender_key,
                 vec![coin(withdraw_amount.u128(), &state.denom)],
                 "approve",
             ))
@@ -206,7 +207,7 @@ pub fn create_poll(
         start_height,
         description,
     };
-    poll(deps.storage).save(poll_id.as_slice(), &new_poll)?;
+    save_poll(deps.storage, &poll_id, &new_poll)?;
 
     let r = Response::new()
         .add_attribute("action", "create_poll")
@@ -231,7 +232,7 @@ pub fn end_poll(
     info: MessageInfo,
     poll_id: Uuid,
 ) -> Result<Response, ContractError> {
-    let mut a_poll = poll(deps.storage).load(poll_id.as_slice())?;
+    let mut a_poll: Poll = load_poll(deps.storage, &poll_id)?;
 
     if a_poll.creator != info.sender {
         return Err(ContractError::PollNotCreator {
@@ -272,7 +273,7 @@ pub fn end_poll(
     let mut passed = false;
 
     if tallied_weight > 0 {
-        let state = config_read(deps.storage).load()?;
+        let state = load_config(deps.storage)?;
 
         let staked_weight = deps
             .querier
@@ -304,7 +305,7 @@ pub fn end_poll(
     if !passed {
         a_poll.status = PollStatus::Rejected
     }
-    poll(deps.storage).save(poll_id.as_slice(), &a_poll)?;
+    save_poll(deps.storage, &poll_id, &a_poll)?;
 
     for voter in &a_poll.voters {
         unlock_tokens(deps.storage, voter, poll_id)?;
@@ -314,7 +315,7 @@ pub fn end_poll(
         attr("action", "end_poll"),
         attr("poll_id", poll_id.to_string()),
         attr("rejected_reason", rejected_reason),
-        attr("passed", &passed.to_string()),
+        attr("passed", passed.to_string()),
     ];
 
     Ok(Response::new().add_attributes(attributes))
@@ -326,18 +327,17 @@ fn unlock_tokens(
     voter: &Addr,
     poll_id: Uuid,
 ) -> Result<Response, ContractError> {
-    let voter_key = &voter.as_str().as_bytes();
-    let mut token_manager = bank_read(storage).load(voter_key).unwrap();
+    let mut token_manager: TokenManager = load_bank(storage, voter)?;
 
     // unlock entails removing the mapped poll_id, retaining the rest
     token_manager.locked_tokens.retain(|(k, _)| k != &poll_id);
-    bank(storage).save(voter_key, &token_manager)?;
+    save_bank(storage, voter, &token_manager)?;
     Ok(Response::default())
 }
 
 // finds the largest locked amount in participated polls.
-fn locked_amount(voter: &[u8], storage: &dyn Storage) -> Uint128 {
-    let token_manager = bank_read(storage).load(voter).unwrap();
+fn locked_amount(voter: &Addr, storage: &dyn Storage) -> Uint128 {
+    let token_manager: TokenManager = load_bank(storage, voter).unwrap();
     token_manager
         .locked_tokens
         .iter()
@@ -358,9 +358,7 @@ pub fn cast_vote(
     vote: String,
     weight: Uint128,
 ) -> Result<Response, ContractError> {
-    let poll_key = poll_id.as_bytes();
-
-    let mut a_poll = match poll(deps.storage).load(poll_key) {
+    let mut a_poll: Poll = match load_poll(deps.storage, &poll_id) {
         Ok(poll) => poll,
         Err(_) => return Err(ContractError::PollNotExist {}),
     };
@@ -373,28 +371,29 @@ pub fn cast_vote(
         return Err(ContractError::PollSenderVoted {});
     }
 
-    let key = info.sender.as_str().as_bytes();
-    let mut token_manager = bank_read(deps.storage).may_load(key)?.unwrap_or_default();
+    let sender_key = info.sender;
+    let mut token_manager: TokenManager =
+        may_load_bank(deps.storage, &sender_key)?.unwrap_or_default();
 
     if token_manager.token_balance < weight {
         return Err(ContractError::PollInsufficientStake {});
     }
     token_manager.participated_polls.push(poll_id);
     token_manager.locked_tokens.push((poll_id, weight));
-    bank(deps.storage).save(key, &token_manager)?;
+    save_bank(deps.storage, &sender_key, &token_manager)?;
 
-    a_poll.voters.push(info.sender.clone());
+    a_poll.voters.push(sender_key.clone());
 
     let voter_info = Voter { vote, weight };
 
     a_poll.voter_info.push(voter_info);
-    poll(deps.storage).save(poll_key, &a_poll)?;
+    save_poll(deps.storage, &poll_id, &a_poll)?;
 
     let attributes = vec![
         attr("action", "vote_casted"),
         attr("poll_id", poll_id.to_string()),
-        attr("weight", &weight.to_string()),
-        attr("voter", &info.sender),
+        attr("weight", weight.to_string()),
+        attr("voter", &sender_key),
     ];
 
     Ok(Response::new().add_attributes(attributes))
@@ -435,7 +434,7 @@ pub fn make_seq_id(
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&config_read(deps.storage).load()?),
+        QueryMsg::Config {} => to_binary(&load_config(deps.storage)?),
         QueryMsg::TokenStake { address } => {
             token_balance(deps, deps.api.addr_validate(address.as_str())?)
         }
@@ -444,13 +443,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 fn query_poll(deps: Deps, poll_id: Uuid) -> StdResult<Binary> {
-    let key = poll_id.as_bytes();
-
-    let poll = match poll_read(deps.storage).may_load(key)? {
-        Some(poll) => Some(poll),
+    let poll: Poll = match may_load_poll(deps.storage, &poll_id)? {
+        Some(poll) => poll,
         None => return Err(StdError::generic_err("Poll does not exist")),
-    }
-    .unwrap();
+    };
 
     let resp = PollResponse {
         creator: poll.creator.to_string(),
@@ -464,9 +460,7 @@ fn query_poll(deps: Deps, poll_id: Uuid) -> StdResult<Binary> {
 }
 
 fn token_balance(deps: Deps, address: Addr) -> StdResult<Binary> {
-    let token_manager = bank_read(deps.storage)
-        .may_load(address.as_str().as_bytes())?
-        .unwrap_or_default();
+    let token_manager = may_load_bank(deps.storage, &address)?.unwrap_or_default();
 
     let resp = TokenStakeResponse {
         token_balance: token_manager.token_balance,

@@ -45,6 +45,114 @@
         "additionalProperties": false
       },
       {
+        "description": "Infinite loop to burn cpu cycles (only run when metering is enabled)",
+        "type": "object",
+        "required": [
+          "cpu_loop"
+        ],
+        "properties": {
+          "cpu_loop": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Infinite loop making storage calls (to test when their limit hits)",
+        "type": "object",
+        "required": [
+          "storage_loop"
+        ],
+        "properties": {
+          "storage_loop": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Infinite loop reading and writing memory",
+        "type": "object",
+        "required": [
+          "memory_loop"
+        ],
+        "properties": {
+          "memory_loop": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Infinite loop sending message to itself",
+        "type": "object",
+        "required": [
+          "message_loop"
+        ],
+        "properties": {
+          "message_loop": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Allocate large amounts of memory without consuming much gas",
+        "type": "object",
+        "required": [
+          "allocate_large_memory"
+        ],
+        "properties": {
+          "allocate_large_memory": {
+            "type": "object",
+            "required": [
+              "pages"
+            ],
+            "properties": {
+              "pages": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Trigger a panic to ensure framework handles gracefully",
+        "type": "object",
+        "required": [
+          "panic"
+        ],
+        "properties": {
+          "panic": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "In contrast to Panic, this does not use the panic handler.\n\nFrom <https://doc.rust-lang.org/beta/core/arch/wasm32/fn.unreachable.html>: \"Generates the unreachable instruction, which causes an unconditional trap.\"",
+        "type": "object",
+        "required": [
+          "unreachable"
+        ],
+        "properties": {
+          "unreachable": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Returns the env for testing",
         "type": "object",
         "required": [
@@ -52,6 +160,20 @@
         ],
         "properties": {
           "mirror_env": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Does a bit of work and calls debug",
+        "type": "object",
+        "required": [
+          "debug"
+        ],
+        "properties": {
+          "debug": {
             "type": "object",
             "additionalProperties": false
           }
@@ -77,12 +199,198 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Queries `AllDenomMetadata` from the bank module repeatedly and returns all entries",
+        "type": "object",
+        "required": [
+          "denoms"
+        ],
+        "properties": {
+          "denoms": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Queries `DenomMetadata` from the bank module and returns the result",
+        "type": "object",
+        "required": [
+          "denom"
+        ],
+        "properties": {
+          "denom": {
+            "type": "object",
+            "required": [
+              "denom"
+            ],
+            "properties": {
+              "denom": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ]
   },
   "migrate": null,
   "sudo": null,
   "responses": {
+    "denom": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DenomMetadata",
+      "description": "Replicates the cosmos-sdk bank module Metadata type",
+      "type": "object",
+      "required": [
+        "base",
+        "denom_units",
+        "description",
+        "display",
+        "name",
+        "symbol",
+        "uri",
+        "uri_hash"
+      ],
+      "properties": {
+        "base": {
+          "type": "string"
+        },
+        "denom_units": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DenomUnit"
+          }
+        },
+        "description": {
+          "type": "string"
+        },
+        "display": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "uri_hash": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "DenomUnit": {
+          "description": "Replicates the cosmos-sdk bank module DenomUnit type",
+          "type": "object",
+          "required": [
+            "aliases",
+            "denom",
+            "exponent"
+          ],
+          "properties": {
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "denom": {
+              "type": "string"
+            },
+            "exponent": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      }
+    },
+    "denoms": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Array_of_DenomMetadata",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DenomMetadata"
+      },
+      "definitions": {
+        "DenomMetadata": {
+          "description": "Replicates the cosmos-sdk bank module Metadata type",
+          "type": "object",
+          "required": [
+            "base",
+            "denom_units",
+            "description",
+            "display",
+            "name",
+            "symbol",
+            "uri",
+            "uri_hash"
+          ],
+          "properties": {
+            "base": {
+              "type": "string"
+            },
+            "denom_units": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/DenomUnit"
+              }
+            },
+            "description": {
+              "type": "string"
+            },
+            "display": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "symbol": {
+              "type": "string"
+            },
+            "uri": {
+              "type": "string"
+            },
+            "uri_hash": {
+              "type": "string"
+            }
+          }
+        },
+        "DenomUnit": {
+          "description": "Replicates the cosmos-sdk bank module DenomUnit type",
+          "type": "object",
+          "required": [
+            "aliases",
+            "denom",
+            "exponent"
+          ],
+          "properties": {
+            "aliases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "denom": {
+              "type": "string"
+            },
+            "exponent": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          }
+        }
+      }
+    },
     "mirror_env": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Env",
@@ -133,7 +441,7 @@
               "minimum": 0.0
             },
             "time": {
-              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time in Tendermint](https://github.com/tendermint/tendermint/blob/58dc1726/spec/consensus/bft-time.md), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
+              "description": "Absolute time of the block creation in seconds since the UNIX epoch (00:00:00 on 1970-01-01 UTC).\n\nThe source of this is the [BFT Time](https://github.com/Finschia/ostracon/blob/main/spec/README.md#consensus-protocol), which has the same nanosecond precision as the `Timestamp` type.\n\n# Examples\n\nUsing chrono:\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; # extern crate chrono; use chrono::NaiveDateTime; let seconds = env.block.time.seconds(); let nsecs = env.block.time.subsec_nanos(); let dt = NaiveDateTime::from_timestamp(seconds as i64, nsecs as u32); ```\n\nCreating a simple millisecond-precision timestamp (as used in JavaScript):\n\n``` # use cosmwasm_std::{Addr, BlockInfo, ContractInfo, Env, MessageInfo, Timestamp, TransactionInfo}; # let env = Env { #     block: BlockInfo { #         height: 12_345, #         time: Timestamp::from_nanos(1_571_797_419_879_305_533), #         chain_id: \"cosmos-testnet-14002\".to_string(), #     }, #     transaction: Some(TransactionInfo { index: 3 }), #     contract: ContractInfo { #         address: Addr::unchecked(\"contract\"), #     }, # }; let millis = env.block.time.nanos() / 1_000_000; ```",
               "allOf": [
                 {
                   "$ref": "#/definitions/Timestamp"

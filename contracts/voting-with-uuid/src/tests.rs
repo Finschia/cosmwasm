@@ -1,7 +1,7 @@
 use crate::contract::{execute, instantiate, query, VOTING_TOKEN};
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, PollResponse, QueryMsg};
-use crate::state::{config_read, PollStatus, State};
+use crate::state::{load_config, PollStatus, State};
 use cosmwasm_std::testing::{
     mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
 };
@@ -49,7 +49,7 @@ fn proper_initialization() {
     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(0, res.messages.len());
 
-    let state = config_read(&deps.storage).load().unwrap();
+    let state = load_config(&deps.storage).unwrap();
     assert_eq!(
         state,
         State {
@@ -69,7 +69,7 @@ fn poll_not_found() {
 
     match res {
         Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Poll does not exist"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
         _ => panic!("Must return error"),
     }
 }
@@ -89,7 +89,7 @@ fn fails_create_poll_invalid_quorum_percentage() {
         Err(ContractError::PollQuorumPercentageMismatch { quorum_percentage }) => {
             assert_eq!(quorum_percentage, qp)
         }
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -214,7 +214,7 @@ fn fails_end_poll_before_end_height() {
         Err(ContractError::PollVotingPeriodNotExpired { expire_height }) => {
             assert_eq!(expire_height, msg_end_height)
         }
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -532,7 +532,7 @@ fn fails_end_poll_before_start_height() {
         Err(ContractError::PoolVotingPeriodNotStarted { start_height }) => {
             assert_eq!(start_height, msg_start_height)
         }
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -569,7 +569,7 @@ fn fails_cast_vote_not_enough_staked() {
     match res {
         Ok(_) => panic!("Must return error"),
         Err(ContractError::PollInsufficientStake {}) => {}
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -625,7 +625,7 @@ fn happy_days_withdraw_voting_tokens() {
     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_stake_tokens_result(11, execute_res, deps.as_mut());
 
-    let state = config_read(&deps.storage).load().unwrap();
+    let state = load_config(&deps.storage).unwrap();
     assert_eq!(
         state,
         State {
@@ -651,7 +651,7 @@ fn happy_days_withdraw_voting_tokens() {
         })
     );
 
-    let state = config_read(&deps.storage).load().unwrap();
+    let state = load_config(&deps.storage).unwrap();
     assert_eq!(
         state,
         State {
@@ -677,7 +677,7 @@ fn fails_withdraw_voting_tokens_no_stake() {
     match res {
         Ok(_) => panic!("Must return error"),
         Err(ContractError::PollNoStake {}) => {}
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -704,7 +704,7 @@ fn fails_withdraw_too_many_tokens() {
         Err(ContractError::ExcessiveWithdraw { max_amount }) => {
             assert_eq!(max_amount, Uint128::from(10u32))
         }
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -755,7 +755,7 @@ fn fails_cast_vote_twice() {
     match res {
         Ok(_) => panic!("Must return error"),
         Err(ContractError::PollSenderVoted {}) => {}
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -777,7 +777,7 @@ fn fails_cast_vote_without_poll() {
     match res {
         Ok(_) => panic!("Must return error"),
         Err(ContractError::PollNotExist {}) => {}
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -813,7 +813,7 @@ fn fails_insufficient_funds() {
     match res {
         Ok(_) => panic!("Must return error"),
         Err(ContractError::InsufficientFundsSent {}) => {}
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -836,7 +836,7 @@ fn fails_staking_wrong_token() {
     match res {
         Ok(_) => panic!("Must return error"),
         Err(ContractError::InsufficientFundsSent {}) => {}
-        Err(e) => panic!("Unexpected error: {:?}", e),
+        Err(e) => panic!("Unexpected error: {e:?}"),
     }
 }
 
@@ -863,7 +863,7 @@ fn assert_create_poll_result(
     );
 
     //confirm poll count
-    let state = config_read(deps.storage).load().unwrap();
+    let state = load_config(deps.storage).unwrap();
     assert_eq!(
         state,
         State {
@@ -877,7 +877,7 @@ fn assert_create_poll_result(
 fn assert_stake_tokens_result(staked_tokens: u128, execute_res: Response, deps: DepsMut) {
     assert_eq!(execute_res, Response::default());
 
-    let state = config_read(deps.storage).load().unwrap();
+    let state = load_config(deps.storage).unwrap();
     assert_eq!(
         state,
         State {

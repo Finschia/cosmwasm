@@ -1,6 +1,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::forward_ref_partial_eq;
+
 /// A full [*Cosmos SDK* event].
 ///
 /// This version uses string attributes (similar to [*Cosmos SDK* StringEvent]),
@@ -22,6 +24,8 @@ pub struct Event {
     /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/core/events.html
     pub attributes: Vec<Attribute>,
 }
+
+forward_ref_partial_eq!(Event, Event);
 
 impl Event {
     /// Create a new event with the given type and an empty list of attributes.
@@ -64,6 +68,8 @@ pub struct Attribute {
     pub value: String,
 }
 
+forward_ref_partial_eq!(Attribute, Attribute);
+
 impl Attribute {
     /// Creates a new Attribute. `attr` is just an alias for this.
     pub fn new(key: impl Into<String>, value: impl Into<String>) -> Self {
@@ -72,8 +78,7 @@ impl Attribute {
         #[cfg(debug_assertions)]
         if key.starts_with('_') {
             panic!(
-                "attribute key `{}` is invalid - keys starting with an underscore are reserved",
-                key
+                "attribute key `{key}` is invalid - keys starting with an underscore are reserved"
             );
         }
 
@@ -111,18 +116,6 @@ impl<K: AsRef<str>, V: AsRef<str>> PartialEq<(K, V)> for &Attribute {
 impl<K: AsRef<str>, V: AsRef<str>> PartialEq<&Attribute> for (K, V) {
     fn eq(&self, attr: &&Attribute) -> bool {
         attr == self
-    }
-}
-
-impl PartialEq<Attribute> for &Attribute {
-    fn eq(&self, rhs: &Attribute) -> bool {
-        *self == rhs
-    }
-}
-
-impl PartialEq<&Attribute> for Attribute {
-    fn eq(&self, rhs: &&Attribute) -> bool {
-        self == *rhs
     }
 }
 

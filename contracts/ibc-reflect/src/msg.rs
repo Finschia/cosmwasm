@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Coin, ContractResult, CosmosMsg};
+use cosmwasm_std::{Coin, CosmosMsg};
 
 /// Just needs to know the code_id of a reflect contract to spawn sub-accounts
 #[cw_serde]
@@ -46,11 +46,40 @@ pub enum PacketMsg {
     Dispatch { msgs: Vec<CosmosMsg> },
     WhoAmI {},
     Balances {},
+    Panic {},
+    ReturnErr { text: String },
+    ReturnMsgs { msgs: Vec<CosmosMsg> },
 }
 
-/// All acknowledgements are wrapped in `ContractResult`.
-/// The success value depends on the PacketMsg variant.
-pub type AcknowledgementMsg<T> = ContractResult<T>;
+/// A custom acknowledgement type.
+/// The success type `T` depends on the PacketMsg variant.
+///
+/// This could be refactored to use [StdAck] at some point. However,
+/// it has a different success variant name ("ok" vs. "result") and
+/// a JSON payload instead of a binary payload.
+///
+/// [StdAck]: https://github.com/CosmWasm/cosmwasm/issues/1512
+#[cw_serde]
+pub enum AcknowledgementMsg<S> {
+    Ok(S),
+    Error(String),
+}
+
+impl<S> AcknowledgementMsg<S> {
+    pub fn unwrap(self) -> S {
+        match self {
+            AcknowledgementMsg::Ok(data) => data,
+            AcknowledgementMsg::Error(err) => panic!("{}", err),
+        }
+    }
+
+    pub fn unwrap_err(self) -> String {
+        match self {
+            AcknowledgementMsg::Ok(_) => panic!("not an error"),
+            AcknowledgementMsg::Error(err) => err,
+        }
+    }
+}
 
 /// This is the success response we send on ack for PacketMsg::Dispatch.
 /// Just acknowledge success or error
@@ -70,3 +99,7 @@ pub struct BalancesResponse {
     pub account: String,
     pub balances: Vec<Coin>,
 }
+
+/// This is the success response we send on ack for PacketMsg::ReturnMsgs.
+/// Just acknowledge success or error
+pub type ReturnMsgsResponse = ();

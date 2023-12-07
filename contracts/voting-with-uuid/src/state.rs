@@ -1,7 +1,6 @@
-use cosmwasm_std::{Addr, Storage, Uint128, Uuid};
-use cosmwasm_storage::{
-    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
-    Singleton,
+use cosmwasm_std::{
+    from_slice, storage_keys::namespace_with_key, to_vec, Addr, StdError, StdResult, Storage,
+    Uint128, Uuid,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -52,26 +51,56 @@ pub struct Poll {
     pub description: String,
 }
 
-pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
-    singleton(storage, CONFIG_KEY)
+pub fn save_config(storage: &mut dyn Storage, item: &State) -> StdResult<()> {
+    storage.set(CONFIG_KEY, &to_vec(item)?);
+    Ok(())
 }
 
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
-    singleton_read(storage, CONFIG_KEY)
+pub fn load_config(storage: &dyn Storage) -> StdResult<State> {
+    storage
+        .get(CONFIG_KEY)
+        .ok_or_else(|| StdError::not_found("config"))
+        .and_then(|v| from_slice(&v))
 }
 
-pub fn poll(storage: &mut dyn Storage) -> Bucket<Poll> {
-    bucket(storage, POLL_KEY)
+pub fn save_poll(storage: &mut dyn Storage, key: &Uuid, poll: &Poll) -> StdResult<()> {
+    storage.set(
+        &namespace_with_key(&[POLL_KEY], key.as_bytes()),
+        &to_vec(poll)?,
+    );
+    Ok(())
 }
 
-pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Poll> {
-    bucket_read(storage, POLL_KEY)
+pub fn may_load_poll(storage: &dyn Storage, key: &Uuid) -> StdResult<Option<Poll>> {
+    storage
+        .get(&namespace_with_key(&[POLL_KEY], key.as_bytes()))
+        .map(|v| from_slice(&v))
+        .transpose()
 }
 
-pub fn bank(storage: &mut dyn Storage) -> Bucket<TokenManager> {
-    bucket(storage, BANK_KEY)
+pub fn load_poll(storage: &dyn Storage, key: &Uuid) -> StdResult<Poll> {
+    may_load_poll(storage, key)?.ok_or_else(|| StdError::not_found(format!("poll {key:?}")))
 }
 
-pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<TokenManager> {
-    bucket_read(storage, BANK_KEY)
+pub fn save_bank(
+    storage: &mut dyn Storage,
+    key: &Addr,
+    token_manager: &TokenManager,
+) -> StdResult<()> {
+    storage.set(
+        &namespace_with_key(&[BANK_KEY], key.as_bytes()),
+        &to_vec(token_manager)?,
+    );
+    Ok(())
+}
+
+pub fn may_load_bank(storage: &dyn Storage, key: &Addr) -> StdResult<Option<TokenManager>> {
+    storage
+        .get(&namespace_with_key(&[BANK_KEY], key.as_bytes()))
+        .map(|v| from_slice(&v))
+        .transpose()
+}
+
+pub fn load_bank(storage: &dyn Storage, key: &Addr) -> StdResult<TokenManager> {
+    may_load_bank(storage, key)?.ok_or_else(|| StdError::not_found(format!("bank {key:?}")))
 }

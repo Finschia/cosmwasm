@@ -1,16 +1,17 @@
+use core::cmp::Ordering;
+use core::fmt::{self, Write};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
+use core::str::FromStr;
 use forward_ref::{forward_ref_binop, forward_ref_op_assign};
 use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Deserializer, Serialize};
-use std::cmp::Ordering;
-use std::fmt::{self, Write};
-use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign};
-use std::str::FromStr;
 use thiserror::Error;
 
 use crate::errors::{
     CheckedFromRatioError, CheckedMultiplyRatioError, DivideByZeroError, OverflowError,
     OverflowOperation, RoundUpOverflowError, StdError,
 };
+use crate::{forward_ref_partial_eq, Decimal256};
 
 use super::Fraction;
 use super::Isqrt;
@@ -19,8 +20,10 @@ use super::{Uint128, Uint256};
 /// A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0
 ///
 /// The greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
 pub struct Decimal(#[schemars(with = "String")] Uint128);
+
+forward_ref_partial_eq!(Decimal, Decimal);
 
 #[derive(Error, Debug, PartialEq, Eq)]
 #[error("Decimal range exceeded")]
@@ -64,13 +67,56 @@ impl Decimal {
     }
 
     /// Convert x% into Decimal
-    pub fn percent(x: u64) -> Self {
-        Self(((x as u128) * 10_000_000_000_000_000).into())
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use std::str::FromStr;
+    /// # use cosmwasm_std::Decimal;
+    /// const HALF: Decimal = Decimal::percent(50);
+    ///
+    /// assert_eq!(HALF, Decimal::from_str("0.5").unwrap());
+    /// ```
+    pub const fn percent(x: u64) -> Self {
+        // multiplication does not overflow since `u64::MAX` * 10**16 is well in u128 range
+        let atomics = (x as u128) * 10_000_000_000_000_000;
+        Self(Uint128::new(atomics))
     }
 
     /// Convert permille (x/1000) into Decimal
-    pub fn permille(x: u64) -> Self {
-        Self(((x as u128) * 1_000_000_000_000_000).into())
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use std::str::FromStr;
+    /// # use cosmwasm_std::Decimal;
+    /// const HALF: Decimal = Decimal::permille(500);
+    ///
+    /// assert_eq!(HALF, Decimal::from_str("0.5").unwrap());
+    /// ```
+    pub const fn permille(x: u64) -> Self {
+        // multiplication does not overflow since `u64::MAX` * 10**15 is well in u128 range
+        let atomics = (x as u128) * 1_000_000_000_000_000;
+        Self(Uint128::new(atomics))
+    }
+
+    /// Convert basis points (x/10000) into Decimal
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use std::str::FromStr;
+    /// # use cosmwasm_std::Decimal;
+    /// const TWO_BPS: Decimal = Decimal::bps(2);
+    /// const HALF: Decimal = Decimal::bps(5000);
+    ///
+    /// assert_eq!(TWO_BPS, Decimal::from_str("0.0002").unwrap());
+    /// assert_eq!(HALF, Decimal::from_str("0.5").unwrap());
+    /// ```
+    pub const fn bps(x: u64) -> Self {
+        // multiplication does not overflow since `u64::MAX` * 10**14 is well in u128 range
+        let atomics = (x as u128) * 100_000_000_000_000;
+        Self(Uint128::new(atomics))
     }
 
     /// Creates a decimal from a number of atomic units and the number
@@ -100,7 +146,7 @@ impl Decimal {
     ) -> Result<Self, DecimalRangeExceeded> {
         let atomics = atomics.into();
         const TEN: Uint128 = Uint128::new(10);
-        Ok(match decimal_places.cmp(&(Self::DECIMAL_PLACES)) {
+        Ok(match decimal_places.cmp(&Self::DECIMAL_PLACES) {
             Ordering::Less => {
                 let digits = (Self::DECIMAL_PLACES) - decimal_places; // No overflow because decimal_places < DECIMAL_PLACES
                 let factor = TEN.checked_pow(digits).unwrap(); // Safe because digits <= 17
@@ -155,6 +201,7 @@ impl Decimal {
         }
     }
 
+    #[must_use]
     pub const fn is_zero(&self) -> bool {
         self.0.is_zero()
     }
@@ -166,7 +213,7 @@ impl Decimal {
     ///
     /// ```
     /// # use cosmwasm_std::{Decimal, Uint128};
-    /// # use std::str::FromStr;
+    /// # use core::str::FromStr;
     /// // Value with whole and fractional part
     /// let a = Decimal::from_str("1.234").unwrap();
     /// assert_eq!(a.decimal_places(), 18);
@@ -177,6 +224,7 @@ impl Decimal {
     /// assert_eq!(b.decimal_places(), 18);
     /// assert_eq!(b.atomics(), Uint128::new(1));
     /// ```
+    #[must_use]
     #[inline]
     pub const fn atomics(&self) -> Uint128 {
         self.0
@@ -186,17 +234,20 @@ impl Decimal {
     /// but this could potentially change as the type evolves.
     ///
     /// See also [`Decimal::atomics()`].
+    #[must_use]
     #[inline]
     pub const fn decimal_places(&self) -> u32 {
         Self::DECIMAL_PLACES
     }
 
     /// Rounds value down after decimal places.
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn floor(&self) -> Self {
         Self((self.0 / Self::DECIMAL_FRACTIONAL) * Self::DECIMAL_FRACTIONAL)
     }
 
     /// Rounds value up after decimal places. Panics on overflow.
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn ceil(&self) -> Self {
         match self.checked_ceil() {
             Ok(value) => value,
@@ -245,6 +296,7 @@ impl Decimal {
     }
 
     /// Raises a value to the power of `exp`, panics if an overflow occurred.
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn pow(self, exp: u32) -> Self {
         match self.checked_pow(exp) {
             Ok(value) => value,
@@ -299,7 +351,7 @@ impl Decimal {
     /// Returns the approximate square root as a Decimal.
     ///
     /// This should not overflow or panic.
-    #[must_use]
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn sqrt(&self) -> Self {
         // Algorithm described in https://hackmd.io/@webmaster128/SJThlukj_
         // We start with the highest precision possible and lower it until
@@ -319,6 +371,7 @@ impl Decimal {
     /// Precision *must* be a number between 0 and 9 (inclusive).
     ///
     /// Returns `None` if the internal multiplication overflows.
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     fn sqrt_with_precision(&self, precision: u32) -> Option<Self> {
         let inner_mul = 100u128.pow(precision);
         self.0.checked_mul(inner_mul.into()).ok().map(|inner| {
@@ -327,10 +380,12 @@ impl Decimal {
         })
     }
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub const fn abs_diff(self, other: Self) -> Self {
         Self(self.0.abs_diff(other.0))
     }
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn saturating_add(self, other: Self) -> Self {
         match self.checked_add(other) {
             Ok(value) => value,
@@ -338,6 +393,7 @@ impl Decimal {
         }
     }
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn saturating_sub(self, other: Self) -> Self {
         match self.checked_sub(other) {
             Ok(value) => value,
@@ -345,6 +401,7 @@ impl Decimal {
         }
     }
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn saturating_mul(self, other: Self) -> Self {
         match self.checked_mul(other) {
             Ok(value) => value,
@@ -352,10 +409,65 @@ impl Decimal {
         }
     }
 
+    #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn saturating_pow(self, exp: u32) -> Self {
         match self.checked_pow(exp) {
             Ok(value) => value,
             Err(_) => Self::MAX,
+        }
+    }
+
+    /// Converts this decimal to an unsigned integer by truncating
+    /// the fractional part, e.g. 22.5 becomes 22.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use core::str::FromStr;
+    /// use cosmwasm_std::{Decimal, Uint128};
+    ///
+    /// let d = Decimal::from_str("12.345").unwrap();
+    /// assert_eq!(d.to_uint_floor(), Uint128::new(12));
+    ///
+    /// let d = Decimal::from_str("12.999").unwrap();
+    /// assert_eq!(d.to_uint_floor(), Uint128::new(12));
+    ///
+    /// let d = Decimal::from_str("75.0").unwrap();
+    /// assert_eq!(d.to_uint_floor(), Uint128::new(75));
+    /// ```
+    #[must_use]
+    pub fn to_uint_floor(self) -> Uint128 {
+        self.0 / Self::DECIMAL_FRACTIONAL
+    }
+
+    /// Converts this decimal to an unsigned integer by rounting up
+    /// to the next integer, e.g. 22.3 becomes 23.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// use core::str::FromStr;
+    /// use cosmwasm_std::{Decimal, Uint128};
+    ///
+    /// let d = Decimal::from_str("12.345").unwrap();
+    /// assert_eq!(d.to_uint_ceil(), Uint128::new(13));
+    ///
+    /// let d = Decimal::from_str("12.999").unwrap();
+    /// assert_eq!(d.to_uint_ceil(), Uint128::new(13));
+    ///
+    /// let d = Decimal::from_str("75.0").unwrap();
+    /// assert_eq!(d.to_uint_ceil(), Uint128::new(75));
+    /// ```
+    #[must_use]
+    pub fn to_uint_ceil(self) -> Uint128 {
+        // Using `q = 1 + ((x - 1) / y); // if x != 0` with unsigned integers x, y, q
+        // from https://stackoverflow.com/a/2745086/2013738. We know `x + y` CAN overflow.
+        let x = self.0;
+        let y = Self::DECIMAL_FRACTIONAL;
+        if x.is_zero() {
+            Uint128::zero()
+        } else {
+            Uint128::one() + ((x - Uint128::one()) / y)
         }
     }
 }
@@ -383,6 +495,18 @@ impl Fraction<Uint128> for Decimal {
             // `a = DECIMAL_FRACTIONAL*DECIMAL_FRACTIONAL / self.0`.
             Some(Decimal(Self::DECIMAL_FRACTIONAL_SQUARED / self.0))
         }
+    }
+}
+
+impl TryFrom<Decimal256> for Decimal {
+    type Error = DecimalRangeExceeded;
+
+    fn try_from(value: Decimal256) -> Result<Self, Self::Error> {
+        value
+            .atomics()
+            .try_into()
+            .map(Decimal)
+            .map_err(|_| DecimalRangeExceeded)
     }
 }
 
@@ -443,7 +567,7 @@ impl fmt::Display for Decimal {
         let fractional = (self.0).checked_rem(Self::DECIMAL_FRACTIONAL).unwrap();
 
         if fractional.is_zero() {
-            write!(f, "{}", whole)
+            write!(f, "{whole}")
         } else {
             let fractional_string = format!(
                 "{:0>padding$}",
@@ -455,6 +579,12 @@ impl fmt::Display for Decimal {
             f.write_str(fractional_string.trim_end_matches('0'))?;
             Ok(())
         }
+    }
+}
+
+impl fmt::Debug for Decimal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Decimal({self})")
     }
 }
 
@@ -599,7 +729,7 @@ impl RemAssign<Decimal> for Decimal {
 }
 forward_ref_op_assign!(impl RemAssign, rem_assign for Decimal, Decimal);
 
-impl<A> std::iter::Sum<A> for Decimal
+impl<A> core::iter::Sum<A> for Decimal
 where
     Self: Add<A, Output = Self>,
 {
@@ -643,20 +773,8 @@ impl<'de> de::Visitor<'de> for DecimalVisitor {
     {
         match Decimal::from_str(v) {
             Ok(d) => Ok(d),
-            Err(e) => Err(E::custom(format!("Error parsing decimal '{}': {}", v, e))),
+            Err(e) => Err(E::custom(format!("Error parsing decimal '{v}': {e}"))),
         }
-    }
-}
-
-impl PartialEq<&Decimal> for Decimal {
-    fn eq(&self, rhs: &&Decimal) -> bool {
-        self == *rhs
-    }
-}
-
-impl PartialEq<Decimal> for &Decimal {
-    fn eq(&self, rhs: &Decimal) -> bool {
-        *self == rhs
     }
 }
 
@@ -703,6 +821,28 @@ mod tests {
     fn decimal_permille() {
         let value = Decimal::permille(125);
         assert_eq!(value.0, Decimal::DECIMAL_FRACTIONAL / Uint128::from(8u8));
+    }
+
+    #[test]
+    fn decimal_bps() {
+        let value = Decimal::bps(125);
+        assert_eq!(value.0, Decimal::DECIMAL_FRACTIONAL / Uint128::from(80u8));
+    }
+
+    #[test]
+    fn decimal_from_decimal256_works() {
+        let too_big = Decimal256::new(Uint256::from(Uint128::MAX) + Uint256::one());
+        assert_eq!(Decimal::try_from(too_big), Err(DecimalRangeExceeded));
+
+        let just_right = Decimal256::new(Uint256::from(Uint128::MAX));
+        assert_eq!(Decimal::try_from(just_right), Ok(Decimal::MAX));
+
+        assert_eq!(Decimal::try_from(Decimal256::zero()), Ok(Decimal::zero()));
+        assert_eq!(Decimal::try_from(Decimal256::one()), Ok(Decimal::one()));
+        assert_eq!(
+            Decimal::try_from(Decimal256::percent(50)),
+            Ok(Decimal::percent(50))
+        );
     }
 
     #[test]
@@ -914,17 +1054,17 @@ mod tests {
     fn decimal_from_str_errors_for_broken_whole_part() {
         match Decimal::from_str("").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Error parsing whole"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
 
         match Decimal::from_str(" ").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Error parsing whole"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
 
         match Decimal::from_str("-1").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Error parsing whole"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -932,22 +1072,22 @@ mod tests {
     fn decimal_from_str_errors_for_broken_fractinal_part() {
         match Decimal::from_str("1.").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Error parsing fractional"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
 
         match Decimal::from_str("1. ").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Error parsing fractional"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
 
         match Decimal::from_str("1.e").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Error parsing fractional"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
 
         match Decimal::from_str("1.2e3").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Error parsing fractional"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -957,7 +1097,7 @@ mod tests {
             StdError::GenericErr { msg, .. } => {
                 assert_eq!(msg, "Cannot parse more than 18 fractional digits",)
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
 
         // No special rules for trailing zeros. This could be changed but adds gas cost for the happy path.
@@ -965,7 +1105,7 @@ mod tests {
             StdError::GenericErr { msg, .. } => {
                 assert_eq!(msg, "Cannot parse more than 18 fractional digits")
             }
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -973,12 +1113,12 @@ mod tests {
     fn decimal_from_str_errors_for_invalid_number_of_dots() {
         match Decimal::from_str("1.2.3").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Unexpected number of dots"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
 
         match Decimal::from_str("1.2.3.4").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Unexpected number of dots"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -987,17 +1127,17 @@ mod tests {
         // Integer
         match Decimal::from_str("340282366920938463464").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Value too big"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
 
         // Decimal
         match Decimal::from_str("340282366920938463464.0").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Value too big"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
         match Decimal::from_str("340282366920938463463.374607431768211456").unwrap_err() {
             StdError::GenericErr { msg, .. } => assert_eq!(msg, "Value too big"),
-            e => panic!("Unexpected error: {:?}", e),
+            e => panic!("Unexpected error: {e:?}"),
         }
     }
 
@@ -1334,7 +1474,7 @@ mod tests {
             (Decimal::permille(6), Decimal::permille(13)),
         ];
 
-        // The regular std::ops::Mul is our source of truth for these tests.
+        // The regular core::ops::Mul is our source of truth for these tests.
         for (x, y) in test_data.into_iter() {
             assert_eq!(x * y, x.checked_mul(y).unwrap());
         }
@@ -1928,7 +2068,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn decimal_pow_overflow_panics() {
-        Decimal::MAX.pow(2u32);
+        _ = Decimal::MAX.pow(2u32);
     }
 
     #[test]
@@ -1998,6 +2138,57 @@ mod tests {
     }
 
     #[test]
+    fn decimal_to_uint_floor_works() {
+        let d = Decimal::from_str("12.000000000000000001").unwrap();
+        assert_eq!(d.to_uint_floor(), Uint128::new(12));
+        let d = Decimal::from_str("12.345").unwrap();
+        assert_eq!(d.to_uint_floor(), Uint128::new(12));
+        let d = Decimal::from_str("12.999").unwrap();
+        assert_eq!(d.to_uint_floor(), Uint128::new(12));
+        let d = Decimal::from_str("0.98451384").unwrap();
+        assert_eq!(d.to_uint_floor(), Uint128::new(0));
+
+        let d = Decimal::from_str("75.0").unwrap();
+        assert_eq!(d.to_uint_floor(), Uint128::new(75));
+        let d = Decimal::from_str("0.0").unwrap();
+        assert_eq!(d.to_uint_floor(), Uint128::new(0));
+
+        let d = Decimal::MAX;
+        assert_eq!(d.to_uint_floor(), Uint128::new(340282366920938463463));
+
+        // Does the same as the old workaround `Uint128::one() * my_decimal`.
+        // This block can be deleted as part of https://github.com/CosmWasm/cosmwasm/issues/1485.
+        let tests = vec![
+            Decimal::from_str("12.345").unwrap(),
+            Decimal::from_str("0.98451384").unwrap(),
+            Decimal::from_str("178.0").unwrap(),
+            Decimal::MIN,
+            Decimal::MAX,
+        ];
+        for my_decimal in tests.into_iter() {
+            assert_eq!(my_decimal.to_uint_floor(), Uint128::one() * my_decimal);
+        }
+    }
+
+    #[test]
+    fn decimal_to_uint_ceil_works() {
+        let d = Decimal::from_str("12.000000000000000001").unwrap();
+        assert_eq!(d.to_uint_ceil(), Uint128::new(13));
+        let d = Decimal::from_str("12.345").unwrap();
+        assert_eq!(d.to_uint_ceil(), Uint128::new(13));
+        let d = Decimal::from_str("12.999").unwrap();
+        assert_eq!(d.to_uint_ceil(), Uint128::new(13));
+
+        let d = Decimal::from_str("75.0").unwrap();
+        assert_eq!(d.to_uint_ceil(), Uint128::new(75));
+        let d = Decimal::from_str("0.0").unwrap();
+        assert_eq!(d.to_uint_ceil(), Uint128::new(0));
+
+        let d = Decimal::MAX;
+        assert_eq!(d.to_uint_ceil(), Uint128::new(340282366920938463464));
+    }
+
+    #[test]
     fn decimal_partial_eq() {
         let test_cases = [
             ("1", "1", true),
@@ -2014,6 +2205,19 @@ mod tests {
             assert_eq!(&lhs == rhs, expected);
             assert_eq!(lhs == &rhs, expected);
             assert_eq!(&lhs == &rhs, expected);
+        }
+    }
+
+    #[test]
+    fn decimal_implements_debug() {
+        let decimal = Decimal::from_str("123.45").unwrap();
+        assert_eq!(format!("{decimal:?}"), "Decimal(123.45)");
+
+        let test_cases = ["5", "5.01", "42", "0", "2"];
+        for s in test_cases {
+            let decimal = Decimal::from_str(s).unwrap();
+            let expected = format!("Decimal({s})");
+            assert_eq!(format!("{decimal:?}"), expected);
         }
     }
 }

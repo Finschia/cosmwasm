@@ -215,7 +215,7 @@ impl<T> Response<T> {
     /// ```
     #[must_use]
     pub fn add_submessages(mut self, msgs: impl IntoIterator<Item = SubMsg<T>>) -> Self {
-        self.messages.extend(msgs.into_iter());
+        self.messages.extend(msgs);
         self
     }
 
@@ -224,12 +224,8 @@ impl<T> Response<T> {
     ///
     /// The `wasm-` prefix will be appended by the runtime to the provided types
     /// of events.
-    #[must_use]
-    pub fn add_events<S>(mut self, events: impl IntoIterator<Item = S>) -> Self
-    where
-        S: Into<Event>,
-    {
-        self.events.extend(events.into_iter().map(|e| e.into()));
+    pub fn add_events(mut self, events: impl IntoIterator<Item = Event>) -> Self {
+        self.events.extend(events);
         self
     }
 
@@ -250,7 +246,7 @@ mod tests {
 
     #[test]
     fn response_add_attributes_works() {
-        let res = Response::<Empty>::new().add_attributes(std::iter::empty::<Attribute>());
+        let res = Response::<Empty>::new().add_attributes(core::iter::empty::<Attribute>());
         assert_eq!(res.attributes.len(), 0);
 
         let res = Response::<Empty>::new().add_attributes([Attribute::new("test", "ing")]);
@@ -272,11 +268,11 @@ mod tests {
         assert_eq!(res.attributes, attrs);
 
         let optional = Option::<Attribute>::None;
-        let res: Response = Response::new().add_attributes(optional.into_iter());
+        let res: Response = Response::new().add_attributes(optional);
         assert_eq!(res.attributes.len(), 0);
 
         let optional = Option::<Attribute>::Some(Attribute::new("test", "ing"));
-        let res: Response = Response::new().add_attributes(optional.into_iter());
+        let res: Response = Response::new().add_attributes(optional);
         assert_eq!(res.attributes.len(), 1);
         assert_eq!(
             res.attributes[0],
@@ -391,7 +387,7 @@ mod tests {
         let event2 =
             Event::new("act").add_attributes(vec![attr("name", "burn"), attr("amount", "21")]);
         let expected = Response::<Empty>::new().add_events(vec![event1, event2]);
-        let actual = Response::<Empty>::new().add_events(vec![act1, act2]);
+        let actual: Response = Response::<Empty>::new().add_event(act1).add_event(act2);
         assert_eq!(actual, expected);
     }
 
