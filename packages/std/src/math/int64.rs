@@ -9,7 +9,13 @@ use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Deserializer, Serialize};
 
 use crate::errors::{DivideByZeroError, DivisionError, OverflowError, OverflowOperation, StdError};
-use crate::{forward_ref_partial_eq, Uint64};
+use crate::{
+    forward_ref_partial_eq, CheckedMultiplyRatioError, Int128, Int256, Int512, Uint128, Uint256,
+    Uint512, Uint64,
+};
+
+use super::conversion::{forward_try_from, try_from_int_to_int};
+use super::num_consts::NumConsts;
 
 /// An implementation of i64 that is using strings for JSON encoding/decoding,
 /// such that the full i64 range can be used for clients that convert JSON numbers to floats,
@@ -25,7 +31,7 @@ use crate::{forward_ref_partial_eq, Uint64};
 /// assert_eq!(a.i64(), 258);
 /// ```
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
-pub struct Int64(#[schemars(with = "String")] i64);
+pub struct Int64(#[schemars(with = "String")] pub(crate) i64);
 
 forward_ref_partial_eq!(Int64, Int64);
 
@@ -85,9 +91,53 @@ impl Int64 {
         self.0 == 0
     }
 
+    #[must_use]
+    pub const fn is_negative(&self) -> bool {
+        self.0.is_negative()
+    }
+
     #[must_use = "this returns the result of the operation, without modifying the original"]
     pub fn pow(self, exp: u32) -> Self {
         Self(self.0.pow(exp))
+    }
+
+    /// Returns `self * numerator / denominator`.
+    ///
+    /// Due to the nature of the integer division involved, the result is always floored.
+    /// E.g. 5 * 99/100 = 4.
+    pub fn checked_multiply_ratio<A: Into<Self>, B: Into<Self>>(
+        &self,
+        numerator: A,
+        denominator: B,
+    ) -> Result<Self, CheckedMultiplyRatioError> {
+        let numerator = numerator.into();
+        let denominator = denominator.into();
+        if denominator.is_zero() {
+            return Err(CheckedMultiplyRatioError::DivideByZero);
+        }
+        match (self.full_mul(numerator) / Int128::from(denominator)).try_into() {
+            Ok(ratio) => Ok(ratio),
+            Err(_) => Err(CheckedMultiplyRatioError::Overflow),
+        }
+    }
+
+    /// Multiplies two [`Int64`] values without overflow, producing an
+    /// [`Int128`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cosmwasm_std::Int64;
+    ///
+    /// let a = Int64::MAX;
+    /// let result = a.full_mul(2i32);
+    /// assert_eq!(result.to_string(), "18446744073709551614");
+    /// ```
+    #[must_use = "this returns the result of the operation, without modifying the original"]
+    pub fn full_mul(self, rhs: impl Into<Self>) -> Int128 {
+        Int128::from(self)
+            .checked_mul(Int128::from(rhs.into()))
+            .unwrap()
     }
 
     pub fn checked_add(self, other: Self) -> Result<Self, OverflowError> {
@@ -209,8 +259,26 @@ impl Int64 {
     pub const fn abs_diff(self, other: Self) -> Uint64 {
         Uint64(self.0.abs_diff(other.0))
     }
+
+    #[must_use = "this returns the result of the operation, without modifying the original"]
+    pub const fn abs(self) -> Self {
+        Self(self.0.abs())
+    }
+
+    #[must_use = "this returns the result of the operation, without modifying the original"]
+    pub const fn unsigned_abs(self) -> Uint64 {
+        Uint64(self.0.unsigned_abs())
+    }
 }
 
+impl NumConsts for Int64 {
+    const ZERO: Self = Self::zero();
+    const ONE: Self = Self::one();
+    const MAX: Self = Self::MAX;
+    const MIN: Self = Self::MIN;
+}
+
+// uint to Int
 impl From<u32> for Int64 {
     fn from(val: u32) -> Self {
         Int64(val.into())
@@ -229,6 +297,7 @@ impl From<u8> for Int64 {
     }
 }
 
+// int to Int
 impl From<i64> for Int64 {
     fn from(val: i64) -> Self {
         Int64(val)
@@ -252,6 +321,17 @@ impl From<i8> for Int64 {
         Int64(val.into())
     }
 }
+
+// Int to Int
+try_from_int_to_int!(Int128, Int64);
+try_from_int_to_int!(Int256, Int64);
+try_from_int_to_int!(Int512, Int64);
+
+// Uint to Int
+forward_try_from!(Uint64, Int64);
+forward_try_from!(Uint128, Int64);
+forward_try_from!(Uint256, Int64);
+forward_try_from!(Uint512, Int64);
 
 impl TryFrom<&str> for Int64 {
     type Error = StdError;
@@ -469,7 +549,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{from_slice, to_vec};
+    use crate::{from_json, math::conversion::test_try_from_uint_to_int, to_json_vec};
 
     #[test]
     fn size_of_works() {
@@ -579,6 +659,14 @@ mod tests {
     }
 
     #[test]
+    fn int64_try_from_unsigned_works() {
+        test_try_from_uint_to_int::<Uint64, Int64>("Uint64", "Int64");
+        test_try_from_uint_to_int::<Uint128, Int64>("Uint128", "Int64");
+        test_try_from_uint_to_int::<Uint256, Int64>("Uint256", "Int64");
+        test_try_from_uint_to_int::<Uint512, Int64>("Uint512", "Int64");
+    }
+
+    #[test]
     fn int64_implements_display() {
         let a = Int64::from(12345u32);
         assert_eq!(format!("Embedded: {a}"), "Embedded: 12345");
@@ -663,6 +751,16 @@ mod tests {
     }
 
     #[test]
+    fn int64_is_negative_works() {
+        assert!(Int64::MIN.is_negative());
+        assert!(Int64::from(-123i32).is_negative());
+
+        assert!(!Int64::MAX.is_negative());
+        assert!(!Int64::zero().is_negative());
+        assert!(!Int64::from(123u32).is_negative());
+    }
+
+    #[test]
     fn int64_wrapping_methods() {
         // wrapping_add
         assert_eq!(
@@ -696,9 +794,9 @@ mod tests {
     #[test]
     fn int64_json() {
         let orig = Int64::from(1234567890987654321i64);
-        let serialized = to_vec(&orig).unwrap();
+        let serialized = to_json_vec(&orig).unwrap();
         assert_eq!(serialized.as_slice(), b"\"1234567890987654321\"");
-        let parsed: Int64 = from_slice(&serialized).unwrap();
+        let parsed: Int64 = from_json(serialized).unwrap();
         assert_eq!(parsed, orig);
     }
 
@@ -829,6 +927,56 @@ mod tests {
     #[should_panic]
     fn int64_pow_overflow_panics() {
         _ = Int64::MAX.pow(2u32);
+    }
+
+    #[test]
+    fn int64_checked_multiply_ratio_works() {
+        let base = Int64(500);
+
+        // factor 1/1
+        assert_eq!(base.checked_multiply_ratio(1i64, 1i64).unwrap(), base);
+        assert_eq!(base.checked_multiply_ratio(3i64, 3i64).unwrap(), base);
+        assert_eq!(
+            base.checked_multiply_ratio(654321i64, 654321i64).unwrap(),
+            base
+        );
+        assert_eq!(
+            base.checked_multiply_ratio(i64::MAX, i64::MAX).unwrap(),
+            base
+        );
+
+        // factor 3/2
+        assert_eq!(base.checked_multiply_ratio(3i64, 2i64).unwrap(), Int64(750));
+        assert_eq!(
+            base.checked_multiply_ratio(333333i64, 222222i64).unwrap(),
+            Int64(750)
+        );
+
+        // factor 2/3 (integer devision always floors the result)
+        assert_eq!(base.checked_multiply_ratio(2i64, 3i64).unwrap(), Int64(333));
+        assert_eq!(
+            base.checked_multiply_ratio(222222i64, 333333i64).unwrap(),
+            Int64(333)
+        );
+
+        // factor 5/6 (integer devision always floors the result)
+        assert_eq!(base.checked_multiply_ratio(5i64, 6i64).unwrap(), Int64(416));
+        assert_eq!(
+            base.checked_multiply_ratio(100i64, 120i64).unwrap(),
+            Int64(416)
+        );
+    }
+
+    #[test]
+    fn int64_checked_multiply_ratio_does_not_panic() {
+        assert_eq!(
+            Int64(500i64).checked_multiply_ratio(1i64, 0i64),
+            Err(CheckedMultiplyRatioError::DivideByZero),
+        );
+        assert_eq!(
+            Int64(500i64).checked_multiply_ratio(i64::MAX, 1i64),
+            Err(CheckedMultiplyRatioError::Overflow),
+        );
     }
 
     #[test]
@@ -1029,6 +1177,37 @@ mod tests {
         let c = Int64::from(-5i32);
         assert_eq!(b.abs_diff(c), Uint64::from(10u32));
         assert_eq!(c.abs_diff(b), Uint64::from(10u32));
+    }
+
+    #[test]
+    fn int64_abs_works() {
+        let a = Int64::from(42i32);
+        assert_eq!(a.abs(), a);
+
+        let b = Int64::from(-42i32);
+        assert_eq!(b.abs(), a);
+
+        assert_eq!(Int64::zero().abs(), Int64::zero());
+        assert_eq!((Int64::MIN + Int64::one()).abs(), Int64::MAX);
+    }
+
+    #[test]
+    fn int64_unsigned_abs_works() {
+        assert_eq!(Int64::zero().unsigned_abs(), Uint64::zero());
+        assert_eq!(Int64::one().unsigned_abs(), Uint64::one());
+        assert_eq!(
+            Int64::MIN.unsigned_abs(),
+            Uint64::new(Int64::MAX.0 as u64) + Uint64::one()
+        );
+
+        let v = Int64::from(-42i32);
+        assert_eq!(v.unsigned_abs(), v.abs_diff(Int64::zero()));
+    }
+
+    #[test]
+    #[should_panic = "attempt to negate with overflow"]
+    fn int64_abs_min_panics() {
+        _ = Int64::MIN.abs();
     }
 
     #[test]

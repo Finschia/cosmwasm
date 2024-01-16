@@ -11,7 +11,7 @@ use crate::binary::Binary;
 use crate::coin::Coin;
 use crate::errors::StdResult;
 use crate::results::{Attribute, CosmosMsg, Empty, Event, SubMsg};
-use crate::serde::to_binary;
+use crate::serde::to_json_binary;
 use crate::timestamp::Timestamp;
 
 /// These are messages in the IBC lifecycle. Only usable by IBC-enabled contracts
@@ -240,7 +240,7 @@ impl IbcAcknowledgement {
 
     pub fn encode_json(data: &impl Serialize) -> StdResult<Self> {
         Ok(IbcAcknowledgement {
-            data: to_binary(data)?,
+            data: to_json_binary(data)?,
         })
     }
 }
@@ -492,14 +492,14 @@ pub struct IbcBasicResponse<T = Empty> {
     ///
     /// More info about events (and their attributes) can be found in [*Cosmos SDK* docs].
     ///
-    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/core/events.html
+    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/learn/advanced/events
     pub attributes: Vec<Attribute>,
     /// Extra, custom events separate from the main `wasm` one. These will have
     /// `wasm-` prepended to the type.
     ///
     /// More info about events can be found in [*Cosmos SDK* docs].
     ///
-    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/core/events.html
+    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/learn/advanced/events
     pub events: Vec<Event>,
 }
 
@@ -637,14 +637,14 @@ pub struct IbcReceiveResponse<T = Empty> {
     ///
     /// More info about events (and their attributes) can be found in [*Cosmos SDK* docs].
     ///
-    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/core/events.html
+    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/learn/advanced/events
     pub attributes: Vec<Attribute>,
     /// Extra, custom events separate from the main `wasm` one. These will have
     /// `wasm-` prepended to the type.
     ///
     /// More info about events can be found in [*Cosmos SDK* docs].
     ///
-    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/core/events.html
+    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/learn/advanced/events
     pub events: Vec<Event>,
 }
 
