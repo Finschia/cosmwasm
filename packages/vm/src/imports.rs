@@ -460,7 +460,7 @@ pub fn do_sha1_calculate<A: BackendApi + 'static, S: Storage + 'static, Q: Queri
     let (data, mut store) = env.data_and_store_mut();
 
     let hash_inputs = read_region(
-        &data.memory(&mut store),
+        &data.memory(&store),
         hash_inputs_ptr,
         (MAX_LENGTH_SHA1_MESSAGE + 4) * MAX_COUNT_SHA1_INPUT,
     )?;

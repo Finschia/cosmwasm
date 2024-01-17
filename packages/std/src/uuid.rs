@@ -41,7 +41,7 @@ const CONTRACT_UUID_SEQ_NUM_KEY: &[u8] = b"contract_uuid_seq_num";
 pub fn new_uuid(env: &Env, storage: &mut dyn Storage, api: &dyn Api) -> StdResult<Uuid> {
     let raw_seq_num = storage.get(CONTRACT_UUID_SEQ_NUM_KEY);
     let seq_num: u16 = match raw_seq_num {
-        Some(data) => from_json(&data).unwrap(),
+        Some(data) => from_json(data).unwrap(),
         None => 0,
     };
     let next_seq_num: u16 = seq_num.wrapping_add(1);
