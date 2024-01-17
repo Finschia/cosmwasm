@@ -60,7 +60,7 @@ pub fn load_config(storage: &dyn Storage) -> StdResult<State> {
     storage
         .get(CONFIG_KEY)
         .ok_or_else(|| StdError::not_found("config"))
-        .and_then(|v| from_json(&v))
+        .and_then(from_json)
 }
 
 pub fn save_poll(storage: &mut dyn Storage, key: &Uuid, poll: &Poll) -> StdResult<()> {
@@ -74,7 +74,7 @@ pub fn save_poll(storage: &mut dyn Storage, key: &Uuid, poll: &Poll) -> StdResul
 pub fn may_load_poll(storage: &dyn Storage, key: &Uuid) -> StdResult<Option<Poll>> {
     storage
         .get(&namespace_with_key(&[POLL_KEY], key.as_bytes()))
-        .map(|v| from_json(&v))
+        .map(from_json)
         .transpose()
 }
 
@@ -97,7 +97,7 @@ pub fn save_bank(
 pub fn may_load_bank(storage: &dyn Storage, key: &Addr) -> StdResult<Option<TokenManager>> {
     storage
         .get(&namespace_with_key(&[BANK_KEY], key.as_bytes()))
-        .map(|v| from_json(&v))
+        .map(from_json)
         .transpose()
 }
 

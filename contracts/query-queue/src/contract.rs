@@ -61,7 +61,7 @@ fn write_queue_address(storage: &mut dyn Storage, addr: String) {
 }
 
 fn read_queue_address(storage: &dyn Storage) -> String {
-    let config: Config = from_json(&storage.get(CONFIG_KEY).unwrap()).unwrap();
+    let config: Config = from_json(storage.get(CONFIG_KEY).unwrap()).unwrap();
     config.queue_address
 }
 
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn test_instantiate() {
         let deps = create_contract();
-        let config: Config = from_json(&deps.storage.get(CONFIG_KEY).unwrap()).unwrap();
+        let config: Config = from_json(deps.storage.get(CONFIG_KEY).unwrap()).unwrap();
         assert_eq!(config.queue_address, QUEUE_ADDRESS);
     }
 

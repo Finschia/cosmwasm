@@ -86,7 +86,7 @@ fn create_contract() -> (Instance<MockApi, MockStorage, MockQuerier>, MessageInf
 fn instantiate_and_query() {
     let (mut instance, _) = create_contract();
     let data = query(&mut instance, mock_env(), QueryMsg::Sum {}).unwrap();
-    let res: SumResponse = from_json(&data).unwrap();
+    let res: SumResponse = from_json(data).unwrap();
     assert_eq!(res.sum, 42);
 }
 
@@ -208,9 +208,9 @@ fn create_integrated_query_contract() -> (Instance<MockApi, MockStorage, MockQue
 fn integration_query_contract_queue() {
     let (mut query_instance, _) = create_integrated_query_contract();
     let data = query(&mut query_instance, mock_env(), QueryMsg::Sum {}).unwrap();
-    let res: SumResponse = from_json(&data).unwrap();
+    let res: SumResponse = from_json(data).unwrap();
     assert_eq!(res.sum, 42);
     let data = query(&mut query_instance, mock_env(), QueryMsg::Raw { key: 0 }).unwrap();
-    let res: RawResponse = from_json(&data).unwrap();
+    let res: RawResponse = from_json(data).unwrap();
     assert_eq!(res.item, Some(42));
 }
