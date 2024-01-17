@@ -8,8 +8,8 @@ use crate::state::{
     save_poll, Poll, PollStatus, State, TokenManager, Voter,
 };
 use cosmwasm_std::{
-    attr, coin, entry_point, new_uuid, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps,
-    DepsMut, Env, MessageInfo, Response, StdError, StdResult, Storage, Uint128, Uuid,
+    attr, coin, entry_point, new_uuid, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg,
+    Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Storage, Uint128, Uuid,
 };
 
 pub const VOTING_TOKEN: &str = "voting_token";
@@ -219,7 +219,7 @@ pub fn create_poll(
         )
         .add_attribute("end_height", new_poll.end_height.to_string())
         .add_attribute("start_height", start_height.unwrap_or(0).to_string())
-        .set_data(to_binary(&CreatePollResponse { poll_id })?);
+        .set_data(to_json_binary(&CreatePollResponse { poll_id })?);
     Ok(r)
 }
 
@@ -434,7 +434,7 @@ pub fn make_seq_id(
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&load_config(deps.storage)?),
+        QueryMsg::Config {} => to_json_binary(&load_config(deps.storage)?),
         QueryMsg::TokenStake { address } => {
             token_balance(deps, deps.api.addr_validate(address.as_str())?)
         }
@@ -456,7 +456,7 @@ fn query_poll(deps: Deps, poll_id: Uuid) -> StdResult<Binary> {
         start_height: poll.start_height,
         description: poll.description,
     };
-    to_binary(&resp)
+    to_json_binary(&resp)
 }
 
 fn token_balance(deps: Deps, address: Addr) -> StdResult<Binary> {
@@ -466,5 +466,5 @@ fn token_balance(deps: Deps, address: Addr) -> StdResult<Binary> {
         token_balance: token_manager.token_balance,
     };
 
-    to_binary(&resp)
+    to_json_binary(&resp)
 }

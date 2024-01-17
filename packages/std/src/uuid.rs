@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use uuid as raw_uuid;
 
-use crate::{from_slice, to_vec};
+use crate::{from_json, to_json_vec};
 use crate::{Api, Env, StdResult, Storage};
 
 /// Uuid Provides a Uuid that can be used deterministically.
@@ -41,13 +41,16 @@ const CONTRACT_UUID_SEQ_NUM_KEY: &[u8] = b"contract_uuid_seq_num";
 pub fn new_uuid(env: &Env, storage: &mut dyn Storage, api: &dyn Api) -> StdResult<Uuid> {
     let raw_seq_num = storage.get(CONTRACT_UUID_SEQ_NUM_KEY);
     let seq_num: u16 = match raw_seq_num {
-        Some(data) => from_slice(&data).unwrap(),
+        Some(data) => from_json(&data).unwrap(),
         None => 0,
     };
     let next_seq_num: u16 = seq_num.wrapping_add(1);
 
     let uuid_name = format!("{} {} {}", env.contract.address, env.block.height, seq_num);
-    storage.set(CONTRACT_UUID_SEQ_NUM_KEY, &(to_vec(&next_seq_num).unwrap()));
+    storage.set(
+        CONTRACT_UUID_SEQ_NUM_KEY,
+        &(to_json_vec(&next_seq_num).unwrap()),
+    );
 
     Uuid::new_v5(
         api,
@@ -78,7 +81,7 @@ impl FromStr for Uuid {
 mod tests {
     use crate::testing::{mock_env, MockApi, MockStorage};
     use crate::{new_uuid, Uuid};
-    use crate::{to_vec, Addr, Storage};
+    use crate::{to_json_vec, Addr, Storage};
     use std::str::FromStr;
     use uuid as raw_uuid;
 
@@ -126,7 +129,10 @@ mod tests {
         env.contract.address = Addr::unchecked("link1qyqszqgpqyqszqgpqyqszqgpqyqszqgp8apuk5");
         env.block.height = u64::MAX;
         let stor: &mut dyn Storage = &mut storage;
-        stor.set(CONTRACT_UUID_SEQ_NUM_KEY, &(to_vec(&u16::MAX).unwrap()));
+        stor.set(
+            CONTRACT_UUID_SEQ_NUM_KEY,
+            &(to_json_vec(&u16::MAX).unwrap()),
+        );
 
         let uuid = new_uuid(&env, &mut storage, &api);
         assert!(uuid.is_ok());

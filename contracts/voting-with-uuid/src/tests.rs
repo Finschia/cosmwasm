@@ -6,7 +6,7 @@ use cosmwasm_std::testing::{
     mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
 };
 use cosmwasm_std::{
-    attr, coins, from_binary, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response,
+    attr, coins, from_json, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response,
     StdError, Timestamp, Uint128, Uuid,
 };
 use std::str::FromStr;
@@ -201,7 +201,7 @@ fn fails_end_poll_before_end_height() {
 
     let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id }).unwrap();
-    let value: PollResponse = from_binary(&res).unwrap();
+    let value: PollResponse = from_json(&res).unwrap();
     assert_eq!(Some(10001), value.end_height);
 
     let poll_id = Uuid::from_str("849c1f99-e882-53e6-8e63-e5aa001359c2").unwrap();
@@ -298,7 +298,7 @@ fn happy_days_end_poll() {
         ]
     );
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id }).unwrap();
-    let value: PollResponse = from_binary(&res).unwrap();
+    let value: PollResponse = from_json(&res).unwrap();
     assert_eq!(PollStatus::Passed, value.status);
 }
 
@@ -337,7 +337,7 @@ fn end_poll_zero_quorum() {
     );
 
     let res = query(deps.as_ref(), env, QueryMsg::Poll { poll_id }).unwrap();
-    let value: PollResponse = from_binary(&res).unwrap();
+    let value: PollResponse = from_json(&res).unwrap();
     assert_eq!(PollStatus::Rejected, value.status);
 }
 
@@ -415,7 +415,7 @@ fn end_poll_quorum_rejected() {
     );
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id }).unwrap();
-    let value: PollResponse = from_binary(&res).unwrap();
+    let value: PollResponse = from_json(&res).unwrap();
     assert_eq!(PollStatus::Rejected, value.status);
 }
 
@@ -492,7 +492,7 @@ fn end_poll_nay_rejected() {
     );
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id }).unwrap();
-    let value: PollResponse = from_binary(&res).unwrap();
+    let value: PollResponse = from_json(&res).unwrap();
     assert_eq!(PollStatus::Rejected, value.status);
 }
 

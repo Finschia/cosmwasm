@@ -242,7 +242,9 @@ mod tests {
     use super::super::BankMsg;
     use super::*;
     use crate::results::submessages::{ReplyOn, UNUSED_MSG_ID};
-    use crate::{attr, coins, from_slice, to_vec, Addr, Coin, ContractResult, Event, IntoEvent};
+    use crate::{
+        attr, coins, from_json, to_json_vec, Addr, Coin, ContractResult, Event, IntoEvent,
+    };
 
     #[test]
     fn response_add_attributes_works() {

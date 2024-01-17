@@ -2,8 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    entry_point, from_slice, to_binary, to_vec, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response, StdResult, Storage,
+    entry_point, from_json, to_json_binary, to_json_vec, Deps, DepsMut, Env, MessageInfo,
+    QueryResponse, Response, StdResult, Storage,
 };
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -57,11 +57,11 @@ fn write_queue_address(storage: &mut dyn Storage, addr: String) {
     let config = Config {
         queue_address: addr,
     };
-    storage.set(CONFIG_KEY, &to_vec(&config).unwrap());
+    storage.set(CONFIG_KEY, &to_json_vec(&config).unwrap());
 }
 
 fn read_queue_address(storage: &dyn Storage) -> String {
-    let config: Config = from_slice(&storage.get(CONFIG_KEY).unwrap()).unwrap();
+    let config: Config = from_json(&storage.get(CONFIG_KEY).unwrap()).unwrap();
     config.queue_address
 }
 
@@ -96,11 +96,11 @@ fn handle_change_address(deps: DepsMut, address: String) -> StdResult<Response> 
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<QueryResponse> {
     match msg {
-        QueryMsg::Raw { key } => to_binary(&query_raw(deps, key)?),
-        QueryMsg::Count {} => to_binary(&query_count(deps, msg)?),
-        QueryMsg::Sum {} => to_binary(&query_sum(deps, msg)?),
-        QueryMsg::Reducer {} => to_binary(&query_reducer(deps, msg)?),
-        QueryMsg::List {} => to_binary(&query_list(deps, msg)?),
+        QueryMsg::Raw { key } => to_json_binary(&query_raw(deps, key)?),
+        QueryMsg::Count {} => to_json_binary(&query_count(deps, msg)?),
+        QueryMsg::Sum {} => to_json_binary(&query_sum(deps, msg)?),
+        QueryMsg::Reducer {} => to_json_binary(&query_reducer(deps, msg)?),
+        QueryMsg::List {} => to_json_binary(&query_list(deps, msg)?),
     }
 }
 
@@ -110,7 +110,7 @@ fn query_raw(deps: Deps, key: u32) -> StdResult<RawResponse> {
     match response {
         None => Ok(RawResponse { item: None }),
         Some(v) => {
-            let i: Item = from_slice(v.as_slice())?;
+            let i: Item = from_json(v.as_slice())?;
             Ok(RawResponse {
                 item: Some(i.value),
             })
@@ -175,22 +175,22 @@ mod tests {
                 contract_addr: _,
                 msg,
             } => {
-                let q_msg: QueryMsg = from_slice(msg).unwrap();
+                let q_msg: QueryMsg = from_json(msg).unwrap();
                 match q_msg {
                     QueryMsg::Count {} => SystemResult::Ok(ContractResult::Ok(
-                        to_binary(&CountResponse { count: 1 }).unwrap(),
+                        to_json_binary(&CountResponse { count: 1 }).unwrap(),
                     )),
                     QueryMsg::Sum {} => SystemResult::Ok(ContractResult::Ok(
-                        to_binary(&SumResponse { sum: 42 }).unwrap(),
+                        to_json_binary(&SumResponse { sum: 42 }).unwrap(),
                     )),
                     QueryMsg::Reducer {} => SystemResult::Ok(ContractResult::Ok(
-                        to_binary(&ReducerResponse {
+                        to_json_binary(&ReducerResponse {
                             counters: vec![(42, 0)],
                         })
                         .unwrap(),
                     )),
                     QueryMsg::List {} => SystemResult::Ok(ContractResult::Ok(
-                        to_binary(&ListResponse {
+                        to_json_binary(&ListResponse {
                             empty: vec![],
                             early: vec![0],
                             late: vec![],
@@ -204,7 +204,7 @@ mod tests {
                 contract_addr: _,
                 key: _,
             } => SystemResult::Ok(ContractResult::Ok(
-                to_binary(&RawQueryResponse { value: 42 }).unwrap(),
+                to_json_binary(&RawQueryResponse { value: 42 }).unwrap(),
             )),
             _ => SystemResult::Err(SystemError::Unknown {}),
         });
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn test_instantiate() {
         let deps = create_contract();
-        let config: Config = from_slice(&deps.storage.get(CONFIG_KEY).unwrap()).unwrap();
+        let config: Config = from_json(&deps.storage.get(CONFIG_KEY).unwrap()).unwrap();
         assert_eq!(config.queue_address, QUEUE_ADDRESS);
     }
 
