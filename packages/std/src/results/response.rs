@@ -72,14 +72,14 @@ pub struct Response<T = Empty> {
     ///
     /// More info about events (and their attributes) can be found in [*Cosmos SDK* docs].
     ///
-    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/core/events.html
+    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/learn/advanced/events
     pub attributes: Vec<Attribute>,
     /// Extra, custom events separate from the main `wasm` one. These will have
     /// `wasm-` prepended to the type.
     ///
     /// More info about events can be found in [*Cosmos SDK* docs].
     ///
-    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/core/events.html
+    /// [*Cosmos SDK* docs]: https://docs.cosmos.network/main/learn/advanced/events
     pub events: Vec<Event>,
     /// The binary payload to include in the response.
     pub data: Option<Binary>,
@@ -242,7 +242,9 @@ mod tests {
     use super::super::BankMsg;
     use super::*;
     use crate::results::submessages::{ReplyOn, UNUSED_MSG_ID};
-    use crate::{attr, coins, from_slice, to_vec, Addr, Coin, ContractResult, Event, IntoEvent};
+    use crate::{
+        attr, coins, from_json, to_json_vec, Addr, Coin, ContractResult, Event, IntoEvent,
+    };
 
     #[test]
     fn response_add_attributes_works() {
@@ -315,8 +317,8 @@ mod tests {
             events: vec![],
             data: Some(Binary::from([0xAA, 0xBB])),
         };
-        let serialized = to_vec(&original).expect("encode contract result");
-        let deserialized: Response = from_slice(&serialized).expect("decode contract result");
+        let serialized = to_json_vec(&original).expect("encode contract result");
+        let deserialized: Response = from_json(serialized).expect("decode contract result");
         assert_eq!(deserialized, original);
     }
 

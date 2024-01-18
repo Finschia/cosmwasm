@@ -62,7 +62,8 @@ pub use crate::ibc::{
 pub use crate::iterator::{Order, Record};
 pub use crate::math::{
     Decimal, Decimal256, Decimal256RangeExceeded, DecimalRangeExceeded, Fraction, Int128, Int256,
-    Int512, Int64, Isqrt, Uint128, Uint256, Uint512, Uint64,
+    Int512, Int64, Isqrt, SignedDecimal, SignedDecimal256, SignedDecimal256RangeExceeded,
+    SignedDecimalRangeExceeded, Uint128, Uint256, Uint512, Uint64,
 };
 pub use crate::metadata::{DenomMetadata, DenomUnit};
 pub use crate::never::Never;
@@ -89,7 +90,11 @@ pub use crate::results::{
 pub use crate::results::{DistributionMsg, StakingMsg};
 #[cfg(feature = "stargate")]
 pub use crate::results::{GovMsg, VoteOption};
-pub use crate::serde::{from_binary, from_slice, to_binary, to_vec};
+#[allow(deprecated)]
+pub use crate::serde::{
+    from_binary, from_json, from_slice, to_binary, to_json_binary, to_json_string, to_json_vec,
+    to_vec,
+};
 pub use crate::stdack::StdAck;
 pub use crate::storage::MemoryStorage;
 pub use crate::timestamp::Timestamp;

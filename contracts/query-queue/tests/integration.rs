@@ -21,7 +21,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Binary, ContractResult, MessageInfo, Response, SystemError,
+    from_json, to_json_binary, Binary, ContractResult, MessageInfo, Response, SystemError,
     SystemResult, WasmQuery,
 };
 use cosmwasm_vm::{
@@ -58,10 +58,10 @@ fn create_contract() -> (Instance<MockApi, MockStorage, MockQuerier>, MessageInf
                     addr: contract_addr.to_string(),
                 });
             };
-            let q_msg: QueryMsg = from_slice(msg).unwrap();
+            let q_msg: QueryMsg = from_json(msg).unwrap();
             match q_msg {
                 QueryMsg::Sum {} => SystemResult::Ok(ContractResult::Ok(
-                    to_binary(&SumResponse { sum: 42 }).unwrap(),
+                    to_json_binary(&SumResponse { sum: 42 }).unwrap(),
                 )),
                 _ => SystemResult::Err(SystemError::Unknown {}),
             }
@@ -86,7 +86,7 @@ fn create_contract() -> (Instance<MockApi, MockStorage, MockQuerier>, MessageInf
 fn instantiate_and_query() {
     let (mut instance, _) = create_contract();
     let data = query(&mut instance, mock_env(), QueryMsg::Sum {}).unwrap();
-    let res: SumResponse = from_binary(&data).unwrap();
+    let res: SumResponse = from_json(data).unwrap();
     assert_eq!(res.sum, 42);
 }
 
@@ -168,7 +168,7 @@ fn create_integrated_query_contract() -> (Instance<MockApi, MockStorage, MockQue
                         addr: contract_addr.to_string(),
                     });
                 };
-                let q_msg: QueryMsg = from_slice(msg).unwrap();
+                let q_msg: QueryMsg = from_json(msg).unwrap();
                 let res = query(&mut queue_instance, mock_env(), q_msg);
                 SystemResult::Ok(res)
             }
@@ -208,9 +208,9 @@ fn create_integrated_query_contract() -> (Instance<MockApi, MockStorage, MockQue
 fn integration_query_contract_queue() {
     let (mut query_instance, _) = create_integrated_query_contract();
     let data = query(&mut query_instance, mock_env(), QueryMsg::Sum {}).unwrap();
-    let res: SumResponse = from_binary(&data).unwrap();
+    let res: SumResponse = from_json(data).unwrap();
     assert_eq!(res.sum, 42);
     let data = query(&mut query_instance, mock_env(), QueryMsg::Raw { key: 0 }).unwrap();
-    let res: RawResponse = from_binary(&data).unwrap();
+    let res: RawResponse = from_json(data).unwrap();
     assert_eq!(res.item, Some(42));
 }

@@ -372,7 +372,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
 
     /// Creates a MemoryView.
     /// This must be short living and not be used after the memory was grown.
-    pub fn memory<'a>(&self, store: &'a mut impl AsStoreMut) -> MemoryView<'a> {
+    pub fn memory<'a>(&self, store: &'a impl AsStoreMut) -> MemoryView<'a> {
         self.memory
             .as_ref()
             .expect("Memory is not set. This is a bug in the lifecycle.")
@@ -458,7 +458,7 @@ mod tests {
     use crate::testing::{MockApi, MockQuerier, MockStorage};
     use crate::wasm_backend::{compile, make_compiling_engine};
     use cosmwasm_std::{
-        coins, from_binary, to_vec, AllBalanceResponse, BankQuery, Empty, QueryRequest,
+        coins, from_json, to_json_vec, AllBalanceResponse, BankQuery, Empty, QueryRequest,
     };
     use wasmer::{imports, Function, Instance as WasmerInstance, Store};
 
@@ -898,13 +898,13 @@ mod tests {
                     address: INIT_ADDR.to_string(),
                 });
                 let (result, _gas_info) =
-                    querier.query_raw(&to_vec(&req).unwrap(), DEFAULT_QUERY_GAS_LIMIT);
+                    querier.query_raw(&to_json_vec(&req).unwrap(), DEFAULT_QUERY_GAS_LIMIT);
                 Ok(result.unwrap())
             })
             .unwrap()
             .unwrap()
             .unwrap();
-        let balance: AllBalanceResponse = from_binary(&res).unwrap();
+        let balance: AllBalanceResponse = from_json(res).unwrap();
 
         assert_eq!(balance.amount, coins(INIT_AMOUNT, INIT_DENOM));
     }

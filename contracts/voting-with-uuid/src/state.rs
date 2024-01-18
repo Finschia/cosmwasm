@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    from_slice, storage_keys::namespace_with_key, to_vec, Addr, StdError, StdResult, Storage,
+    from_json, storage_keys::namespace_with_key, to_json_vec, Addr, StdError, StdResult, Storage,
     Uint128, Uuid,
 };
 use schemars::JsonSchema;
@@ -52,7 +52,7 @@ pub struct Poll {
 }
 
 pub fn save_config(storage: &mut dyn Storage, item: &State) -> StdResult<()> {
-    storage.set(CONFIG_KEY, &to_vec(item)?);
+    storage.set(CONFIG_KEY, &to_json_vec(item)?);
     Ok(())
 }
 
@@ -60,13 +60,13 @@ pub fn load_config(storage: &dyn Storage) -> StdResult<State> {
     storage
         .get(CONFIG_KEY)
         .ok_or_else(|| StdError::not_found("config"))
-        .and_then(|v| from_slice(&v))
+        .and_then(from_json)
 }
 
 pub fn save_poll(storage: &mut dyn Storage, key: &Uuid, poll: &Poll) -> StdResult<()> {
     storage.set(
         &namespace_with_key(&[POLL_KEY], key.as_bytes()),
-        &to_vec(poll)?,
+        &to_json_vec(poll)?,
     );
     Ok(())
 }
@@ -74,7 +74,7 @@ pub fn save_poll(storage: &mut dyn Storage, key: &Uuid, poll: &Poll) -> StdResul
 pub fn may_load_poll(storage: &dyn Storage, key: &Uuid) -> StdResult<Option<Poll>> {
     storage
         .get(&namespace_with_key(&[POLL_KEY], key.as_bytes()))
-        .map(|v| from_slice(&v))
+        .map(from_json)
         .transpose()
 }
 
@@ -89,7 +89,7 @@ pub fn save_bank(
 ) -> StdResult<()> {
     storage.set(
         &namespace_with_key(&[BANK_KEY], key.as_bytes()),
-        &to_vec(token_manager)?,
+        &to_json_vec(token_manager)?,
     );
     Ok(())
 }
@@ -97,7 +97,7 @@ pub fn save_bank(
 pub fn may_load_bank(storage: &dyn Storage, key: &Addr) -> StdResult<Option<TokenManager>> {
     storage
         .get(&namespace_with_key(&[BANK_KEY], key.as_bytes()))
-        .map(|v| from_slice(&v))
+        .map(from_json)
         .transpose()
 }
 

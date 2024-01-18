@@ -350,7 +350,7 @@ where
     /// Returns the features required by this contract.
     ///
     /// This is not needed for production because we can do static analysis
-    /// on the Wasm file before instatiation to obtain this information. It's
+    /// on the Wasm file before instantiation to obtain this information. It's
     /// only kept because it can be handy for integration testing.
     pub fn required_capabilities(&self) -> HashSet<String> {
         required_capabilities_from_module(self._inner.module())
@@ -362,9 +362,9 @@ where
     /// (https://github.com/WebAssembly/design/issues/1300#issuecomment-573867836).
     pub fn memory_pages(&mut self) -> usize {
         let mut fe_mut = self.fe.clone().into_mut(&mut self.store);
-        let (env, mut store) = fe_mut.data_and_store_mut();
+        let (env, store) = fe_mut.data_and_store_mut();
 
-        env.memory(&mut store).size().0 as _
+        env.memory(&store).size().0 as _
     }
 
     /// Returns the currently remaining gas.
@@ -449,17 +449,17 @@ where
     /// Copies all data described by the Region at the given pointer from Wasm to the caller.
     pub(crate) fn read_memory(&mut self, region_ptr: u32, max_length: usize) -> VmResult<Vec<u8>> {
         let mut fe_mut = self.fe.clone().into_mut(&mut self.store);
-        let (env, mut store) = fe_mut.data_and_store_mut();
+        let (env, store) = fe_mut.data_and_store_mut();
 
-        read_region(&env.memory(&mut store), region_ptr, max_length)
+        read_region(&env.memory(&store), region_ptr, max_length)
     }
 
     /// Copies data to the memory region that was created before using allocate.
     pub(crate) fn write_memory(&mut self, region_ptr: u32, data: &[u8]) -> VmResult<()> {
         let mut fe_mut = self.fe.clone().into_mut(&mut self.store);
-        let (env, mut store) = fe_mut.data_and_store_mut();
+        let (env, store) = fe_mut.data_and_store_mut();
 
-        write_region(&env.memory(&mut store), region_ptr, data)?;
+        write_region(&env.memory(&store), region_ptr, data)?;
         Ok(())
     }
 
@@ -524,8 +524,7 @@ mod tests {
         mock_instance_with_options, MockInstanceOptions,
     };
     use cosmwasm_std::{
-        coin, coins, from_binary, AllBalanceResponse, BalanceResponse, BankQuery, Empty,
-        QueryRequest,
+        coin, coins, from_json, AllBalanceResponse, BalanceResponse, BankQuery, Empty, QueryRequest,
     };
     use wasmer::{FunctionEnv, FunctionEnvMut};
 
@@ -980,7 +979,7 @@ mod tests {
                     .unwrap()
                     .unwrap()
                     .unwrap();
-                let BalanceResponse { amount } = from_binary(&response).unwrap();
+                let BalanceResponse { amount } = from_json(response).unwrap();
                 assert_eq!(amount.amount.u128(), 8000);
                 assert_eq!(amount.denom, "silver");
                 Ok(())
@@ -1001,7 +1000,7 @@ mod tests {
                     .unwrap()
                     .unwrap()
                     .unwrap();
-                let AllBalanceResponse { amount } = from_binary(&response).unwrap();
+                let AllBalanceResponse { amount } = from_json(response).unwrap();
                 assert_eq!(amount.len(), 2);
                 assert_eq!(amount[0].amount.u128(), 10000);
                 assert_eq!(amount[0].denom, "gold");
@@ -1013,7 +1012,7 @@ mod tests {
             .unwrap();
     }
 
-    /// This is needed for writing intagration tests in which the balance of a contract changes over time
+    /// This is needed for writing integration tests in which the balance of a contract changes over time.
     #[test]
     fn with_querier_allows_updating_balances() {
         let rich_addr = String::from("foobar");
@@ -1036,7 +1035,7 @@ mod tests {
                     .unwrap()
                     .unwrap()
                     .unwrap();
-                let BalanceResponse { amount } = from_binary(&response).unwrap();
+                let BalanceResponse { amount } = from_json(response).unwrap();
                 assert_eq!(amount.amount.u128(), 500);
                 Ok(())
             })
@@ -1065,7 +1064,7 @@ mod tests {
                     .unwrap()
                     .unwrap()
                     .unwrap();
-                let BalanceResponse { amount } = from_binary(&response).unwrap();
+                let BalanceResponse { amount } = from_json(response).unwrap();
                 assert_eq!(amount.amount.u128(), 8000);
                 Ok(())
             })
