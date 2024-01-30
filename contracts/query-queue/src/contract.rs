@@ -1,56 +1,20 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
 
 use cosmwasm_std::{
     entry_point, from_json, to_json_binary, to_json_vec, Deps, DepsMut, Env, MessageInfo,
     QueryResponse, Response, StdResult, Storage,
 };
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{
+    CountResponse, ExecuteMsg, InstantiateMsg, Item, ListResponse, QueryMsg, RawResponse,
+    ReducerResponse, SumResponse,
+};
 
 static CONFIG_KEY: &[u8] = b"config";
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 struct Config {
     pub queue_address: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct RawResponse {
-    pub item: Option<i32>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct CountResponse {
-    pub count: u32,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct SumResponse {
-    pub sum: i32,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-// the Vec contains pairs for every element in the queue
-// (value of item i, sum of all elements where value > value[i])
-pub struct ReducerResponse {
-    pub counters: Vec<(i32, i32)>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct ListResponse {
-    /// List an empty range, both bounded
-    pub empty: Vec<u32>,
-    /// List all IDs lower than 0x20
-    pub early: Vec<u32>,
-    /// List all IDs starting from 0x20
-    pub late: Vec<u32>,
-}
-
-// Item of queue
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct Item {
-    pub value: i32,
 }
 
 fn write_queue_address(storage: &mut dyn Storage, addr: String) {
@@ -152,7 +116,7 @@ mod tests {
 
     static QUEUE_ADDRESS: &str = "queue";
 
-    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[cw_serde]
     struct RawQueryResponse {
         value: u32,
     }

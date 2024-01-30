@@ -48,7 +48,7 @@ use crate::{
     query::{AllDenomMetadataResponse, DecCoin, DenomMetadataResponse},
     PageRequest,
 };
-use crate::{Attribute, DenomMetadata};
+use crate::{Attribute, DenomMetadata, Event};
 #[cfg(feature = "stargate")]
 use crate::{ChannelResponse, IbcQuery, ListChannelsResponse, PortIdResponse};
 #[cfg(feature = "cosmwasm_1_4")]
@@ -255,6 +255,35 @@ impl Api for MockApi {
 
     fn debug(&self, message: &str) {
         println!("{message}");
+    }
+
+    // always returns true in mock
+    fn validate_dynamic_link_interface(
+        &self,
+        _contract: &Addr,
+        _intreface: &[u8],
+    ) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn add_event(&self, _event: &Event) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn add_events(&self, _event: &[Event]) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn add_attribute(&self, _key: &str, _value: &str) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn add_attributes(&self, _attributes: &[Attribute]) -> StdResult<()> {
+        Ok(())
+    }
+
+    fn get_caller_addr(&self) -> StdResult<Addr> {
+        Err(StdError::generic_err("This cannot be used in mock"))
     }
 }
 

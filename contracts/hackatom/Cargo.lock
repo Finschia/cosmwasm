@@ -209,7 +209,11 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-crypto"
+<<<<<<< HEAD
 version = "1.1.9+0.8.1"
+=======
+version = "1.1.9+0.7.0-dynamiclink2"
+>>>>>>> dynamic_link
 dependencies = [
  "digest 0.10.7",
  "ecdsa",
@@ -222,17 +226,33 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
+<<<<<<< HEAD
 version = "1.1.9+0.8.1"
+=======
+version = "1.1.9+0.7.0-dynamiclink2"
+>>>>>>> dynamic_link
 dependencies = [
  "convert_case",
+ "proc-macro-error",
  "proc-macro2",
  "quote",
+<<<<<<< HEAD
  "syn 1.0.109",
+=======
+ "serde",
+ "serde_json",
+ "syn",
+ "wasmer-types",
+>>>>>>> dynamic_link
 ]
 
 [[package]]
 name = "cosmwasm-schema"
+<<<<<<< HEAD
 version = "1.1.9+0.8.1"
+=======
+version = "1.1.9+0.7.0-dynamiclink2"
+>>>>>>> dynamic_link
 dependencies = [
  "cosmwasm-schema-derive",
  "schemars",
@@ -243,7 +263,11 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-schema-derive"
+<<<<<<< HEAD
 version = "1.1.9+0.8.1"
+=======
+version = "1.1.9+0.7.0-dynamiclink2"
+>>>>>>> dynamic_link
 dependencies = [
  "proc-macro2",
  "quote",
@@ -252,7 +276,11 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-std"
+<<<<<<< HEAD
 version = "1.1.9+0.8.1"
+=======
+version = "1.1.9+0.7.0-dynamiclink2"
+>>>>>>> dynamic_link
 dependencies = [
  "base64",
  "bech32",
@@ -269,11 +297,25 @@ dependencies = [
  "static_assertions",
  "thiserror",
  "uuid",
+ "wasmer-types",
+]
+
+[[package]]
+<<<<<<< HEAD
+name = "cosmwasm-vm"
+version = "1.1.9+0.8.1"
+=======
+name = "cosmwasm-storage"
+version = "1.1.9+0.7.0-dynamiclink2"
+dependencies = [
+ "cosmwasm-std",
+ "serde",
 ]
 
 [[package]]
 name = "cosmwasm-vm"
-version = "1.1.9+0.8.1"
+version = "1.1.9+0.7.0-dynamiclink2"
+>>>>>>> dynamic_link
 dependencies = [
  "bitflags",
  "bytecheck",
@@ -292,6 +334,7 @@ dependencies = [
  "thiserror",
  "wasmer",
  "wasmer-middlewares",
+ "wasmer-types",
 ]
 
 [[package]]
@@ -1011,6 +1054,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+<<<<<<< HEAD
 name = "parking_lot_core"
 version = "0.9.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1028,6 +1072,12 @@ name = "percent-encoding"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b2a4787296e9989611394c33f193f676704af1686e70b8f8033ab5ba9a35a94"
+=======
+name = "parity-wasm"
+version = "0.45.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1ad0aff30c1da14b1254fcb2af73e1fa9a28670e584a626f53a369d0e157304"
+>>>>>>> dynamic_link
 
 [[package]]
 name = "pin-project-lite"

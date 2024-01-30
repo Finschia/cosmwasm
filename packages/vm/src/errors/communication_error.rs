@@ -39,6 +39,8 @@ pub enum CommunicationError {
         /// Current size of the linear memory in bytes
         memory_size: usize,
     },
+    #[error("Regions length too big. The limit is {}", max_length)]
+    ExceedsLimitLengthCopyRegions { max_length: usize },
     #[error("Got a zero Wasm address")]
     ZeroAddress {},
 }
@@ -76,6 +78,10 @@ impl CommunicationError {
             region,
             memory_size,
         }
+    }
+
+    pub(crate) fn exceeds_limit_length_copy_regions(max_length: usize) -> Self {
+        CommunicationError::ExceedsLimitLengthCopyRegions { max_length }
     }
 
     pub(crate) fn zero_address() -> Self {
@@ -142,6 +148,17 @@ mod tests {
                 assert_eq!(required, 33);
             }
             e => panic!("Unexpected error: {e:?}"),
+        }
+    }
+
+    #[test]
+    fn exceeds_limit_length_copy_regions_works() {
+        let error = CommunicationError::exceeds_limit_length_copy_regions(42);
+        match error {
+            CommunicationError::ExceedsLimitLengthCopyRegions { max_length, .. } => {
+                assert_eq!(max_length, 42);
+            }
+            e => panic!("Unexpected error: {:?}", e),
         }
     }
 

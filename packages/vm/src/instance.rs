@@ -11,18 +11,21 @@ use wasmer::{
 use crate::backend::{Backend, BackendApi, Querier, Storage};
 use crate::capabilities::required_capabilities_from_module;
 use crate::conversion::{ref_to_u32, to_u32};
+use crate::dynamic_link::{dynamic_link, native_validate_dynamic_link_interface};
 use crate::environment::Environment;
 use crate::errors::{CommunicationError, VmError, VmResult};
 use crate::imports::{
-    do_abort, do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
-    do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_query_chain,
-    do_secp256k1_recover_pubkey, do_secp256k1_verify, do_sha1_calculate,
+    do_abort, do_add_attribute, do_add_attributes, do_add_event, do_add_events,
+    do_addr_canonicalize, do_addr_humanize, do_addr_validate, do_db_read, do_db_remove,
+    do_db_write, do_debug, do_ed25519_batch_verify, do_ed25519_verify, do_get_caller_addr,
+    do_query_chain, do_secp256k1_recover_pubkey, do_secp256k1_verify, do_sha1_calculate,
 };
 #[cfg(feature = "iterator")]
 use crate::imports::{do_db_next, do_db_next_key, do_db_next_value, do_db_scan};
 use crate::memory::{read_region, write_region};
 use crate::size::Size;
 use crate::wasm_backend::{compile, make_compiling_engine};
+use cosmwasm_std::{Attribute, Event};
 
 pub use crate::environment::DebugInfo; // Re-exported as public via to be usable for set_debug_handler
 
@@ -264,6 +267,46 @@ where
             Function::new_typed_with_env(&mut store, &fe, do_db_next_value),
         );
 
+        // Validate specified contract have dynamic link functions
+        // with specified interfaces.
+        // Returns 0 if the interface is satisfied.
+        // Returns pointer of error message if the interface is not satisfied.
+        // The first arg is the contract address and the second arg is expected interfaces.
+        env_imports.insert(
+            "validate_dynamic_link_interface",
+            Function::new_typed_with_env(&mut store, &fe, native_validate_dynamic_link_interface),
+        );
+
+        // Add an event to context data
+        env_imports.insert(
+            "add_event",
+            Function::new_typed_with_env(&mut store, &fe, do_add_event),
+        );
+
+        // Add events to context data
+        env_imports.insert(
+            "add_events",
+            Function::new_typed_with_env(&mut store, &fe, do_add_events),
+        );
+
+        // Add an attribute to context data
+        env_imports.insert(
+            "add_attribute",
+            Function::new_typed_with_env(&mut store, &fe, do_add_attribute),
+        );
+
+        // Add attributes to context data
+        env_imports.insert(
+            "add_attributes",
+            Function::new_typed_with_env(&mut store, &fe, do_add_attributes),
+        );
+
+        // Returns caller address if it is a callee of the dynamic link
+        env_imports.insert(
+            "get_caller_addr",
+            Function::new_typed_with_env(&mut store, &fe, do_get_caller_addr),
+        );
+
         import_obj.register_namespace("env", env_imports);
 
         if let Some(extra_imports) = extra_imports {
@@ -271,6 +314,8 @@ where
                 import_obj.register_namespace(namespace, exports_obj);
             }
         }
+
+        dynamic_link(&mut store, &fe, module, &mut import_obj)?;
 
         let wasmer_instance = Box::from(
             {
@@ -464,6 +509,14 @@ where
     }
 
     /// Calls a function exported by the instance.
+    pub fn call_function(&mut self, name: &str, args: &[Value]) -> VmResult<Box<[Value]>> {
+        let mut fe_mut = self.fe.clone().into_mut(&mut self.store);
+        let (env, mut store) = fe_mut.data_and_store_mut();
+
+        env.call_function(&mut store, name, args)
+    }
+
+    /// Calls a function exported by the instance.
     /// The function is expected to return no value. Otherwise this calls errors.
     pub(crate) fn call_function0(&mut self, name: &str, args: &[Value]) -> VmResult<()> {
         let mut fe_mut = self.fe.clone().into_mut(&mut self.store);
@@ -479,6 +532,21 @@ where
         let (env, mut store) = fe_mut.data_and_store_mut();
 
         env.call_function1(&mut store, name, args)
+    }
+
+    /// Returns events and attributes from event manager in context data
+    pub fn get_events_attributes(&mut self) -> (Vec<Event>, Vec<Attribute>) {
+        let mut fe_mut = self.fe.clone().into_mut(&mut self.store);
+        let (env, _store) = fe_mut.data_and_store_mut();
+
+        env.get_events_attributes()
+    }
+
+    pub(crate) fn set_serialized_env(&mut self, serialized_env: &[u8]) {
+        let mut fe_mut = self.fe.clone().into_mut(&mut self.store);
+        let (env, _store) = fe_mut.data_and_store_mut();
+
+        env.set_serialized_env(serialized_env)
     }
 }
 

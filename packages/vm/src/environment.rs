@@ -6,12 +6,18 @@ use std::ptr::NonNull;
 use std::rc::Rc;
 use std::sync::{Arc, RwLock};
 
+use cosmwasm_std::{Addr, Attribute, Env, Event};
 use derivative::Derivative;
 use wasmer::{AsStoreMut, Instance as WasmerInstance, Memory, MemoryView, Value};
 use wasmer_middlewares::metering::{get_remaining_points, set_remaining_points, MeteringPoints};
 
 use crate::backend::{BackendApi, GasInfo, Querier, Storage};
+use crate::dynamic_link::FunctionMetadata;
 use crate::errors::{VmError, VmResult};
+use crate::serde::from_slice;
+
+pub const DYNAMIC_CALL_DEPTH_LIMIT_CNT: usize = 5;
+const DESERIALIZATION_LIMIT: usize = 20_000;
 
 /// Keep this as low as necessary to avoid deepy nested errors like this:
 ///
@@ -118,6 +124,7 @@ pub struct Environment<A, S, Q> {
     pub api: A,
     pub gas_config: GasConfig,
     data: Arc<RwLock<ContextData<S, Q>>>,
+    callee_func_metadata: Option<FunctionMetadata>,
 }
 
 unsafe impl<A: BackendApi, S: Storage, Q: Querier> Send for Environment<A, S, Q> {}
@@ -131,6 +138,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Clone for Environment<A, S, Q> {
             api: self.api,
             gas_config: self.gas_config.clone(),
             data: self.data.clone(),
+            callee_func_metadata: self.callee_func_metadata.clone(),
         }
     }
 }
@@ -142,6 +150,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             api,
             gas_config: GasConfig::default(),
             data: Arc::new(RwLock::new(ContextData::new(gas_limit))),
+            callee_func_metadata: None,
         }
     }
 
@@ -207,7 +216,7 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
     /// The number of return values is variable and controlled by the guest.
     /// Usually we expect 0 or 1 return values. Use [`Self::call_function0`]
     /// or [`Self::call_function1`] to ensure the number of return values is checked.
-    fn call_function(
+    pub fn call_function(
         &self,
         store: &mut impl AsStoreMut,
         name: &str,
@@ -287,6 +296,12 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
     pub fn set_wasmer_instance(&self, wasmer_instance: Option<NonNull<WasmerInstance>>) {
         self.with_context_data_mut(|context_data| {
             context_data.wasmer_instance = wasmer_instance;
+        });
+    }
+
+    pub fn set_serialized_env(&self, serialized_env: &[u8]) {
+        self.with_context_data_mut(|context_data| {
+            context_data.serialized_env = Some(serialized_env.to_vec());
         });
     }
 
@@ -395,17 +410,178 @@ impl<A: BackendApi, S: Storage, Q: Querier> Environment<A, S, Q> {
             (context_data.storage.take(), context_data.querier.take())
         })
     }
+
+    pub fn set_callee_function_metadata(&mut self, func_metadata: Option<FunctionMetadata>) {
+        self.callee_func_metadata = func_metadata;
+    }
+
+    pub fn with_callee_function_metadata<C, R>(&self, callback: C) -> VmResult<R>
+    where
+        C: FnOnce(&FunctionMetadata) -> VmResult<R>,
+    {
+        match &self.callee_func_metadata {
+            Some(func_info) => callback(func_info),
+            None => Err(VmError::uninitialized_context_data("callee_func_metadata")),
+        }
+    }
+
+    pub fn get_dynamic_callstack(&self) -> VmResult<Vec<Addr>> {
+        self.with_context_data_mut(|ctx| {
+            if ctx.dynamic_callstack.len() >= DYNAMIC_CALL_DEPTH_LIMIT_CNT {
+                return Err(VmError::dynamic_call_depth_over_limitation_err());
+            }
+
+            let contract_env: Env = match &ctx.serialized_env {
+                Some(env) => from_slice(env, DESERIALIZATION_LIMIT),
+                None => Err(VmError::uninitialized_context_data("serialized_env")),
+            }?;
+            match ctx
+                .dynamic_callstack
+                .iter()
+                .find(|x| **x == contract_env.contract.address)
+            {
+                Some(_) => Err(VmError::re_entrancy_err()),
+                None => {
+                    let mut result = ctx.dynamic_callstack.clone();
+                    result.push(contract_env.contract.address);
+                    Ok(result)
+                }
+            }
+        })
+    }
+
+    /// this function sets callstack to environment and checks it is not re-entrance
+    pub fn set_dynamic_callstack(&self, callstack: Vec<Addr>) -> VmResult<()> {
+        // check callstack length
+        if callstack.len() >= DYNAMIC_CALL_DEPTH_LIMIT_CNT {
+            return Err(VmError::dynamic_call_depth_over_limitation_err());
+        };
+
+        self.with_context_data_mut(|ctx| {
+            let contract_env: Env = match &ctx.serialized_env {
+                Some(env) => from_slice(env, DESERIALIZATION_LIMIT),
+                None => Err(VmError::uninitialized_context_data("serialized_env")),
+            }?;
+            match callstack
+                .iter()
+                .find(|&x| *x == contract_env.contract.address)
+            {
+                Some(_) => Err(VmError::re_entrancy_err()),
+                None => {
+                    ctx.dynamic_callstack = callstack.clone();
+                    Ok(())
+                }
+            }
+        })
+    }
+
+    pub fn add_event(&self, event: impl Into<Event>) -> VmResult<()> {
+        if self.is_storage_readonly() {
+            return Err(VmError::write_access_denied());
+        };
+        self.with_context_data_mut(|ctx| {
+            ctx.event_manager.add_event(event);
+            Ok(())
+        })
+    }
+
+    pub fn add_events<E: Into<Event>>(&self, events: impl IntoIterator<Item = E>) -> VmResult<()> {
+        if self.is_storage_readonly() {
+            return Err(VmError::write_access_denied());
+        };
+        self.with_context_data_mut(|ctx| {
+            ctx.event_manager.add_events(events);
+            Ok(())
+        })
+    }
+
+    pub fn add_attribute(&self, key: impl Into<String>, value: impl Into<String>) -> VmResult<()> {
+        if self.is_storage_readonly() {
+            return Err(VmError::write_access_denied());
+        };
+        self.with_context_data_mut(|ctx| {
+            ctx.event_manager.add_attribute(key, value);
+            Ok(())
+        })
+    }
+
+    pub fn add_attributes<AT: Into<Attribute>>(
+        &self,
+        attrs: impl IntoIterator<Item = AT>,
+    ) -> VmResult<()> {
+        if self.is_storage_readonly() {
+            return Err(VmError::write_access_denied());
+        };
+        self.with_context_data_mut(|ctx| {
+            ctx.event_manager.add_attributes(attrs);
+            Ok(())
+        })
+    }
+
+    pub fn get_events_attributes(&self) -> (Vec<Event>, Vec<Attribute>) {
+        self.with_context_data(|ctx| {
+            (
+                ctx.event_manager.get_events(),
+                ctx.event_manager.get_attributes(),
+            )
+        })
+    }
+}
+
+struct EventManager {
+    events: Vec<Event>,
+    attributes: Vec<Attribute>,
+}
+
+impl EventManager {
+    pub fn new() -> EventManager {
+        EventManager {
+            events: Vec::<Event>::new(),
+            attributes: Vec::<Attribute>::new(),
+        }
+    }
+
+    pub fn add_event(&mut self, event: impl Into<Event>) {
+        self.events.push(event.into())
+    }
+
+    pub fn add_events<E: Into<Event>>(&mut self, events: impl IntoIterator<Item = E>) {
+        self.events.extend(events.into_iter().map(E::into))
+    }
+
+    pub fn add_attribute(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.attributes.push(Attribute {
+            key: key.into(),
+            value: value.into(),
+        })
+    }
+
+    pub fn add_attributes<A: Into<Attribute>>(&mut self, attrs: impl IntoIterator<Item = A>) {
+        self.attributes.extend(attrs.into_iter().map(A::into))
+    }
+
+    pub fn get_events(&self) -> Vec<Event> {
+        self.events.clone()
+    }
+
+    pub fn get_attributes(&self) -> Vec<Attribute> {
+        self.attributes.clone()
+    }
 }
 
 pub struct ContextData<S, Q> {
     gas_state: GasState,
     storage: Option<S>,
+    /// Used as also event manager readonly
     storage_readonly: bool,
     call_depth: usize,
     querier: Option<Q>,
     debug_handler: Option<Rc<RefCell<DebugHandlerFn>>>,
     /// A non-owning link to the wasmer instance
     wasmer_instance: Option<NonNull<WasmerInstance>>,
+    serialized_env: Option<Vec<u8>>,
+    dynamic_callstack: Vec<Addr>,
+    event_manager: EventManager,
 }
 
 impl<S: Storage, Q: Querier> ContextData<S, Q> {
@@ -418,6 +594,9 @@ impl<S: Storage, Q: Querier> ContextData<S, Q> {
             querier: None,
             debug_handler: None,
             wasmer_instance: None,
+            serialized_env: None,
+            dynamic_callstack: Vec::new(),
+            event_manager: EventManager::new(),
         }
     }
 }
@@ -457,6 +636,7 @@ mod tests {
     use crate::size::Size;
     use crate::testing::{MockApi, MockQuerier, MockStorage};
     use crate::wasm_backend::{compile, make_compiling_engine};
+    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{
         coins, from_json, to_json_vec, AllBalanceResponse, BankQuery, Empty, QueryRequest,
     };
@@ -478,6 +658,7 @@ mod tests {
 
     fn make_instance(
         gas_limit: u64,
+        contract_addr: Option<Addr>,
     ) -> (
         Environment<MockApi, MockStorage, MockQuerier>,
         Store,
@@ -510,6 +691,7 @@ mod tests {
                 "sha1_calculate" => Function::new_typed(&mut store, |_a: u32| -> u64 { 0 }),
                 "debug" => Function::new_typed(&mut store, |_a: u32| {}),
                 "abort" => Function::new_typed(&mut store, |_a: u32| {}),
+                "validate_dynamic_link_interface" => Function::new_typed(&mut store, |_a: u32, _b: u32| -> u32 { 0 }),
             },
         };
         let instance = Box::from(WasmerInstance::new(&mut store, &module, &import_obj).unwrap());
@@ -517,6 +699,14 @@ mod tests {
         let instance_ptr = NonNull::from(instance.as_ref());
         env.set_wasmer_instance(Some(instance_ptr));
         env.set_gas_left(&mut store, gas_limit);
+
+        let mut contract_env = mock_env();
+        match contract_addr {
+            Some(addr) => contract_env.contract.address = addr,
+            _ => {}
+        }
+        let serialized_env = to_json_vec(&contract_env).unwrap();
+        env.set_serialized_env(&serialized_env);
 
         (env, store, instance)
     }
@@ -535,7 +725,7 @@ mod tests {
 
     #[test]
     fn move_out_works() {
-        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
 
         // empty data on start
         let (inits, initq) = env.move_out();
@@ -560,7 +750,7 @@ mod tests {
 
     #[test]
     fn process_gas_info_works_for_cost() {
-        let (env, mut store, _instance) = make_instance(100);
+        let (env, mut store, _instance) = make_instance(100, None);
         assert_eq!(env.get_gas_left(&mut store), 100);
 
         // Consume all the Gas that we allocated
@@ -582,7 +772,7 @@ mod tests {
 
     #[test]
     fn process_gas_info_works_for_externally_used() {
-        let (env, mut store, _instance) = make_instance(100);
+        let (env, mut store, _instance) = make_instance(100, None);
         assert_eq!(env.get_gas_left(&mut store), 100);
 
         // Consume all the Gas that we allocated
@@ -604,8 +794,9 @@ mod tests {
 
     #[test]
     fn process_gas_info_works_for_cost_and_externally_used() {
-        let (env, mut store, _instance) = make_instance(100);
+        let (env, mut store, _instance) = make_instance(100, None);
         assert_eq!(env.get_gas_left(&mut store), 100);
+
         let gas_state = env.with_gas_state(|gas_state| gas_state.clone());
         assert_eq!(gas_state.gas_limit, 100);
         assert_eq!(gas_state.externally_used_gas, 0);
@@ -653,7 +844,7 @@ mod tests {
     fn process_gas_info_zeros_gas_left_when_exceeded() {
         // with_externally_used
         {
-            let (env, mut store, _instance) = make_instance(100);
+            let (env, mut store, _instance) = make_instance(100, None);
             let result = process_gas_info(&env, &mut store, GasInfo::with_externally_used(120));
             match result.unwrap_err() {
                 VmError::GasDepletion { .. } => {}
@@ -667,7 +858,7 @@ mod tests {
 
         // with_cost
         {
-            let (env, mut store, _instance) = make_instance(100);
+            let (env, mut store, _instance) = make_instance(100, None);
             let result = process_gas_info(&env, &mut store, GasInfo::with_cost(120));
             match result.unwrap_err() {
                 VmError::GasDepletion { .. } => {}
@@ -682,7 +873,7 @@ mod tests {
 
     #[test]
     fn process_gas_info_works_correctly_with_gas_consumption_in_wasmer() {
-        let (env, mut store, _instance) = make_instance(100);
+        let (env, mut store, _instance) = make_instance(100, None);
         assert_eq!(env.get_gas_left(&mut store), 100);
 
         // Some gas was consumed externally
@@ -709,7 +900,7 @@ mod tests {
 
     #[test]
     fn is_storage_readonly_defaults_to_true() {
-        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         assert!(env.is_storage_readonly());
@@ -717,7 +908,7 @@ mod tests {
 
     #[test]
     fn set_storage_readonly_can_change_flag() {
-        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         // change
@@ -735,7 +926,7 @@ mod tests {
 
     #[test]
     fn call_function_works() {
-        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let result = env
@@ -747,7 +938,7 @@ mod tests {
 
     #[test]
     fn call_function_fails_for_missing_instance() {
-        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         // Clear context's wasmer_instance
@@ -762,7 +953,7 @@ mod tests {
 
     #[test]
     fn call_function_fails_for_missing_function() {
-        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let res = env.call_function(&mut store, "doesnt_exist", &[]);
@@ -776,7 +967,7 @@ mod tests {
 
     #[test]
     fn call_function0_works() {
-        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         env.call_function0(&mut store, "interface_version_8", &[])
@@ -785,7 +976,7 @@ mod tests {
 
     #[test]
     fn call_function0_errors_for_wrong_result_count() {
-        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let result = env.call_function0(&mut store, "allocate", &[10u32.into()]);
@@ -806,7 +997,7 @@ mod tests {
 
     #[test]
     fn call_function1_works() {
-        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let result = env
@@ -818,7 +1009,7 @@ mod tests {
 
     #[test]
     fn call_function1_errors_for_wrong_result_count() {
-        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, mut store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let result = env
@@ -845,7 +1036,7 @@ mod tests {
 
     #[test]
     fn with_storage_from_context_set_get() {
-        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let val = env
@@ -878,7 +1069,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "A panic occurred in the callback.")]
     fn with_storage_from_context_handles_panics() {
-        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         env.with_storage_from_context::<_, ()>(|_store| {
@@ -889,7 +1080,7 @@ mod tests {
 
     #[test]
     fn with_querier_from_context_works() {
-        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         let res = env
@@ -912,12 +1103,121 @@ mod tests {
     #[test]
     #[should_panic(expected = "A panic occurred in the callback.")]
     fn with_querier_from_context_handles_panics() {
-        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT);
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
         leave_default_data(&env);
 
         env.with_querier_from_context::<_, ()>(|_querier| {
             panic!("A panic occurred in the callback.")
         })
         .unwrap();
+    }
+
+    #[test]
+    fn set_dynamic_callstack_works() {
+        let contract1_addr = Addr::unchecked("contract1");
+        let contract2_addr = Addr::unchecked("contract2");
+        let callstack = vec![contract1_addr.clone(), contract2_addr.clone()];
+        let (env, _store1, _instance1) =
+            make_instance(TESTING_GAS_LIMIT, Some(Addr::unchecked("contract3")));
+        env.set_dynamic_callstack(callstack).unwrap();
+        env.with_context_data(|ctx| {
+            assert_eq!(ctx.dynamic_callstack.len(), 2);
+            assert_eq!(ctx.dynamic_callstack[0], contract1_addr);
+            assert_eq!(ctx.dynamic_callstack[1], contract2_addr);
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "ReEntrancyErr")]
+    fn panic_set_re_entrancing_dynamic_callstack() {
+        let contract1_addr = Addr::unchecked("contract1");
+        let contract2_addr = Addr::unchecked("contract2");
+        let callstack = vec![contract1_addr.clone(), contract2_addr];
+        let (env, _store1, _instance1) = make_instance(
+            TESTING_GAS_LIMIT,
+            Some(Addr::unchecked(contract1_addr.clone())),
+        );
+        env.set_dynamic_callstack(callstack).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "DynamicCallDepthOverLimitationErr")]
+    fn panic_set_too_long_dynamic_callstack() {
+        let mut callstack = Vec::<Addr>::new();
+        for i in 0..(DYNAMIC_CALL_DEPTH_LIMIT_CNT + 2) {
+            callstack.push(Addr::unchecked(format!("contract{}", i)));
+        }
+        let (env, _store1, _instance1) =
+            make_instance(TESTING_GAS_LIMIT, Some(Addr::unchecked("callee_contract")));
+        env.set_dynamic_callstack(callstack).unwrap();
+    }
+
+    #[test]
+    fn event_manager_works() {
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+
+        env.set_storage_readonly(false);
+
+        let event1 = Event::new("type1")
+            .add_attribute("foo", "Alice")
+            .add_attribute("bar", "Bob");
+        env.add_event(event1.clone()).unwrap();
+        let (events, attributes) = env.get_events_attributes();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0], event1);
+        assert_eq!(attributes.len(), 0);
+
+        let attr1 = Attribute::new("hoge", "Alice");
+        env.add_attribute(attr1.key.clone(), attr1.value.clone())
+            .unwrap();
+        let (events, attributes) = env.get_events_attributes();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0], event1);
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0], attr1);
+
+        let event2 = Event::new("type2")
+            .add_attribute("foofoo", "alice")
+            .add_attribute("foobar", "bob");
+        let event3 = Event::new("type3")
+            .add_attribute("barfoo", "Bob")
+            .add_attribute("barbar", "Alice");
+        env.add_events(vec![event2.clone(), event3.clone()])
+            .unwrap();
+        let (events, attributes) = env.get_events_attributes();
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0], event1);
+        assert_eq!(events[1], event2);
+        assert_eq!(events[2], event3);
+        assert_eq!(attributes.len(), 1);
+        assert_eq!(attributes[0], attr1);
+
+        let attr2 = Attribute::new("fuga", "Bob");
+        let attr3 = Attribute::new("piyo", "Charlie");
+        env.add_attributes(vec![attr2.clone(), attr3.clone()])
+            .unwrap();
+        let (events, attributes) = env.get_events_attributes();
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0], event1);
+        assert_eq!(events[1], event2);
+        assert_eq!(events[2], event3);
+        assert_eq!(attributes.len(), 3);
+        assert_eq!(attributes[0], attr1);
+        assert_eq!(attributes[1], attr2);
+        assert_eq!(attributes[2], attr3);
+    }
+
+    #[test]
+    #[should_panic(expected = "WriteAccessDenied")]
+    fn add_event_fails_with_readonly_permission() {
+        let (env, _store, _instance) = make_instance(TESTING_GAS_LIMIT, None);
+
+        env.set_storage_readonly(true);
+
+        let event1 = Event::new("type1")
+            .add_attribute("foo", "Alice")
+            .add_attribute("bar", "Bob");
+        // panic because of lack of the write access permission
+        env.add_event(event1.clone()).unwrap();
     }
 }

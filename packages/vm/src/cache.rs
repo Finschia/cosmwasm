@@ -350,7 +350,7 @@ where
     /// Returns a module tied to a previously saved Wasm.
     /// Depending on availability, this is either generated from a memory cache, file system cache or Wasm code.
     /// This is part of `get_instance` but pulled out to reduce the locking time.
-    fn get_module(&self, checksum: &Checksum) -> VmResult<(CachedModule, Store)> {
+    pub fn get_module(&self, checksum: &Checksum) -> VmResult<(CachedModule, Store)> {
         let mut cache = self.inner.lock().unwrap();
         // Try to get module from the pinned memory cache
         if let Some(element) = cache.pinned_memory_cache.load(checksum)? {

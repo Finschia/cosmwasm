@@ -27,7 +27,7 @@ use crate::query::{
     AllDenomMetadataResponse, DelegatorWithdrawAddressResponse, DenomMetadataResponse,
     DistributionQuery,
 };
-use crate::results::{ContractResult, Empty, SystemResult};
+use crate::results::{Attribute, ContractResult, Empty, Event, SystemResult};
 use crate::serde::{from_json, to_json_binary, to_json_vec};
 use crate::ContractInfoResponse;
 #[cfg(feature = "cosmwasm_1_3")]
@@ -182,9 +182,29 @@ pub trait Api {
 
     fn sha1_calculate(&self, inputs: &[&[u8]]) -> Result<[u8; 20], HashCalculationError>;
 
+    /// This calls the API to validate interface
+    /// Contract is the address of the contract to validate.
+    /// Interface is the arg for expected interface that the contract has.
+    fn validate_dynamic_link_interface(&self, contract: &Addr, interface: &[u8]) -> StdResult<()>;
+
     /// Emits a debugging message that is handled depending on the environment (typically printed to console or ignored).
     /// Those messages are not persisted to chain.
     fn debug(&self, message: &str);
+
+    /// This issues an event to the event manager in the context data
+    fn add_event(&self, event: &Event) -> StdResult<()>;
+
+    /// This issues events to the event manager in the context data
+    fn add_events(&self, events: &[Event]) -> StdResult<()>;
+
+    /// This issues an attribute to the event manager in the context data
+    fn add_attribute(&self, key: &str, value: &str) -> StdResult<()>;
+
+    /// This issues attributes to the event manager in the context data
+    fn add_attributes(&self, attributes: &[Attribute]) -> StdResult<()>;
+
+    /// Returns the caller address if it is a callee of dynamic link
+    fn get_caller_addr(&self) -> StdResult<Addr>;
 }
 
 /// A short-hand alias for the two-level query result (1. accessing the contract, 2. executing query in the contract)
@@ -197,6 +217,15 @@ pub trait Querier {
     /// types. People using the querier probably want one of the simpler auto-generated
     /// helper methods
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult;
+}
+
+/// Contract represents a dynamic linked callee contract.
+pub trait Contract {
+    /// get contract address
+    fn get_address(&self) -> Addr;
+
+    /// set contract address
+    fn set_address(&mut self, address: Addr);
 }
 
 #[derive(Clone)]

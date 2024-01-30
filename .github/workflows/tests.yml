@@ -669,6 +669,349 @@ jobs:
               exit 1
             fi
 
+  contract_dynamic_callee_contract:
+    name: dynamic_callee_contract
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/dynamic-callee-contract
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_dynamic_callee_contract-rust:1.60.0-${{ hashFiles('contracts/dynamic-callee-contract/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_dynamic_caller_contract:
+    name: dynamic_caller_contract
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/dynamic-caller-contract
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_dynamic_caller_contract-rust:1.60.0-${{ hashFiles('contracts/dynamic-caller-contract/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_number:
+    name: contract_number
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/number
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_number-rust:1.60.0-${{ hashFiles('contracts/number/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_call_number:
+    name: contract_call_number
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/call-number
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_call_number-rust:1.60.0-${{ hashFiles('contracts/call-number/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_simple_callee:
+    name: contract_simple_callee
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/simple-callee
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_simple_callee-rust:1.60.0-${{ hashFiles('contracts/simple-callee/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_intermediate_number:
+    name: contract_intermediate_number
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/intermediate-number
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_intermediate_number-rust:1.60.0-${{ hashFiles('contracts/intermediate-number/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
+  contract_events:
+    name: contract_events
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./contracts/events
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          target: wasm32-unknown-unknown
+          profile: minimal
+          override: true
+      - name: Cache cargo
+        uses: actions/cache@v2
+        with:
+          path: ~/.cargo
+          key: cargocache-v2-contract_events-rust:1.60.0-${{ hashFiles('contracts/events/Cargo.lock') }}
+      - name: Version information
+        run: rustc --version; cargo --version; rustup --version; rustup target list --installed
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown && rustup target list --installed
+      - name: Build wasm binary
+        working-directory: ${{env.working-directory}}
+        run: cargo wasm --locked
+      - name: Unit tests
+        working-directory: ${{env.working-directory}}
+        run: cargo unit-test --locked
+      - name: Integration tests (singlepass backend)
+        working-directory: ${{env.working-directory}}
+        run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
+      - name: Build and run schema generator
+        working-directory: ${{env.working-directory}}
+        run: cargo schema --locked
+      - name: Ensure schemas are up-to-date
+        working-directory: ${{env.working-directory}}
+        run: |
+            CHANGES_IN_REPO=$(git status --porcelain)
+            if [[ -n "$CHANGES_IN_REPO" ]]; then
+              echo "Repository is dirty. Showing 'git status' and 'git --no-pager diff' for debugging now:"
+              git status && git --no-pager diff
+              exit 1
+            fi
+
   fmt:
     name: fmt
     runs-on: ubuntu-latest
@@ -716,8 +1059,38 @@ jobs:
       - name: Check formatting of contract staking
         working-directory: ${{env.root-directory}}/staking
         run: cargo fmt -- --check
-      - name: Check formatting of contract voting-with-uuid
+      - name: Check formatting of contract floaty
+        working-directory: ${{env.root-directory}}/floaty
+        run: cargo fmt -- --check
+      - name: Check formatting of contract dynamic callee contract
+        working-directory: ${{env.root-directory}}/dynamic-callee-contract
+        run: cargo fmt -- --check
+      - name: Check formatting of contract dynamic caller contract
+        working-directory: ${{env.root-directory}}/dynamic-caller-contract
+        run: cargo fmt -- --check
+      - name: Check formatting of contract number
+        working-directory: ${{env.root-directory}}/number
+        run: cargo fmt -- --check
+      - name: Check formatting of contract intermediate-number
+        working-directory: ${{env.root-directory}}/intermediate-number
+        run: cargo fmt -- --check
+      - name: Check formatting of contract call number
+        working-directory: ${{env.root-directory}}/call-number
+        run: cargo fmt -- --check
+      - name: Check formatting of contract events
+        working-directory: ${{env.root-directory}}/events
+        run: cargo fmt -- --check
+      - name: Check formatting of contract voting with uuid
         working-directory: ${{env.root-directory}}/voting-with-uuid
+        run: cargo fmt -- --check
+      - name: Check formatting of contract ibc reflect
+        working-directory: ${{env.root-directory}}/ibc-reflect
+        run: cargo fmt -- --check
+      - name: Check formatting of contract ibc reflect send
+        working-directory: ${{env.root-directory}}/ibc-reflect-send
+        run: cargo fmt -- --check
+      - name: Check formatting of contract simple callee
+        working-directory: ${{env.root-directory}}/simple-callee
         run: cargo fmt -- --check
 
   clippy:
@@ -825,6 +1198,60 @@ jobs:
         run: |
             mkdir -p target/wasm32-unknown-unknown/release
             touch target/wasm32-unknown-unknown/release/staking.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on dynamic-callee-contract
+        working-directory: ${{env.contracts}}/dynamic-callee-contract
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/dynamic_callee_contract.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on dynamic-caller-contract
+        working-directory: ${{env.contracts}}/dynamic-caller-contract
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/dynamic_caller_contract.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on number
+        working-directory: ${{env.contracts}}/number
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/number.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on intermediate-number
+        working-directory: ${{env.contracts}}/intermediate-number
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/intermediate_number.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on call-number
+        working-directory: ${{env.contracts}}/call-number
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/call_number.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on cyberpunk
+        working-directory: ${{env.contracts}}/cyberpunk
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/cyberpunk.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on events
+        working-directory: ${{env.contracts}}/events
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/events.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on floaty
+        working-directory: ${{env.contracts}}/floaty
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/floaty.wasm
+            cargo clippy --tests -- -D warnings
+      - name: Clippy linting on simple-callee
+        working-directory: ${{env.contracts}}/simple-callee
+        run: |
+            mkdir -p target/wasm32-unknown-unknown/release
+            touch target/wasm32-unknown-unknown/release/simple_callee.wasm
             cargo clippy --tests -- -D warnings
       - name: Clippy linting on voting-with-uuid
         working-directory: ${{env.contracts}}/voting-with-uuid

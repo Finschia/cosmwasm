@@ -5,12 +5,12 @@ use crate::errors::{
     HashCalculationError, RecoverPubkeyError, StdError, StdResult, SystemError, VerificationError,
 };
 use crate::import_helpers::{from_high_half, from_low_half};
-use crate::memory::{alloc, build_region, consume_region, Region};
-use crate::results::SystemResult;
+use crate::memory::{alloc, build_region, consume_region, release_buffer, Region};
+use crate::results::{Attribute, Event, SystemResult};
 #[cfg(feature = "iterator")]
 use crate::sections::decode_sections2;
 use crate::sections::encode_sections;
-use crate::serde::from_json;
+use crate::serde::{from_json, to_json_vec};
 use crate::traits::{Api, Querier, QuerierResult, Storage};
 #[cfg(feature = "iterator")]
 use crate::{
@@ -72,15 +72,36 @@ extern "C" {
     /// greater than 1 in case of error.
     fn ed25519_batch_verify(messages_ptr: u32, signatures_ptr: u32, public_keys_ptr: u32) -> u32;
     fn sha1_calculate(inputs_ptr: u32) -> u64;
+    fn validate_dynamic_link_interface(contract_ptr: u32, interface_ptr: u32) -> u32;
 
     /// Writes a debug message (UFT-8 encoded) to the host for debugging purposes.
     /// The host is free to log or process this in any way it considers appropriate.
     /// In production environments it is expected that those messages are discarded.
     fn debug(source_ptr: u32);
 
+    /// Adds an event to the event manager in the context data.
+    /// Returns 0 on success, greater than 0 in case of error.
+    fn add_event(event: u32) -> u32;
+
+    /// Adds events to the event manager in the context data.
+    /// Returns 0 on success, greater than 0 in case of error.
+    fn add_events(events: u32) -> u32;
+
+    /// Adds an attribute to the event manager in the context data.
+    /// Returns 0 on success, greater than 0 in case of error.
+    fn add_attribute(key: u32, value: u32) -> u32;
+
+    /// Adds attributes to the event manager in the context data.
+    /// Returns 0 on success, greater than 0 in case of error.
+    fn add_attributes(attributes: u32) -> u32;
+
     /// Executes a query on the chain (import). Not to be confused with the
     /// query export, which queries the state of the contract.
     fn query_chain(request: u32) -> u32;
+
+    /// Returns the caller address if it is a callee of dynamic link.
+    /// If it is not a callee, returns 0.
+    fn get_caller_addr() -> u32;
 }
 
 /// A stateless convenience wrapper around database imports provided by the VM.
@@ -488,6 +509,97 @@ impl Api for ExternalApi {
             2 => panic!("Error code 2 unused since CosmWasm 0.15. This is a bug in the VM."),
             error_code => Err(HashCalculationError::unknown_err(error_code)),
         }
+    }
+
+    // this calls the API to validate interface
+    //
+    // contract is the address of the contract to validate.
+    // interface is the arg for expected interface that the contract has.
+    fn validate_dynamic_link_interface(&self, contract: &Addr, interface: &[u8]) -> StdResult<()> {
+        let contract_region = release_buffer(to_json_vec(contract)?);
+        let contract_ptr = contract_region as u32;
+        let interface_region = release_buffer(interface.to_vec());
+        let interface_ptr = interface_region as u32;
+        let result = unsafe { validate_dynamic_link_interface(contract_ptr, interface_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "dynamic_link_interface_validate errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn add_event(&self, event: &Event) -> StdResult<()> {
+        let event_region = release_buffer(to_json_vec(event)?);
+        let event_ptr = event_region as u32;
+        let result = unsafe { add_event(event_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "add_event errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn add_events(&self, events: &[Event]) -> StdResult<()> {
+        let events_region = release_buffer(to_json_vec(events)?);
+        let events_ptr = events_region as u32;
+        let result = unsafe { add_events(events_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "add_events errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn add_attribute(&self, key: &str, value: &str) -> StdResult<()> {
+        let key_region = release_buffer(to_json_vec(key)?);
+        let key_ptr = key_region as u32;
+        let value_region = release_buffer(to_json_vec(value)?);
+        let value_ptr = value_region as u32;
+        let result = unsafe { add_attribute(key_ptr, value_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "add_attribute errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn add_attributes(&self, attributes: &[Attribute]) -> StdResult<()> {
+        let attributes_region = release_buffer(to_json_vec(attributes)?);
+        let attributes_ptr = attributes_region as u32;
+        let result = unsafe { add_attributes(attributes_ptr) };
+        if result != 0 {
+            let error = unsafe { consume_string_region_written_by_vm(result as *mut Region) };
+            return Err(StdError::generic_err(format!(
+                "add_attributes errored: {}",
+                error
+            )));
+        };
+        Ok(())
+    }
+
+    fn get_caller_addr(&self) -> StdResult<Addr> {
+        let result = unsafe { get_caller_addr() };
+        if result == 0 {
+            return Err(StdError::generic_err(format!(
+                "get_caller_addr errored: it is not a callee."
+            )));
+        };
+        let value_ptr = result as *mut Region;
+        let addr_data = unsafe { consume_region(value_ptr) };
+        let addr: Addr = from_json(&addr_data)?;
+        Ok(addr)
     }
 
     fn debug(&self, message: &str) {
