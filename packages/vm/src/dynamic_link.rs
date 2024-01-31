@@ -141,7 +141,7 @@ pub fn native_dynamic_link_trampoline_for_bench<
     S: Storage + 'static,
     Q: Querier + 'static,
 >(
-    mut env: FunctionEnvMut<Environment<A, S, Q>>,
+    fe: FunctionEnvMut<Environment<A, S, Q>>,
     args: &[Value],
 ) -> Result<Vec<Value>, RuntimeError>
 where
@@ -149,7 +149,7 @@ where
     S: Storage + 'static,
     Q: Querier + 'static,
 {
-    native_dynamic_link_trampoline(env, args)
+    native_dynamic_link_trampoline(fe, args)
 }
 
 fn into_functiontype(name: &str, ty: &ExternType) -> VmResult<FunctionType> {

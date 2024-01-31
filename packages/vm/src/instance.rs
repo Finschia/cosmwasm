@@ -548,6 +548,11 @@ where
 
         env.set_serialized_env(serialized_env)
     }
+
+    #[cfg(feature = "bench")]
+    pub fn get_fe_mut(&mut self) -> wasmer::FunctionEnvMut<Environment<A, S, Q>> {
+        self.fe.clone().into_mut(&mut self.store)
+    }
 }
 
 /// This exists only to be exported through `internals` for use by crates that are

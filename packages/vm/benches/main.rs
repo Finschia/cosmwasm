@@ -9,15 +9,16 @@ use tempfile::TempDir;
 use cosmwasm_std::{coins, Addr, Empty};
 use cosmwasm_vm::testing::{
     mock_backend, mock_env, mock_info, mock_instance, mock_instance_options,
-    write_data_to_mock_env, MockApi, MockInstanceOptions, MockQuerier, MockStorage,
+    MockApi, MockInstanceOptions, MockQuerier, MockStorage,
 };
 use cosmwasm_vm::{
     call_execute, call_instantiate, capabilities_from_csv,
     native_dynamic_link_trampoline_for_bench, read_region, ref_to_u32, to_u32, to_vec,
     write_region, Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum,
-    Environment, FunctionMetadata, GasInfo, Instance, InstanceOptions, Size, WasmerVal,
+    FunctionMetadata, GasInfo, Instance, InstanceOptions, Size,
 };
 use wasmer_types::Type;
+use wasmer::Value;
 
 // Instance
 const DEFAULT_MEMORY_LIMIT: Size = Size::mebi(64);
@@ -153,12 +154,15 @@ fn bench_instance(c: &mut Criterion) {
             call_instantiate::<_, _, _, Empty>(&mut instance, &mock_env(), &info, b"{}").unwrap();
         assert!(contract_result.into_result().is_ok());
 
+        let mut gas_used = 0;
         b.iter(|| {
+            let gas_before = instance.get_gas_left();
             let info = mock_info("hasher", &[]);
             let msg = br#"{"argon2":{"mem_cost":256,"time_cost":3}}"#;
             let contract_result =
                 call_execute::<_, _, _, Empty>(&mut instance, &mock_env(), &info, msg).unwrap();
             assert!(contract_result.into_result().is_ok());
+            gas_used = gas_before - instance.get_gas_left();
         });
         println!("Gas used: {gas_used}");
     });
@@ -309,13 +313,18 @@ fn bench_cache(c: &mut Criterion) {
     group.finish();
 }
 
-fn prepare_dynamic_call_data<A: BackendApi>(
+fn prepare_dynamic_call_data<A: BackendApi + 'static>(
     callee_address: Addr,
     func_info: FunctionMetadata,
-    caller_env: &mut Environment<A, MockStorage, MockQuerier>,
+    caller_instance: &mut Instance<A, MockStorage, MockQuerier>,
 ) -> u32 {
+    let mut fe_mut = caller_instance.get_fe_mut();
+    let (caller_env, mut caller_store) = fe_mut.data_and_store_mut();
+
     let data = to_vec(&callee_address).unwrap();
-    let region_ptr = write_data_to_mock_env(caller_env, &data).unwrap();
+    let result = caller_env.call_function1(&mut caller_store, "allocate", &[to_u32(data.len()).unwrap().into()]).unwrap();
+    let region_ptr = ref_to_u32(&result).unwrap();
+    write_region(&caller_env.memory(&caller_store), region_ptr, &data).unwrap();
 
     caller_env.set_callee_function_metadata(Some(func_info));
 
@@ -342,9 +351,8 @@ fn bench_dynamic_link(c: &mut Criterion) {
             gas_limit: mock_options.gas_limit,
             print_debug: mock_options.print_debug,
         };
-        let instance =
+        let mut dummy_instance =
             Instance::from_code(CONTRACT, backend, options, mock_options.memory_limit).unwrap();
-        let mut dummy_env = instance.env;
         let callee_address = Addr::unchecked(CALLEE_NAME_ADDR);
         let target_func_info = FunctionMetadata {
             module_name: CALLEE_NAME_ADDR.to_string(),
@@ -353,12 +361,12 @@ fn bench_dynamic_link(c: &mut Criterion) {
         };
 
         let address_region =
-            prepare_dynamic_call_data(callee_address, target_func_info, &mut dummy_env);
+            prepare_dynamic_call_data(callee_address, target_func_info, &mut dummy_instance);
 
         b.iter(|| {
-            let _ = native_dynamic_link_trampoline_for_bench(
-                &dummy_env,
-                &[WasmerVal::I32(address_region as i32)],
+            let _ = native_dynamic_link_trampoline_for_bench::<DummyApi, MockStorage, MockQuerier>(
+                dummy_instance.get_fe_mut(),
+                &[Value::I32(address_region as i32)],
             )
             .unwrap();
         })
@@ -375,32 +383,33 @@ fn bench_copy_region(c: &mut Criterion) {
         group.bench_function(format!("read region (length == {})", length), |b| {
             let data: Vec<u8> = (0..length).map(|x| (x % 255) as u8).collect();
             assert_eq!(data.len(), length as usize);
-            let instance = mock_instance(&CONTRACT, &[]);
-            let ret = instance
-                .env
-                .call_function1("allocate", &[to_u32(data.len()).unwrap().into()])
-                .unwrap();
-            let region_ptr = ref_to_u32(&ret).unwrap();
-            write_region(&instance.env.memory(), region_ptr, &data).unwrap();
+            let mut instance = mock_instance(&CONTRACT, &[]);
+            let mut fe_mut = instance.get_fe_mut();
+            let (env, mut store) = fe_mut.data_and_store_mut();
+
+            let result = env.call_function1(&mut store, "allocate", &[to_u32(data.len()).unwrap().into()]).unwrap();
+            let region_ptr = ref_to_u32(&result).unwrap();
+            write_region(&env.memory(&store), region_ptr, &data).unwrap();
             let got_data =
-                read_region(&instance.env.memory(), region_ptr, u32::MAX as usize).unwrap();
+                read_region(&env.memory(&store), region_ptr, u32::MAX as usize).unwrap();
             assert_eq!(data, got_data);
             b.iter(|| {
-                let _ = read_region(&instance.env.memory(), region_ptr, u32::MAX as usize);
+                let _ = read_region(&env.memory(&store), region_ptr, u32::MAX as usize);
             })
         });
 
         group.bench_function(format!("write region (length == {})", length), |b| {
             let data: Vec<u8> = (0..length).map(|x| (x % 255) as u8).collect();
             assert_eq!(data.len(), length as usize);
-            let instance = mock_instance(&CONTRACT, &[]);
-            let ret = instance
-                .env
-                .call_function1("allocate", &[to_u32(data.len()).unwrap().into()])
-                .unwrap();
-            let region_ptr = ref_to_u32(&ret).unwrap();
+            let mut instance = mock_instance(&CONTRACT, &[]);
+            let mut fe_mut = instance.get_fe_mut();
+            let (env, mut store) = fe_mut.data_and_store_mut();
+
+            let result = env.call_function1(&mut store, "allocate", &[to_u32(data.len()).unwrap().into()]).unwrap();
+            let region_ptr = ref_to_u32(&result).unwrap();
+            write_region(&env.memory(&store), region_ptr, &data).unwrap();
             b.iter(|| {
-                write_region(&instance.env.memory(), region_ptr, &data).unwrap();
+                write_region(&env.memory(&store), region_ptr, &data).unwrap();
             })
         });
     }
@@ -512,6 +521,15 @@ criterion_group!(
     targets = bench_cache
 );
 criterion_group!(
+    name = multi_threaded_instance;
+    config = Criterion::default()
+        .without_plots()
+        .measurement_time(Duration::new(16, 0))
+        .sample_size(10)
+        .configure_from_args();
+    targets = bench_instance_threads
+);
+criterion_group!(
     name = dynamic_link;
     config = make_config();
     targets = bench_dynamic_link
@@ -522,19 +540,10 @@ criterion_group!(
     targets = bench_copy_region
 );
 
-criterion_group!(
-    name = multi_threaded_instance;
-    config = Criterion::default()
-        .without_plots()
-        .measurement_time(Duration::new(16, 0))
-        .sample_size(10)
-        .configure_from_args();
-    targets = bench_instance_threads
-);
 criterion_main!(
     instance,
     cache,
+    multi_threaded_instance,
     dynamic_link,
     copy_region,
-    multi_threaded_instance
 );
