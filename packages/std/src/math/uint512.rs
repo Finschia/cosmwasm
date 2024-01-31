@@ -369,11 +369,7 @@ impl TryFrom<Uint512> for Uint256 {
         let (first_bytes, last_bytes) = bytes.split_at(32);
 
         if first_bytes != [0u8; 32] {
-            return Err(ConversionOverflowError::new(
-                "Uint512",
-                "Uint256",
-                value.to_string(),
-            ));
+            return Err(ConversionOverflowError::new("Uint512", "Uint256", value));
         }
 
         Ok(Self::from_be_bytes(last_bytes.try_into().unwrap()))
@@ -802,7 +798,7 @@ mod tests {
             Err(ConversionOverflowError::new(
                 "Uint512",
                 "Uint128",
-                Uint512::MAX.to_string()
+                Uint512::MAX,
             ))
         );
     }

@@ -1145,11 +1145,11 @@ mod tests {
         let fraction = (21u64, 8u64);
         assert_eq!(
             Uint64::MAX.checked_mul_floor(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint128",
-                target_type: "Uint64",
-                value: "48422703193487572989".to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint128",
+                "Uint64",
+                "48422703193487572989"
+            ))),
         );
     }
 
@@ -1218,11 +1218,11 @@ mod tests {
         let fraction = (21u64, 8u64);
         assert_eq!(
             Uint64::MAX.checked_mul_ceil(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint128",
-                target_type: "Uint64",
-                value: "48422703193487572989".to_string() // raises prior to rounding up
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint128",
+                "Uint64",
+                "48422703193487572989" // raises prior to rounding up
+            ))),
         );
     }
 
@@ -1291,11 +1291,11 @@ mod tests {
         let fraction = (8u64, 21u64);
         assert_eq!(
             Uint64::MAX.checked_div_floor(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint128",
-                target_type: "Uint64",
-                value: "48422703193487572989".to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint128",
+                "Uint64",
+                "48422703193487572989"
+            ))),
         );
     }
 
@@ -1346,11 +1346,11 @@ mod tests {
         let fraction = (8u64, 21u64);
         assert_eq!(
             Uint64::MAX.checked_div_ceil(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint128",
-                target_type: "Uint64",
-                value: "48422703193487572989".to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint128",
+                "Uint64",
+                "48422703193487572989"
+            ))),
         );
     }
 }
