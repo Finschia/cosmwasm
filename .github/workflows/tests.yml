@@ -680,7 +680,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.60.0
+          toolchain: 1.70.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -688,7 +688,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_dynamic_callee_contract-rust:1.60.0-${{ hashFiles('contracts/dynamic-callee-contract/Cargo.lock') }}
+          key: cargocache-v2-contract_dynamic_callee_contract-rust:1.70.0-${{ hashFiles('contracts/dynamic-callee-contract/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -729,7 +729,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.60.0
+          toolchain: 1.70.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -737,7 +737,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_dynamic_caller_contract-rust:1.60.0-${{ hashFiles('contracts/dynamic-caller-contract/Cargo.lock') }}
+          key: cargocache-v2-contract_dynamic_caller_contract-rust:1.70.0-${{ hashFiles('contracts/dynamic-caller-contract/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -778,7 +778,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.60.0
+          toolchain: 1.70.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -786,7 +786,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_number-rust:1.60.0-${{ hashFiles('contracts/number/Cargo.lock') }}
+          key: cargocache-v2-contract_number-rust:1.70.0-${{ hashFiles('contracts/number/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -827,7 +827,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.60.0
+          toolchain: 1.70.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -835,7 +835,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_call_number-rust:1.60.0-${{ hashFiles('contracts/call-number/Cargo.lock') }}
+          key: cargocache-v2-contract_call_number-rust:1.70.0-${{ hashFiles('contracts/call-number/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -876,7 +876,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.60.0
+          toolchain: 1.70.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -884,7 +884,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_simple_callee-rust:1.60.0-${{ hashFiles('contracts/simple-callee/Cargo.lock') }}
+          key: cargocache-v2-contract_simple_callee-rust:1.70.0-${{ hashFiles('contracts/simple-callee/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -925,7 +925,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.60.0
+          toolchain: 1.70.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -933,7 +933,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_intermediate_number-rust:1.60.0-${{ hashFiles('contracts/intermediate-number/Cargo.lock') }}
+          key: cargocache-v2-contract_intermediate_number-rust:1.70.0-${{ hashFiles('contracts/intermediate-number/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
@@ -974,7 +974,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.60.0
+          toolchain: 1.70.0
           target: wasm32-unknown-unknown
           profile: minimal
           override: true
@@ -982,7 +982,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cargo
-          key: cargocache-v2-contract_events-rust:1.60.0-${{ hashFiles('contracts/events/Cargo.lock') }}
+          key: cargocache-v2-contract_events-rust:1.70.0-${{ hashFiles('contracts/events/Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Add wasm32 target
