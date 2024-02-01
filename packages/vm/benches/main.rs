@@ -8,8 +8,8 @@ use tempfile::TempDir;
 
 use cosmwasm_std::{coins, Addr, Empty};
 use cosmwasm_vm::testing::{
-    mock_backend, mock_env, mock_info, mock_instance, mock_instance_options,
-    MockApi, MockInstanceOptions, MockQuerier, MockStorage,
+    mock_backend, mock_env, mock_info, mock_instance, mock_instance_options, MockApi,
+    MockInstanceOptions, MockQuerier, MockStorage,
 };
 use cosmwasm_vm::{
     call_execute, call_instantiate, capabilities_from_csv,
@@ -17,8 +17,8 @@ use cosmwasm_vm::{
     write_region, Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum,
     FunctionMetadata, GasInfo, Instance, InstanceOptions, Size,
 };
-use wasmer_types::Type;
 use wasmer::Value;
+use wasmer_types::Type;
 
 // Instance
 const DEFAULT_MEMORY_LIMIT: Size = Size::mebi(64);
@@ -322,7 +322,13 @@ fn prepare_dynamic_call_data<A: BackendApi + 'static>(
     let (caller_env, mut caller_store) = fe_mut.data_and_store_mut();
 
     let data = to_vec(&callee_address).unwrap();
-    let result = caller_env.call_function1(&mut caller_store, "allocate", &[to_u32(data.len()).unwrap().into()]).unwrap();
+    let result = caller_env
+        .call_function1(
+            &mut caller_store,
+            "allocate",
+            &[to_u32(data.len()).unwrap().into()],
+        )
+        .unwrap();
     let region_ptr = ref_to_u32(&result).unwrap();
     write_region(&caller_env.memory(&caller_store), region_ptr, &data).unwrap();
 
@@ -387,11 +393,16 @@ fn bench_copy_region(c: &mut Criterion) {
             let mut fe_mut = instance.get_fe_mut();
             let (env, mut store) = fe_mut.data_and_store_mut();
 
-            let result = env.call_function1(&mut store, "allocate", &[to_u32(data.len()).unwrap().into()]).unwrap();
+            let result = env
+                .call_function1(
+                    &mut store,
+                    "allocate",
+                    &[to_u32(data.len()).unwrap().into()],
+                )
+                .unwrap();
             let region_ptr = ref_to_u32(&result).unwrap();
             write_region(&env.memory(&store), region_ptr, &data).unwrap();
-            let got_data =
-                read_region(&env.memory(&store), region_ptr, u32::MAX as usize).unwrap();
+            let got_data = read_region(&env.memory(&store), region_ptr, u32::MAX as usize).unwrap();
             assert_eq!(data, got_data);
             b.iter(|| {
                 let _ = read_region(&env.memory(&store), region_ptr, u32::MAX as usize);
@@ -405,7 +416,13 @@ fn bench_copy_region(c: &mut Criterion) {
             let mut fe_mut = instance.get_fe_mut();
             let (env, mut store) = fe_mut.data_and_store_mut();
 
-            let result = env.call_function1(&mut store, "allocate", &[to_u32(data.len()).unwrap().into()]).unwrap();
+            let result = env
+                .call_function1(
+                    &mut store,
+                    "allocate",
+                    &[to_u32(data.len()).unwrap().into()],
+                )
+                .unwrap();
             let region_ptr = ref_to_u32(&result).unwrap();
             write_region(&env.memory(&store), region_ptr, &data).unwrap();
             b.iter(|| {
