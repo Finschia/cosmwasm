@@ -144,7 +144,7 @@ mod test {
             .unwrap()
             .into_result()
             .unwrap();
-        let _ = contract.update_storage(instance).unwrap();
+        contract.update_storage(instance).unwrap();
 
         // query and confirm the queue is empty
         let api = MockApi::default();
@@ -156,7 +156,7 @@ mod test {
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"count\":0}".as_bytes());
-        let _ = contract.update_storage(instance).unwrap();
+        contract.update_storage(instance).unwrap();
 
         // handle and enqueue 42
         let api = MockApi::default();
@@ -167,7 +167,7 @@ mod test {
             .unwrap()
             .into_result()
             .unwrap();
-        let _ = contract.update_storage(instance).unwrap();
+        contract.update_storage(instance).unwrap();
 
         // query and confirm the length of the queue is 1
         let api = MockApi::default();
@@ -179,7 +179,7 @@ mod test {
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"count\":1}".as_bytes());
-        let _ = contract.update_storage(instance).unwrap();
+        contract.update_storage(instance).unwrap();
 
         // query and confirm the sum of the queue is 42
         let api = MockApi::default();
@@ -191,7 +191,7 @@ mod test {
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"sum\":42}".as_bytes());
-        let _ = contract.update_storage(instance).unwrap();
+        contract.update_storage(instance).unwrap();
 
         // change the code and migrate
         contract
@@ -205,7 +205,7 @@ mod test {
             .unwrap()
             .into_result()
             .unwrap();
-        let _ = contract.update_storage(instance).unwrap();
+        contract.update_storage(instance).unwrap();
 
         // query and check the length of the queue is 3
         let api = MockApi::default();
@@ -217,7 +217,7 @@ mod test {
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"count\":3}".as_bytes());
-        let _ = contract.update_storage(instance).unwrap();
+        contract.update_storage(instance).unwrap();
 
         // query and check the sum of the queue is 303
         let api = MockApi::default();
@@ -229,6 +229,6 @@ mod test {
             .into_result()
             .unwrap();
         assert_eq!(res, "{\"sum\":303}".as_bytes());
-        let _ = contract.update_storage(instance).unwrap();
+        contract.update_storage(instance).unwrap();
     }
 }

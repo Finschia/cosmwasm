@@ -179,7 +179,7 @@ where
         //if compiled with '-s' option(symbol strapping), function_names is empty.
         import_functions_by_module
             .entry(import.module().to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(FunctionMetadata {
                 module_name: import.module().to_string(),
                 name: import.name().to_string(),
@@ -284,11 +284,11 @@ where
 {
     let (env, mut store) = fe.data_and_store_mut();
 
-    let contract_addr_raw = read_region(&env.memory(&mut store), address, MAX_ADDRESS_LENGTH)?;
+    let contract_addr_raw = read_region(&env.memory(&store), address, MAX_ADDRESS_LENGTH)?;
     let contract_addr: Addr = from_slice(&contract_addr_raw, MAX_ADDRESS_LENGTH)
         .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
     let expected_interface_binary = read_region(
-        &env.memory(&mut store),
+        &env.memory(&store),
         interface,
         MAX_INTERFACE_REGIONS_LENGTH,
     )?;
@@ -385,7 +385,7 @@ mod tests {
 
     #[test]
     fn read_single_region_works() {
-        let mut instance = mock_instance(&CONTRACT, &[]);
+        let mut instance = mock_instance(CONTRACT, &[]);
 
         let region_ptr = instance.allocate(PASS_DATA.len()).unwrap();
         instance.write_memory(region_ptr, PASS_DATA).unwrap();
@@ -417,7 +417,7 @@ mod tests {
 
     #[test]
     fn trying_read_too_large_region_fails() {
-        let mut src_instance = mock_instance(&CONTRACT, &[]);
+        let mut src_instance = mock_instance(CONTRACT, &[]);
 
         let big_data_1 = [0_u8; MAX_REGIONS_LENGTH - 42 + 1];
         let big_data_2 = [1_u8; 42];
@@ -449,14 +449,14 @@ mod tests {
 
     #[test]
     fn set_callee_permission_works_readwrite() {
-        let mut instance = mock_instance(&CONTRACT_CALLEE, &[]);
+        let mut instance = mock_instance(CONTRACT_CALLEE, &[]);
         set_callee_permission(&mut instance, "succeed", false).unwrap();
         assert!(!instance.is_storage_readonly())
     }
 
     #[test]
     fn set_callee_permission_works_readonly() {
-        let mut instance = mock_instance(&CONTRACT_CALLEE, &[]);
+        let mut instance = mock_instance(CONTRACT_CALLEE, &[]);
         set_callee_permission(&mut instance, "succeed_readonly", true).unwrap();
         assert!(instance.is_storage_readonly())
     }
@@ -464,7 +464,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "a read-write callable point is called in read-only context.")]
     fn set_callee_permission_fails() {
-        let mut instance = mock_instance(&CONTRACT_CALLEE, &[]);
+        let mut instance = mock_instance(CONTRACT_CALLEE, &[]);
         set_callee_permission(&mut instance, "succeed", true).unwrap();
     }
 }

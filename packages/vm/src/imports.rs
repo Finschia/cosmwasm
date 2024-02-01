@@ -505,7 +505,7 @@ pub fn do_add_event<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 
 ) -> VmResult<u32> {
     let (env, mut store) = fe.data_and_store_mut();
 
-    let event_data = read_region(&env.memory(&mut store), event_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let event_data = read_region(&env.memory(&store), event_ptr, MAX_LENGTH_EVENT_VALUES)?;
     let event: Event = match from_slice(&event_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(event) => event,
         Err(_) => return write_to_contract(env, &mut store, b"Input is not valid `Event`"),
@@ -521,7 +521,7 @@ pub fn do_add_events<A: BackendApi + 'static, S: Storage + 'static, Q: Querier +
 ) -> VmResult<u32> {
     let (env, mut store) = fe.data_and_store_mut();
 
-    let events_data = read_region(&env.memory(&mut store), events_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let events_data = read_region(&env.memory(&store), events_ptr, MAX_LENGTH_EVENT_VALUES)?;
     let events: Vec<Event> = match from_slice(&events_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(events) => events,
         Err(_) => return write_to_contract(env, &mut store, b"Input is not valid `Vec<Event>`"),
@@ -538,8 +538,8 @@ pub fn do_add_attribute<A: BackendApi + 'static, S: Storage + 'static, Q: Querie
 ) -> VmResult<u32> {
     let (env, mut store) = fe.data_and_store_mut();
 
-    let key_data = read_region(&env.memory(&mut store), key_ptr, MAX_LENGTH_EVENT_VALUES)?;
-    let value_data = read_region(&env.memory(&mut store), value_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let key_data = read_region(&env.memory(&store), key_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let value_data = read_region(&env.memory(&store), value_ptr, MAX_LENGTH_EVENT_VALUES)?;
     let key: String = match from_slice(&key_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(key) => key,
         Err(_) => {
@@ -564,7 +564,7 @@ pub fn do_add_attributes<A: BackendApi + 'static, S: Storage + 'static, Q: Queri
     let (env, mut store) = fe.data_and_store_mut();
 
     let attributes_data = read_region(
-        &env.memory(&mut store),
+        &env.memory(&store),
         attributes_ptr,
         MAX_LENGTH_EVENT_VALUES,
     )?;
