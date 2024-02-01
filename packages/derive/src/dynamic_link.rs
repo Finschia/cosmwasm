@@ -226,8 +226,8 @@ fn generate_serialization_func(module_name: &str, signature: &Signature) -> Toke
         make_call_function_and_return(module_name, func_name, &region_arg_idents, return_types);
     quote! {
         fn #func_name(&self #(, #renamed_param_defs)*) #return_types {
-            let vec_addr = cosmwasm_std::to_vec(&self.get_address()).unwrap();
-            #(let #vec_arg_idents = cosmwasm_std::to_vec(&#arg_idents).unwrap();)*
+            let vec_addr = cosmwasm_std::to_json_vec(&self.get_address()).unwrap();
+            #(let #vec_arg_idents = cosmwasm_std::to_json_vec(&#arg_idents).unwrap();)*
             let region_addr = cosmwasm_std::memory::release_buffer(vec_addr) as u32;
             #(let #region_arg_idents = cosmwasm_std::memory::release_buffer(#vec_arg_idents) as u32;)*
             unsafe {
@@ -249,7 +249,7 @@ fn make_call_function_and_return(
         quote! {
             let result = #imported_module_name_ident::#func_id(region_addr #(, #arg_idents)*);
             let vec_result = cosmwasm_std::memory::consume_region(result as *mut cosmwasm_std::memory::Region);
-            cosmwasm_std::from_slice(&vec_result).unwrap()
+            cosmwasm_std::from_json(&vec_result).unwrap()
         }
     } else {
         quote! {
@@ -302,7 +302,7 @@ mod tests {
             let expected: TokenStream = parse_quote! {
                 let result = #module_id::foo(region_addr);
                 let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
-                cosmwasm_std::from_slice(&vec_result).unwrap()
+                cosmwasm_std::from_json(&vec_result).unwrap()
             };
             assert_eq!(expected.to_string(), result_code);
         }
@@ -322,7 +322,7 @@ mod tests {
             let expected: TokenStream = parse_quote! {
                 let result = #module_id::foo(region_addr);
                 let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
-                cosmwasm_std::from_slice(&vec_result).unwrap()
+                cosmwasm_std::from_json(&vec_result).unwrap()
             };
             assert_eq!(expected.to_string(), result_code);
         }
@@ -356,12 +356,12 @@ mod tests {
             let result_code = generate_serialization_func(module_name, method_sigs[0]).to_string();
             let expected: TokenStream = parse_quote! {
                 fn foo (&self) -> u64 {
-                    let vec_addr = cosmwasm_std::to_vec(&self.get_address()).unwrap();
+                    let vec_addr = cosmwasm_std::to_json_vec(&self.get_address()).unwrap();
                     let region_addr = cosmwasm_std::memory::release_buffer(vec_addr) as u32;
                     unsafe {
                         let result = #module_id::foo(region_addr);
                         let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
-                        cosmwasm_std::from_slice(&vec_result).unwrap()
+                        cosmwasm_std::from_json(&vec_result).unwrap()
                     }
                }
             };
@@ -371,16 +371,16 @@ mod tests {
             let result_code = generate_serialization_func(module_name, method_sigs[1]).to_string();
             let expected: TokenStream = parse_quote! {
                 fn bar (&self, arg0: u64 , arg1: String) -> u64 {
-                    let vec_addr = cosmwasm_std::to_vec(&self.get_address()).unwrap();
-                    let vec_arg0 = cosmwasm_std::to_vec(&arg0).unwrap();
-                    let vec_arg1 = cosmwasm_std::to_vec(&arg1).unwrap();
+                    let vec_addr = cosmwasm_std::to_json_vec(&self.get_address()).unwrap();
+                    let vec_arg0 = cosmwasm_std::to_json_vec(&arg0).unwrap();
+                    let vec_arg1 = cosmwasm_std::to_json_vec(&arg1).unwrap();
                     let region_addr = cosmwasm_std::memory::release_buffer(vec_addr) as u32;
                     let region_arg0 = cosmwasm_std::memory::release_buffer(vec_arg0) as u32;
                     let region_arg1 = cosmwasm_std::memory::release_buffer(vec_arg1) as u32;
                     unsafe {
                         let result = #module_id::bar(region_addr, region_arg0, region_arg1);
                         let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
-                        cosmwasm_std::from_slice(&vec_result).unwrap()
+                        cosmwasm_std::from_json(&vec_result).unwrap()
                     }
                }
             };
@@ -390,16 +390,16 @@ mod tests {
             let result_code = generate_serialization_func(module_name, method_sigs[2]).to_string();
             let expected: TokenStream = parse_quote! {
                 fn foobar(&self, arg0: u64, arg1: String) -> (u64, String) {
-                    let vec_addr = cosmwasm_std::to_vec(&self.get_address()).unwrap();
-                    let vec_arg0 = cosmwasm_std::to_vec(&arg0).unwrap();
-                    let vec_arg1 = cosmwasm_std::to_vec(&arg1).unwrap();
+                    let vec_addr = cosmwasm_std::to_json_vec(&self.get_address()).unwrap();
+                    let vec_arg0 = cosmwasm_std::to_json_vec(&arg0).unwrap();
+                    let vec_arg1 = cosmwasm_std::to_json_vec(&arg1).unwrap();
                     let region_addr = cosmwasm_std::memory::release_buffer(vec_addr) as u32;
                     let region_arg0 = cosmwasm_std::memory::release_buffer(vec_arg0) as u32;
                     let region_arg1 = cosmwasm_std::memory::release_buffer(vec_arg1) as u32;
                     unsafe {
                         let result = #module_id::foobar(region_addr, region_arg0, region_arg1);
                         let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
-                        cosmwasm_std::from_slice(&vec_result).unwrap()
+                        cosmwasm_std::from_json(&vec_result).unwrap()
                     }
                 }
             };
@@ -486,21 +486,21 @@ mod tests {
         let expected: TokenStream = parse_quote! {
             impl Callee for CalleeContract {
                 fn foo(&self, arg0: u64, arg1: String) -> u64 {
-                    let vec_addr = cosmwasm_std::to_vec(&self.get_address()).unwrap();
-                    let vec_arg0 = cosmwasm_std::to_vec(&arg0).unwrap();
-                    let vec_arg1 = cosmwasm_std::to_vec(&arg1).unwrap();
+                    let vec_addr = cosmwasm_std::to_json_vec(&self.get_address()).unwrap();
+                    let vec_arg0 = cosmwasm_std::to_json_vec(&arg0).unwrap();
+                    let vec_arg1 = cosmwasm_std::to_json_vec(&arg1).unwrap();
                     let region_addr = cosmwasm_std::memory::release_buffer(vec_addr) as u32;
                     let region_arg0 = cosmwasm_std::memory::release_buffer(vec_arg0) as u32;
                     let region_arg1 = cosmwasm_std::memory::release_buffer(vec_arg1) as u32;
                     unsafe {
                         let result = #module_id::foo(region_addr, region_arg0, region_arg1);
                         let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
-                        cosmwasm_std::from_slice(&vec_result).unwrap()
+                        cosmwasm_std::from_json(&vec_result).unwrap()
                     }
                 }
 
                 fn bar(&self) {
-                    let vec_addr = cosmwasm_std::to_vec(&self.get_address()).unwrap();
+                    let vec_addr = cosmwasm_std::to_json_vec(&self.get_address()).unwrap();
                     let region_addr = cosmwasm_std::memory::release_buffer(vec_addr) as u32;
                     unsafe {
                         #module_id::bar(region_addr);
@@ -508,16 +508,16 @@ mod tests {
                 }
 
                 fn foobar(&self, arg0: u64, arg1: String) -> (u64, String) {
-                    let vec_addr = cosmwasm_std::to_vec(&self.get_address()).unwrap();
-                    let vec_arg0 = cosmwasm_std::to_vec(&arg0).unwrap();
-                    let vec_arg1 = cosmwasm_std::to_vec(&arg1).unwrap();
+                    let vec_addr = cosmwasm_std::to_json_vec(&self.get_address()).unwrap();
+                    let vec_arg0 = cosmwasm_std::to_json_vec(&arg0).unwrap();
+                    let vec_arg1 = cosmwasm_std::to_json_vec(&arg1).unwrap();
                     let region_addr = cosmwasm_std::memory::release_buffer(vec_addr) as u32;
                     let region_arg0 = cosmwasm_std::memory::release_buffer(vec_arg0) as u32;
                     let region_arg1 = cosmwasm_std::memory::release_buffer(vec_arg1) as u32;
                     unsafe {
                         let result = #module_id::foobar(region_addr, region_arg0, region_arg1);
                         let vec_result = cosmwasm_std::memory::consume_region(result as * mut cosmwasm_std::memory::Region);
-                        cosmwasm_std::from_slice(&vec_result).unwrap()
+                        cosmwasm_std::from_json(&vec_result).unwrap()
                     }
                 }
 

@@ -31,8 +31,8 @@ cosmwasm-storage = { path = "../../packages/storage", features = ["iterator"] }
 schemars = "0.8.1"
 serde = { version = "1.0.125", default-features = false, features = ["derive"] }
 thiserror = "1.0.24"
-wasmer-types = "2.3"
+wasmer-types = "=4.2.2"
 
 [dev-dependencies]
 cosmwasm-vm = { path = "../../packages/vm", default-features = false, features = ["iterator"] }
-wasmer = { version = "=2.3.0", default-features = false, features = ["cranelift", "universal", "singlepass"] }
+wasmer = { version = "=4.2.2", default-features = false, features = ["cranelift", "singlepass"] }

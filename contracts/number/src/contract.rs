@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_points, entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    Storage,
+    callable_points, entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo,
+    Response, Storage,
 };
 
 use crate::error::ContractError;
@@ -67,7 +67,7 @@ fn handle_mul(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     match msg {
-        QueryMsg::Number {} => Ok(to_binary(&query_number(deps)?)?),
+        QueryMsg::Number {} => Ok(to_json_binary(&query_number(deps)?)?),
     }
 }
 

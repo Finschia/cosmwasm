@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_points, dynamic_link, entry_point, from_slice, to_vec, Addr, Binary, Contract, Deps,
-    DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
+    callable_points, dynamic_link, entry_point, from_json, to_json_vec, Addr, Binary, Contract,
+    Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -114,7 +114,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     deps.storage
-        .set(b"dynamic_callee_contract", &to_vec(&msg.callee_addr)?);
+        .set(b"dynamic_callee_contract", &to_json_vec(&msg.callee_addr)?);
 
     Ok(Response::default())
 }
@@ -140,7 +140,7 @@ pub fn execute(
 }
 
 pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(b"dynamic_callee_contract")
@@ -190,7 +190,7 @@ pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractEr
 pub fn try_re_entrancy(deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
     // It will be tried to call the should_never_be_called function below.
     // But, should be blocked by VM host side normally because it's a reentrancy case.
-    let address = from_slice(
+    let address = from_json(
         &deps
             .storage
             .get(b"dynamic_callee_contract")
@@ -202,7 +202,7 @@ pub fn try_re_entrancy(deps: DepsMut, _env: Env) -> Result<Response, ContractErr
 }
 
 pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
-    let address = from_slice(
+    let address = from_json(
         &deps
             .storage
             .get(b"dynamic_callee_contract")
@@ -214,7 +214,7 @@ pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError>
 }
 
 pub fn try_validate_interface(deps: Deps, _env: Env) -> Result<Response, ContractError> {
-    let address = from_slice(
+    let address = from_json(
         &deps
             .storage
             .get(b"dynamic_callee_contract")
@@ -227,7 +227,7 @@ pub fn try_validate_interface(deps: Deps, _env: Env) -> Result<Response, Contrac
 
 // should error
 pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, ContractError> {
-    let address = from_slice(
+    let address = from_json(
         &deps
             .storage
             .get(b"dynamic_callee_contract")
@@ -238,7 +238,7 @@ pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, Con
             "not_exist",
             ([wasmer_types::Type::I32], [wasmer_types::Type::I32]).into(),
         )];
-    let binary_err_interface = to_vec(&err_interface).unwrap();
+    let binary_err_interface = to_json_vec(&err_interface).unwrap();
     deps.api
         .validate_dynamic_link_interface(&address, &binary_err_interface)?;
     Ok(Response::default())
@@ -250,7 +250,7 @@ pub fn try_call_caller_address_of(
     _env: Env,
     target: Addr,
 ) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(b"dynamic_callee_contract")
@@ -282,14 +282,14 @@ fn get_own_address_via_callees_get_caller_address(
     deps: Deps,
     _env: Env,
 ) -> Result<Binary, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
     )?;
     let contract = CalleeContract { address };
-    Ok(Binary(to_vec(&contract.caller_address())?))
+    Ok(Binary(to_json_vec(&contract.caller_address())?))
 }
 
 #[callable_points]

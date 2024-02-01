@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    callable_points, dynamic_link, entry_point, from_slice, to_binary, to_vec, Addr, Binary,
-    Contract, Deps, DepsMut, Env, MessageInfo, Response,
+    callable_points, dynamic_link, entry_point, from_json, to_json_binary, to_json_vec, Addr,
+    Binary, Contract, Deps, DepsMut, Env, MessageInfo, Response,
 };
 
 use crate::error::ContractError;
@@ -28,7 +28,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.storage.set(ADDRESS_KEY, &to_vec(&msg.callee_addr)?);
+    deps.storage
+        .set(ADDRESS_KEY, &to_json_vec(&msg.callee_addr)?);
     Ok(Response::default())
 }
 
@@ -47,7 +48,7 @@ pub fn execute(
 }
 
 fn handle_add(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -65,7 +66,7 @@ fn handle_add(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_add_readonly(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -83,7 +84,7 @@ fn handle_add_readonly(deps: Deps, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_sub(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -101,7 +102,7 @@ fn handle_sub(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_mul(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -119,7 +120,7 @@ fn handle_mul(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_mul_readonly(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -139,12 +140,12 @@ fn handle_mul_readonly(deps: Deps, by: i32) -> Result<Response, ContractError> {
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     match msg {
-        QueryMsg::Number {} => Ok(to_binary(&query_number(deps)?)?),
+        QueryMsg::Number {} => Ok(to_json_binary(&query_number(deps)?)?),
     }
 }
 
 fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -158,7 +159,7 @@ fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
 }
 
 fn handle_number(deps: Deps) -> Result<i32, ContractError> {
-    let address: Addr = from_slice(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract { address };
     let value_dyn = contract.number();
     Ok(value_dyn)

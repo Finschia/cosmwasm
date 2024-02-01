@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    dynamic_link, entry_point, from_slice, to_binary, to_vec, wasm_execute, Addr, Binary, Contract,
-    Deps, DepsMut, Env, MessageInfo, Reply, Response, SubMsg,
+    dynamic_link, entry_point, from_json, to_json_binary, to_json_vec, wasm_execute, Addr, Binary,
+    Contract, Deps, DepsMut, Env, MessageInfo, Reply, Response, SubMsg,
 };
 
 use crate::error::ContractError;
@@ -28,7 +28,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.storage.set(ADDRESS_KEY, &to_vec(&msg.callee_addr)?);
+    deps.storage
+        .set(ADDRESS_KEY, &to_json_vec(&msg.callee_addr)?);
     Ok(Response::default())
 }
 
@@ -52,7 +53,7 @@ pub fn execute(
 }
 
 fn handle_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -75,7 +76,7 @@ fn handle_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -98,7 +99,7 @@ fn handle_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -121,7 +122,7 @@ fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -136,7 +137,7 @@ fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractErro
 }
 
 fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -151,7 +152,7 @@ fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractErro
 }
 
 fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -166,7 +167,7 @@ fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractErro
 }
 
 fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -182,7 +183,7 @@ fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
 }
 
 fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -198,7 +199,7 @@ fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
 
 #[entry_point]
 pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -221,16 +222,16 @@ pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, Contract
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     match msg {
-        QueryMsg::Add { value } => Ok(to_binary(&query_add(deps, value)?)?),
-        QueryMsg::Sub { value } => Ok(to_binary(&query_sub(deps, value)?)?),
-        QueryMsg::Mul { value } => Ok(to_binary(&query_mul(deps, value)?)?),
-        QueryMsg::NumberDyn {} => Ok(to_binary(&query_number_dyn(deps)?)?),
-        QueryMsg::Number {} => Ok(to_binary(&query_number(deps)?)?),
+        QueryMsg::Add { value } => Ok(to_json_binary(&query_add(deps, value)?)?),
+        QueryMsg::Sub { value } => Ok(to_json_binary(&query_sub(deps, value)?)?),
+        QueryMsg::Mul { value } => Ok(to_json_binary(&query_mul(deps, value)?)?),
+        QueryMsg::NumberDyn {} => Ok(to_json_binary(&query_number_dyn(deps)?)?),
+        QueryMsg::Number {} => Ok(to_json_binary(&query_number(deps)?)?),
     }
 }
 
 fn query_number_dyn(deps: Deps) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -245,7 +246,7 @@ fn query_number_dyn(deps: Deps) -> Result<NumberResponse, ContractError> {
 // when a caller with read-only permissions attempts to call a callable point with read/write permissions.
 // https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -261,7 +262,7 @@ fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
 // when a caller with read-only permissions attempts to call a callable point with read/write permissions.
 // https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -277,7 +278,7 @@ fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
 // when a caller with read-only permissions attempts to call a callable point with read/write permissions.
 // https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_mul(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
@@ -290,7 +291,7 @@ fn query_mul(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
 }
 
 fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
-    let address: Addr = from_slice(
+    let address: Addr = from_json(
         &deps
             .storage
             .get(ADDRESS_KEY)
