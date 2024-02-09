@@ -16,7 +16,7 @@ pub use calls::{
 };
 pub use contract::Contract;
 pub use instance::{
-    mock_instance, mock_instance_options, mock_instance_with_balances,
+    call_function, get_fe_mut, mock_instance, mock_instance_options, mock_instance_with_balances,
     mock_instance_with_failing_api, mock_instance_with_gas_limit, mock_instance_with_options,
     test_io, MockInstanceOptions,
 };

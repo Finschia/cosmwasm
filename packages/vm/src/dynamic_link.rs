@@ -287,11 +287,8 @@ where
     let contract_addr_raw = read_region(&env.memory(&store), address, MAX_ADDRESS_LENGTH)?;
     let contract_addr: Addr = from_slice(&contract_addr_raw, MAX_ADDRESS_LENGTH)
         .map_err(|_| RuntimeError::new("Invalid contract address to validate interface"))?;
-    let expected_interface_binary = read_region(
-        &env.memory(&store),
-        interface,
-        MAX_INTERFACE_REGIONS_LENGTH,
-    )?;
+    let expected_interface_binary =
+        read_region(&env.memory(&store), interface, MAX_INTERFACE_REGIONS_LENGTH)?;
     let (result_data, gas_info) = env
         .api
         .validate_dynamic_link_interface(contract_addr.as_str(), &expected_interface_binary);

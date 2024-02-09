@@ -563,11 +563,8 @@ pub fn do_add_attributes<A: BackendApi + 'static, S: Storage + 'static, Q: Queri
 ) -> VmResult<u32> {
     let (env, mut store) = fe.data_and_store_mut();
 
-    let attributes_data = read_region(
-        &env.memory(&store),
-        attributes_ptr,
-        MAX_LENGTH_EVENT_VALUES,
-    )?;
+    let attributes_data =
+        read_region(&env.memory(&store), attributes_ptr, MAX_LENGTH_EVENT_VALUES)?;
     let attributes: Vec<Attribute> = match from_slice(&attributes_data, MAX_LENGTH_EVENT_VALUES) {
         Ok(attributes) => attributes,
         Err(_) => return write_to_contract(env, &mut store, b"Input is not valid Vec<Attribute>"),

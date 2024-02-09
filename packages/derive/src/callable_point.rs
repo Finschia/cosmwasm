@@ -99,7 +99,7 @@ pub fn make_callable_point(function: syn::ItemFn) -> (TokenStream, (String, bool
                 #[no_mangle]
                 extern "C" fn #function_name_ident(#(#renamed_param_defs),*) #typed_return {
                     #(let #vec_arg_idents: Vec<u8> = unsafe { cosmwasm_std::memory::consume_region(#ptr_idents as *mut cosmwasm_std::memory::Region)};)*
-                    #(let #arg_idents: #arg_types = cosmwasm_std::from_slice(&#vec_arg_idents).unwrap();)*
+                    #(let #arg_idents: #arg_types = cosmwasm_std::from_json(&#vec_arg_idents).unwrap();)*
 
                     #deps_def;
 
@@ -131,7 +131,7 @@ fn make_call_origin_and_return(
     if has_return_value(return_type) {
         quote! {
             let result = #call_func;
-            let vec_result = cosmwasm_std::to_vec(&result).unwrap();
+            let vec_result = cosmwasm_std::to_json_vec(&result).unwrap();
             cosmwasm_std::memory::release_buffer(vec_result) as u32
         }
     } else {
@@ -162,7 +162,7 @@ mod tests {
 
             let expected: TokenStream = parse_quote! {
                 let result = super::foo(deps.as_mut());
-                let vec_result = cosmwasm_std::to_vec(&result).unwrap();
+                let vec_result = cosmwasm_std::to_json_vec(&result).unwrap();
                 cosmwasm_std::memory::release_buffer(vec_result) as u32
             };
             assert_eq!(expected.to_string(), result_code);
@@ -184,7 +184,7 @@ mod tests {
 
             let expected: TokenStream = parse_quote! {
                 let result = super::foo(deps.as_ref());
-                let vec_result = cosmwasm_std::to_vec(&result).unwrap();
+                let vec_result = cosmwasm_std::to_json_vec(&result).unwrap();
                 cosmwasm_std::memory::release_buffer(vec_result) as u32
             };
             assert_eq!(expected.to_string(), result_code);

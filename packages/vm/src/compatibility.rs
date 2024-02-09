@@ -201,12 +201,15 @@ fn check_wasm_imports(module: &ParsedWasm, supported_imports: &[&str]) -> VmResu
     for required_import in &module.imports {
         let full_name = full_import_name(required_import);
         if !supported_imports.contains(&full_name.as_str()) {
-            let required_import_names: BTreeSet<_> =
-                module.imports.iter().map(full_import_name).collect();
-            return Err(VmError::static_validation_err(format!(
-                "Wasm contract requires unsupported import: \"{}\". Required imports: {}. Available imports: {:?}.",
-                full_name, required_import_names.to_string_limited(200), supported_imports
-            )));
+            let split_name: Vec<&str> = full_name.split('.').collect();
+            if split_name.len() != 2 || !split_name[0].starts_with("dynamiclinked_") {
+                let required_import_names: BTreeSet<_> =
+                    module.imports.iter().map(full_import_name).collect();
+                return Err(VmError::static_validation_err(format!(
+                    "Wasm contract requires unsupported import: \"{}\". Required imports: {}. Available imports: {:?}.",
+                    full_name, required_import_names.to_string_limited(200), supported_imports
+                )));
+            }
         }
 
         match required_import.ty {

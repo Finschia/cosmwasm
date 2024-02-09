@@ -8,7 +8,7 @@ use tempfile::TempDir;
 
 use cosmwasm_std::{coins, Addr, Empty};
 use cosmwasm_vm::testing::{
-    mock_backend, mock_env, mock_info, mock_instance, mock_instance_options, MockApi,
+    get_fe_mut, mock_backend, mock_env, mock_info, mock_instance, mock_instance_options, MockApi,
     MockInstanceOptions, MockQuerier, MockStorage,
 };
 use cosmwasm_vm::{
@@ -318,7 +318,7 @@ fn prepare_dynamic_call_data<A: BackendApi + 'static>(
     func_info: FunctionMetadata,
     caller_instance: &mut Instance<A, MockStorage, MockQuerier>,
 ) -> u32 {
-    let mut fe_mut = caller_instance.get_fe_mut();
+    let mut fe_mut = get_fe_mut(caller_instance);
     let (caller_env, mut caller_store) = fe_mut.data_and_store_mut();
 
     let data = to_vec(&callee_address).unwrap();
@@ -371,7 +371,7 @@ fn bench_dynamic_link(c: &mut Criterion) {
 
         b.iter(|| {
             let _ = native_dynamic_link_trampoline_for_bench::<DummyApi, MockStorage, MockQuerier>(
-                dummy_instance.get_fe_mut(),
+                get_fe_mut(&mut dummy_instance),
                 &[Value::I32(address_region as i32)],
             )
             .unwrap();
@@ -390,7 +390,7 @@ fn bench_copy_region(c: &mut Criterion) {
             let data: Vec<u8> = (0..length).map(|x| (x % 255) as u8).collect();
             assert_eq!(data.len(), length as usize);
             let mut instance = mock_instance(&CONTRACT, &[]);
-            let mut fe_mut = instance.get_fe_mut();
+            let mut fe_mut = get_fe_mut(&mut instance);
             let (env, mut store) = fe_mut.data_and_store_mut();
 
             let result = env
@@ -413,7 +413,7 @@ fn bench_copy_region(c: &mut Criterion) {
             let data: Vec<u8> = (0..length).map(|x| (x % 255) as u8).collect();
             assert_eq!(data.len(), length as usize);
             let mut instance = mock_instance(&CONTRACT, &[]);
-            let mut fe_mut = instance.get_fe_mut();
+            let mut fe_mut = get_fe_mut(&mut instance);
             let (env, mut store) = fe_mut.data_and_store_mut();
 
             let result = env

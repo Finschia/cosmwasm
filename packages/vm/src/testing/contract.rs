@@ -21,6 +21,7 @@ pub struct Contract {
     engine: Engine,
     module: Module,
     storage: MockStorage,
+    serialized_env: Vec<u8>,
 }
 
 /// representing a contract in integration test
@@ -32,6 +33,7 @@ pub struct Contract {
 impl Contract {
     pub fn from_code(
         wasm: &[u8],
+        serialized_env: &[u8],
         options: &MockInstanceOptions,
         memory_limit: Option<Size>,
     ) -> TestingResult<Self> {
@@ -43,6 +45,7 @@ impl Contract {
             engine,
             module,
             storage,
+            serialized_env: serialized_env.to_vec(),
         };
         Ok(contract)
     }
@@ -81,7 +84,7 @@ impl Contract {
             querier,
         };
         let store = Store::new(self.engine.clone());
-        let instance = Instance::from_module(
+        let mut instance = Instance::from_module(
             store,
             &self.module,
             backend,
@@ -90,6 +93,7 @@ impl Contract {
             None,
             None,
         )?;
+        instance.set_serialized_env(&self.serialized_env);
         Ok(instance)
     }
 
@@ -111,6 +115,11 @@ impl Contract {
     pub fn raw_get(&self, key: &[u8]) -> Option<Vec<u8>> {
         self.storage.get(key).0.unwrap()
     }
+
+    /// get clone module
+    pub fn module(&self) -> Module {
+        self.module.clone()
+    }
 }
 
 #[cfg(test)]
@@ -119,7 +128,7 @@ mod test {
     use super::*;
     use crate::calls::{call_execute, call_instantiate, call_migrate, call_query};
     use crate::testing::{mock_env, mock_info, MockInstanceOptions};
-    use cosmwasm_std::{QueryResponse, Response};
+    use cosmwasm_std::{to_json_vec, QueryResponse, Response};
 
     static CONTRACT_WITHOUT_MIGRATE: &[u8] =
         include_bytes!("../../testdata/queue_1.4.0_without_migrate.wasm");
@@ -131,11 +140,18 @@ mod test {
         let options = MockInstanceOptions::default();
         let api = MockApi::default();
         let querier = MockQuerier::new(&[]);
-        let mut contract = Contract::from_code(CONTRACT_WITHOUT_MIGRATE, &options, None).unwrap();
 
         // common env/info
         let env = mock_env();
         let info = mock_info("sender", &[]);
+
+        let mut contract = Contract::from_code(
+            CONTRACT_WITHOUT_MIGRATE,
+            &to_json_vec(&env).unwrap(),
+            &options,
+            None,
+        )
+        .unwrap();
 
         // init
         let mut instance = contract.generate_instance(api, querier, &options).unwrap();

@@ -509,7 +509,7 @@ where
     }
 
     /// Calls a function exported by the instance.
-    pub fn call_function(&mut self, name: &str, args: &[Value]) -> VmResult<Box<[Value]>> {
+    pub(crate) fn call_function(&mut self, name: &str, args: &[Value]) -> VmResult<Box<[Value]>> {
         let mut fe_mut = self.fe.clone().into_mut(&mut self.store);
         let (env, mut store) = fe_mut.data_and_store_mut();
 
@@ -549,8 +549,7 @@ where
         env.set_serialized_env(serialized_env)
     }
 
-    #[cfg(feature = "bench")]
-    pub fn get_fe_mut(&mut self) -> wasmer::FunctionEnvMut<Environment<A, S, Q>> {
+    pub(crate) fn get_fe_mut(&mut self) -> wasmer::FunctionEnvMut<Environment<A, S, Q>> {
         self.fe.clone().into_mut(&mut self.store)
     }
 }
