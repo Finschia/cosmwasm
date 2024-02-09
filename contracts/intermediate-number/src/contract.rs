@@ -146,8 +146,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 
 fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )

@@ -28,7 +28,6 @@ fn make_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
     let api = MockApi::default();
     let querier = MockQuerier::new(&[]);
     let contract = Contract::from_code(CONTRACT, &env, &options, None).unwrap();
-    
 
     contract.generate_instance(api, querier, &options).unwrap()
 }

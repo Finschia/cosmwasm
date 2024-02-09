@@ -61,7 +61,7 @@ fn make_callee_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
     let querier = MockQuerier::new(&[]);
     let env = to_json_vec(&mock_env()).unwrap();
     let contract = Contract::from_code(CONTRACT_CALLEE, &env, &options, None).unwrap();
-    
+
     contract.generate_instance(api, querier, &options).unwrap()
 }
 
@@ -105,12 +105,8 @@ fn callable_point_pong_works() {
     let required_exports = required_exports();
     let export_index = 0;
     assert_eq!("pong".to_string(), required_exports[export_index].0);
-    let call_result = call_function(
-        &mut instance,
-        "pong",
-        &[env_region_ptr, param_region_ptr],
-    )
-    .unwrap();
+    let call_result =
+        call_function(&mut instance, "pong", &[env_region_ptr, param_region_ptr]).unwrap();
     assert_eq!(call_result.len(), 1);
 
     let serialized_return =
@@ -212,11 +208,7 @@ fn callable_point_pong_with_tuple_takes_2_args_works() {
     let call_result = call_function(
         &mut instance,
         "pong_with_tuple_takes_2_args",
-        &[
-            env_region_ptr,
-            param_region_ptr1,
-            param_region_ptr2,
-        ],
+        &[env_region_ptr, param_region_ptr1, param_region_ptr2],
     )
     .unwrap();
     assert_eq!(call_result.len(), 1);

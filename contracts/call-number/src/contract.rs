@@ -54,8 +54,7 @@ pub fn execute(
 
 fn handle_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -77,8 +76,7 @@ fn handle_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
 
 fn handle_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -100,8 +98,7 @@ fn handle_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
 
 fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -123,8 +120,7 @@ fn handle_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
 
 fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -138,8 +134,7 @@ fn handle_submsg_reply_add(deps: Deps, by: i32) -> Result<Response, ContractErro
 
 fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -153,8 +148,7 @@ fn handle_submsg_reply_sub(deps: Deps, by: i32) -> Result<Response, ContractErro
 
 fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -168,8 +162,7 @@ fn handle_submsg_reply_mul(deps: Deps, by: i32) -> Result<Response, ContractErro
 
 fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -184,8 +177,7 @@ fn handle_log_query(deps: Deps) -> Result<Response, ContractError> {
 
 fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -200,8 +192,7 @@ fn handle_log_query_dyn(deps: Deps) -> Result<Response, ContractError> {
 #[entry_point]
 pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -232,8 +223,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 
 fn query_number_dyn(deps: Deps) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -247,8 +237,7 @@ fn query_number_dyn(deps: Deps) -> Result<NumberResponse, ContractError> {
 // https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -263,8 +252,7 @@ fn query_add(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
 // https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -279,8 +267,7 @@ fn query_sub(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
 // https://github.com/Finschia/cosmwasm/blob/03abb0871ca5cfe8b874561795bc59d12562002f/packages/vm/src/dynamic_link.rs#L333-L336
 fn query_mul(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;
@@ -292,8 +279,7 @@ fn query_mul(deps: Deps, by: i32) -> Result<NumberResponse, ContractError> {
 
 fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_json(
-        deps
-            .storage
+        deps.storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
     )?;

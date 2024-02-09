@@ -28,7 +28,6 @@ fn make_number_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
     let env = to_json_vec(&mock_env()).unwrap();
     let querier = MockQuerier::new(&[]);
     let contract = Contract::from_code(CONTRACT, &env, &options, None).unwrap();
-    
 
     contract.generate_instance(api, querier, &options).unwrap()
 }
@@ -76,12 +75,8 @@ fn callable_point_add_works() {
 
     // Before solving #213, it issues an error.
     // This is because `add` panics without number in deps.storage.
-    let call_result = call_function(
-        &mut instance,
-        "add",
-        &[env_region_ptr, param_region_ptr],
-    )
-    .unwrap_err();
+    let call_result =
+        call_function(&mut instance, "add", &[env_region_ptr, param_region_ptr]).unwrap_err();
     assert!(call_result
         .to_string()
         .contains("RuntimeError: unreachable"))
@@ -104,12 +99,8 @@ fn callable_point_sub_works() {
 
     // Before solving #213, it issues an error.
     // This is because `sub` panics without number in deps.storage.
-    let call_result = call_function(
-        &mut instance,
-        "sub",
-        &[env_region_ptr, param_region_ptr],
-    )
-    .unwrap_err();
+    let call_result =
+        call_function(&mut instance, "sub", &[env_region_ptr, param_region_ptr]).unwrap_err();
     assert!(call_result
         .to_string()
         .contains("RuntimeError: unreachable"))
@@ -132,12 +123,8 @@ fn callable_point_mul_works() {
 
     // Before solving #213, it issues an error.
     // This is because `mul` panics without number in deps.storage.
-    let call_result = call_function(
-        &mut instance,
-        "mul",
-        &[env_region_ptr, param_region_ptr],
-    )
-    .unwrap_err();
+    let call_result =
+        call_function(&mut instance, "mul", &[env_region_ptr, param_region_ptr]).unwrap_err();
     assert!(call_result
         .to_string()
         .contains("RuntimeError: unreachable"))
