@@ -8,6 +8,7 @@ mod capabilities;
 mod checksum;
 mod compatibility;
 mod conversion;
+mod dynamic_link;
 mod environment;
 mod errors;
 mod filesystem;
@@ -42,11 +43,21 @@ pub use crate::calls::{
 };
 pub use crate::capabilities::capabilities_from_csv;
 pub use crate::checksum::Checksum;
+#[cfg(feature = "bench")]
+pub use crate::conversion::{ref_to_u32, to_u32};
+#[cfg(feature = "bench")]
+pub use crate::dynamic_link::native_dynamic_link_trampoline_for_bench;
+pub use crate::dynamic_link::{
+    dynamic_link, read_region_vals, set_callee_permission, write_value_to_env, FunctionMetadata,
+};
+pub use crate::environment::Environment;
 pub use crate::errors::{
     CommunicationError, CommunicationResult, RegionValidationError, RegionValidationResult,
     VmError, VmResult,
 };
 pub use crate::instance::{DebugInfo, GasReport, Instance, InstanceOptions};
+#[cfg(feature = "bench")]
+pub use crate::memory::{read_region, write_region};
 pub use crate::serde::{from_slice, to_vec};
 pub use crate::size::Size;
 

@@ -171,6 +171,20 @@ pub trait Storage {
 pub trait BackendApi: Copy + Clone + Send {
     fn canonical_address(&self, human: &str) -> BackendResult<Vec<u8>>;
     fn human_address(&self, canonical: &[u8]) -> BackendResult<String>;
+    fn call_callable_point(
+        &self,
+        contract_addr: &str,
+        name: &str,
+        args: &[u8],
+        is_readonly: bool,
+        callstack: &[u8],
+        gas_limit: u64,
+    ) -> BackendResult<Vec<u8>>;
+    fn validate_dynamic_link_interface(
+        &self,
+        contract_addr: &str,
+        expected_interface: &[u8],
+    ) -> BackendResult<Vec<u8>>;
 }
 
 pub trait Querier {
@@ -210,6 +224,8 @@ pub enum BackendError {
     IteratorDoesNotExist { id: u32 },
     #[error("Ran out of gas during call into backend")]
     OutOfGas {},
+    #[error("Error in dynamic link: {msg:?}")]
+    DynamicLinkErr { msg: String },
     #[error("Unknown error during call into backend: {msg}")]
     Unknown { msg: String },
     // This is the only error case of BackendError that is reported back to the contract.
@@ -232,6 +248,12 @@ impl BackendError {
 
     pub fn out_of_gas() -> Self {
         BackendError::OutOfGas {}
+    }
+
+    pub fn dynamic_link_err<S: ToString>(msg: S) -> Self {
+        BackendError::DynamicLinkErr {
+            msg: msg.to_string(),
+        }
     }
 
     pub fn unknown(msg: impl Into<String>) -> Self {

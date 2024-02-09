@@ -1,0 +1,246 @@
+{
+  "contract_name": "query-queue",
+  "contract_version": "1.0.0-0.6.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "queue_address"
+    ],
+    "properties": {
+      "queue_address": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "change_address"
+        ],
+        "properties": {
+          "change_address": {
+            "type": "object",
+            "required": [
+              "queue_address"
+            ],
+            "properties": {
+              "queue_address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "raw"
+        ],
+        "properties": {
+          "raw": {
+            "type": "object",
+            "required": [
+              "key"
+            ],
+            "properties": {
+              "key": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "sum"
+        ],
+        "properties": {
+          "sum": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "reducer"
+        ],
+        "properties": {
+          "reducer": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "list"
+        ],
+        "properties": {
+          "list": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": null,
+  "sudo": null,
+  "responses": {
+    "count": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CountResponse",
+      "type": "object",
+      "required": [
+        "count"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "list": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ListResponse",
+      "type": "object",
+      "required": [
+        "early",
+        "empty",
+        "late"
+      ],
+      "properties": {
+        "early": {
+          "description": "List all IDs lower than 0x20",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        },
+        "empty": {
+          "description": "List an empty range, both bounded",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        },
+        "late": {
+          "description": "List all IDs starting from 0x20",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "raw": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RawResponse",
+      "type": "object",
+      "properties": {
+        "item": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32"
+        }
+      },
+      "additionalProperties": false
+    },
+    "reducer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ReducerResponse",
+      "type": "object",
+      "required": [
+        "counters"
+      ],
+      "properties": {
+        "counters": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "type": "integer",
+                "format": "int32"
+              },
+              {
+                "type": "integer",
+                "format": "int32"
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "sum": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SumResponse",
+      "type": "object",
+      "required": [
+        "sum"
+      ],
+      "properties": {
+        "sum": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

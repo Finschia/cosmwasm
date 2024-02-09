@@ -3,6 +3,8 @@ use core::fmt;
 use std::backtrace::Backtrace;
 use thiserror::Error;
 
+use serde::{Deserialize, Serialize};
+
 use crate::errors::{HashCalculationError, RecoverPubkeyError, VerificationError};
 
 /// Structured error type for init, execute and query.
@@ -20,7 +22,7 @@ use crate::errors::{HashCalculationError, RecoverPubkeyError, VerificationError}
 /// Checklist for adding a new error:
 /// - Add enum case
 /// - Add creator function in std_error_helpers.rs
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum StdError {
     #[error("Verification error: {source}")]
     VerificationErr {
@@ -107,7 +109,7 @@ pub enum StdError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
-    #[error("Conversion error: ")]
+    #[error("Conversion error: {source}")]
     ConversionOverflow {
         #[from]
         source: ConversionOverflowError,
@@ -512,7 +514,7 @@ impl From<DivideByZeroError> for StdError {
 /// result/error type in cosmwasm-std.
 pub type StdResult<T> = core::result::Result<T, StdError>;
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OverflowOperation {
     Add,
     Sub,
@@ -528,7 +530,7 @@ impl fmt::Display for OverflowOperation {
     }
 }
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[error("Cannot {operation} with {operand1} and {operand2}")]
 pub struct OverflowError {
     pub operation: OverflowOperation,
@@ -556,30 +558,30 @@ impl OverflowError {
 /// [`TryFrom`]: core::convert::TryFrom
 /// [`Uint256`]: crate::Uint256
 /// [`Uint128`]: crate::Uint128
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[error("Error converting {source_type} to {target_type} for {value}")]
 pub struct ConversionOverflowError {
-    pub source_type: &'static str,
-    pub target_type: &'static str,
+    pub source_type: String,
+    pub target_type: String,
     pub value: String,
 }
 
 impl ConversionOverflowError {
     pub fn new(
-        source_type: &'static str,
-        target_type: &'static str,
+        source_type: impl Into<String>,
+        target_type: impl Into<String>,
         value: impl Into<String>,
     ) -> Self {
         Self {
-            source_type,
-            target_type,
+            source_type: source_type.into(),
+            target_type: target_type.into(),
             value: value.into(),
         }
     }
 }
 
-#[derive(Error, Debug, PartialEq, Eq)]
-#[error("Cannot divide {operand} by zero")]
+#[derive(Error, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[error("Cannot devide {operand} by zero")]
 pub struct DivideByZeroError {
     pub operand: String,
 }

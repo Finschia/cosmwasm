@@ -6,14 +6,19 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 use tempfile::TempDir;
 
-use cosmwasm_std::{coins, Empty};
+use cosmwasm_std::{coins, Addr, Empty};
 use cosmwasm_vm::testing::{
-    mock_backend, mock_env, mock_info, mock_instance_options, MockApi, MockQuerier, MockStorage,
+    get_fe_mut, mock_backend, mock_env, mock_info, mock_instance, mock_instance_options, MockApi,
+    MockInstanceOptions, MockQuerier, MockStorage,
 };
 use cosmwasm_vm::{
-    call_execute, call_instantiate, capabilities_from_csv, Cache, CacheOptions, Checksum, Instance,
-    InstanceOptions, Size,
+    call_execute, call_instantiate, capabilities_from_csv,
+    native_dynamic_link_trampoline_for_bench, read_region, ref_to_u32, to_u32, to_vec,
+    write_region, Backend, BackendApi, BackendError, BackendResult, Cache, CacheOptions, Checksum,
+    FunctionMetadata, GasInfo, Instance, InstanceOptions, Size,
 };
+use wasmer::Value;
+use wasmer_types::Type;
 
 // Instance
 const DEFAULT_MEMORY_LIMIT: Size = Size::mebi(64);
@@ -33,6 +38,53 @@ const CONTRACTS: u64 = 10;
 
 static CONTRACT: &[u8] = include_bytes!("../testdata/hackatom.wasm");
 static CYBERPUNK: &[u8] = include_bytes!("../testdata/cyberpunk.wasm");
+
+// For Dynamic Call
+const CALLEE_NAME_ADDR: &str = "callee";
+
+// DummyApi is Api with dummy `call_contract` which does nothing
+#[derive(Copy, Clone)]
+struct DummyApi {}
+
+impl BackendApi for DummyApi {
+    fn canonical_address(&self, _human: &str) -> BackendResult<Vec<u8>> {
+        (
+            Err(BackendError::unknown("not implemented")),
+            GasInfo::with_cost(0),
+        )
+    }
+
+    fn human_address(&self, _canonical: &[u8]) -> BackendResult<String> {
+        (
+            Err(BackendError::unknown("not implemented")),
+            GasInfo::with_cost(0),
+        )
+    }
+
+    fn call_callable_point(
+        &self,
+        _contract_addr: &str,
+        _name: &str,
+        _args: &[u8],
+        _is_readonly: bool,
+        _callstack: &[u8],
+        _gas_limit: u64,
+    ) -> BackendResult<Vec<u8>> {
+        // does nothing but ends with succeed for `bench_dynamic_link`
+        (Ok(b"null".to_vec()), GasInfo::with_cost(0))
+    }
+
+    fn validate_dynamic_link_interface(
+        &self,
+        _contract_addr: &str,
+        _expected_interface: &[u8],
+    ) -> BackendResult<Vec<u8>> {
+        (
+            Err(BackendError::unknown("not implemented")),
+            GasInfo::with_cost(0),
+        )
+    }
+}
 
 fn bench_instance(c: &mut Criterion) {
     let mut group = c.benchmark_group("Instance");
@@ -261,6 +313,127 @@ fn bench_cache(c: &mut Criterion) {
     group.finish();
 }
 
+fn prepare_dynamic_call_data<A: BackendApi + 'static>(
+    callee_address: Addr,
+    func_info: FunctionMetadata,
+    caller_instance: &mut Instance<A, MockStorage, MockQuerier>,
+) -> u32 {
+    let mut fe_mut = get_fe_mut(caller_instance);
+    let (caller_env, mut caller_store) = fe_mut.data_and_store_mut();
+
+    let data = to_vec(&callee_address).unwrap();
+    let result = caller_env
+        .call_function1(
+            &mut caller_store,
+            "allocate",
+            &[to_u32(data.len()).unwrap().into()],
+        )
+        .unwrap();
+    let region_ptr = ref_to_u32(&result).unwrap();
+    write_region(&caller_env.memory(&caller_store), region_ptr, &data).unwrap();
+
+    caller_env.set_callee_function_metadata(Some(func_info));
+
+    let serialized_env = to_vec(&mock_env()).unwrap();
+    caller_env.set_serialized_env(&serialized_env);
+
+    let storage = MockStorage::new();
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[]);
+    caller_env.move_in(storage, querier);
+    region_ptr
+}
+
+fn bench_dynamic_link(c: &mut Criterion) {
+    let mut group = c.benchmark_group("DynamicLink");
+
+    group.bench_function("native_dynamic_link_trampoline with dummy apis", |b| {
+        let backend = Backend {
+            api: DummyApi {},
+            storage: MockStorage::default(),
+            querier: MockQuerier::new(&[]),
+        };
+        let mock_options = MockInstanceOptions::default();
+        let options = InstanceOptions {
+            gas_limit: mock_options.gas_limit,
+            print_debug: mock_options.print_debug,
+        };
+        let mut dummy_instance =
+            Instance::from_code(CONTRACT, backend, options, mock_options.memory_limit).unwrap();
+        let callee_address = Addr::unchecked(CALLEE_NAME_ADDR);
+        let target_func_info = FunctionMetadata {
+            module_name: CALLEE_NAME_ADDR.to_string(),
+            name: "foo".to_string(),
+            signature: ([Type::I32], []).into(),
+        };
+
+        let address_region =
+            prepare_dynamic_call_data(callee_address, target_func_info, &mut dummy_instance);
+
+        b.iter(|| {
+            let _ = native_dynamic_link_trampoline_for_bench::<DummyApi, MockStorage, MockQuerier>(
+                get_fe_mut(&mut dummy_instance),
+                &[Value::I32(address_region as i32)],
+            )
+            .unwrap();
+        })
+    });
+
+    group.finish()
+}
+
+fn bench_copy_region(c: &mut Criterion) {
+    let mut group = c.benchmark_group("CopyRegion");
+
+    for i in 0..=3 {
+        let length = 10_i32.pow(i);
+        group.bench_function(format!("read region (length == {})", length), |b| {
+            let data: Vec<u8> = (0..length).map(|x| (x % 255) as u8).collect();
+            assert_eq!(data.len(), length as usize);
+            let mut instance = mock_instance(&CONTRACT, &[]);
+            let mut fe_mut = get_fe_mut(&mut instance);
+            let (env, mut store) = fe_mut.data_and_store_mut();
+
+            let result = env
+                .call_function1(
+                    &mut store,
+                    "allocate",
+                    &[to_u32(data.len()).unwrap().into()],
+                )
+                .unwrap();
+            let region_ptr = ref_to_u32(&result).unwrap();
+            write_region(&env.memory(&store), region_ptr, &data).unwrap();
+            let got_data = read_region(&env.memory(&store), region_ptr, u32::MAX as usize).unwrap();
+            assert_eq!(data, got_data);
+            b.iter(|| {
+                let _ = read_region(&env.memory(&store), region_ptr, u32::MAX as usize);
+            })
+        });
+
+        group.bench_function(format!("write region (length == {})", length), |b| {
+            let data: Vec<u8> = (0..length).map(|x| (x % 255) as u8).collect();
+            assert_eq!(data.len(), length as usize);
+            let mut instance = mock_instance(&CONTRACT, &[]);
+            let mut fe_mut = get_fe_mut(&mut instance);
+            let (env, mut store) = fe_mut.data_and_store_mut();
+
+            let result = env
+                .call_function1(
+                    &mut store,
+                    "allocate",
+                    &[to_u32(data.len()).unwrap().into()],
+                )
+                .unwrap();
+            let region_ptr = ref_to_u32(&result).unwrap();
+            write_region(&env.memory(&store), region_ptr, &data).unwrap();
+            b.iter(|| {
+                write_region(&env.memory(&store), region_ptr, &data).unwrap();
+            })
+        });
+    }
+
+    group.finish();
+}
+
 pub fn bench_instance_threads(c: &mut Criterion) {
     c.bench_function("multi-threaded get_instance", |b| {
         let options = CacheOptions {
@@ -373,4 +546,21 @@ criterion_group!(
         .configure_from_args();
     targets = bench_instance_threads
 );
-criterion_main!(instance, cache, multi_threaded_instance);
+criterion_group!(
+    name = dynamic_link;
+    config = make_config();
+    targets = bench_dynamic_link
+);
+criterion_group!(
+    name = copy_region;
+    config = make_config();
+    targets = bench_copy_region
+);
+
+criterion_main!(
+    instance,
+    cache,
+    multi_threaded_instance,
+    dynamic_link,
+    copy_region,
+);

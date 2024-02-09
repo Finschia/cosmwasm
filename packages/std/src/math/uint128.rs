@@ -1249,11 +1249,11 @@ mod tests {
         let fraction = (21u128, 8u128);
         assert_eq!(
             Uint128::MAX.checked_mul_floor(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint256",
-                target_type: "Uint128",
-                value: "893241213167463466591358344508391555069".to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint256",
+                "Uint128",
+                "893241213167463466591358344508391555069",
+            ))),
         );
     }
 
@@ -1332,11 +1332,11 @@ mod tests {
         let fraction = (21u128, 8u128);
         assert_eq!(
             Uint128::MAX.checked_mul_ceil(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint256",
-                target_type: "Uint128",
-                value: "893241213167463466591358344508391555069".to_string() // raises prior to rounding up
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint256",
+                "Uint128",
+                "893241213167463466591358344508391555069" // raises prior to rounding up
+            ))),
         );
     }
 
@@ -1421,11 +1421,11 @@ mod tests {
         let fraction = (8u128, 21u128);
         assert_eq!(
             Uint128::MAX.checked_div_floor(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint256",
-                target_type: "Uint128",
-                value: "893241213167463466591358344508391555069".to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint256",
+                "Uint128",
+                "893241213167463466591358344508391555069".to_string()
+            ))),
         );
     }
 
@@ -1492,11 +1492,11 @@ mod tests {
         let fraction = (8u128, 21u128);
         assert_eq!(
             Uint128::MAX.checked_div_ceil(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint256",
-                target_type: "Uint128",
-                value: "893241213167463466591358344508391555069".to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint256",
+                "Uint128",
+                "893241213167463466591358344508391555069",
+            ))),
         );
     }
 }

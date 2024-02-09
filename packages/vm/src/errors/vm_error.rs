@@ -140,13 +140,36 @@ pub enum VmError {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
-    #[error("Must not call a writing storage function in this context.")]
+    #[error("Must not call a writing storage / issuing events function in this context.")]
     WriteAccessDenied {
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
     #[error("Maximum call depth exceeded.")]
     MaxCallDepthExceeded {
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("A contract can only be called once per one call stack.")]
+    ReEntrancyErr {
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("The depth limitation of dynamic calls has been exceeded.")]
+    DynamicCallDepthOverLimitationErr {
+        //TODO: how about print the existing callstack?
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("Error during calling dynamic linked callable point: {}", msg)]
+    DynamicCallErr {
+        msg: String,
+        #[cfg(feature = "backtraces")]
+        backtrace: Backtrace,
+    },
+    #[error("Contract has invalid import starts with 'dynamiclinked_': {}", name)]
+    InvalidDynamicLinkImport {
+        name: String,
         #[cfg(feature = "backtraces")]
         backtrace: Backtrace,
     },
@@ -322,6 +345,36 @@ impl VmError {
 
     pub(crate) fn max_call_depth_exceeded() -> Self {
         VmError::MaxCallDepthExceeded {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub(crate) fn re_entrancy_err() -> Self {
+        VmError::ReEntrancyErr {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub(crate) fn dynamic_call_depth_over_limitation_err() -> Self {
+        VmError::DynamicCallDepthOverLimitationErr {
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub(crate) fn dynamic_call_err(msg: impl Into<String>) -> Self {
+        VmError::DynamicCallErr {
+            msg: msg.into(),
+            #[cfg(feature = "backtraces")]
+            backtrace: Backtrace::capture(),
+        }
+    }
+
+    pub(crate) fn invalid_dynamic_link_import(name: impl Into<String>) -> Self {
+        VmError::InvalidDynamicLinkImport {
+            name: name.into(),
             #[cfg(feature = "backtraces")]
             backtrace: Backtrace::capture(),
         }
@@ -599,6 +652,26 @@ mod tests {
         match error {
             VmError::WriteAccessDenied { .. } => {}
             e => panic!("Unexpected error: {e:?}"),
+        }
+    }
+
+    #[test]
+    fn dynamic_call_err() {
+        let message = "foobar";
+        let error = VmError::dynamic_call_err(message);
+        match error {
+            VmError::DynamicCallErr { msg, .. } => assert_eq!(msg, message),
+            e => panic!("Unexpected error: {:?}", e),
+        }
+    }
+
+    #[test]
+    fn invalid_dynamic_link_import() {
+        let sym = "dynamiclinked_foo";
+        let error = VmError::invalid_dynamic_link_import(sym);
+        match error {
+            VmError::InvalidDynamicLinkImport { name, .. } => assert_eq!(name, sym),
+            e => panic!("Unexpected error: {:?}", e),
         }
     }
 }

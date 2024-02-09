@@ -25,6 +25,12 @@ const SUPPORTED_IMPORTS: &[&str] = &[
     "env.ed25519_verify",
     "env.ed25519_batch_verify",
     "env.sha1_calculate",
+    "env.validate_dynamic_link_interface",
+    "env.add_event",
+    "env.add_events",
+    "env.add_attribute",
+    "env.add_attributes",
+    "env.get_caller_addr",
     "env.debug",
     "env.query_chain",
     #[cfg(feature = "iterator")]
@@ -195,12 +201,15 @@ fn check_wasm_imports(module: &ParsedWasm, supported_imports: &[&str]) -> VmResu
     for required_import in &module.imports {
         let full_name = full_import_name(required_import);
         if !supported_imports.contains(&full_name.as_str()) {
-            let required_import_names: BTreeSet<_> =
-                module.imports.iter().map(full_import_name).collect();
-            return Err(VmError::static_validation_err(format!(
-                "Wasm contract requires unsupported import: \"{}\". Required imports: {}. Available imports: {:?}.",
-                full_name, required_import_names.to_string_limited(200), supported_imports
-            )));
+            let split_name: Vec<&str> = full_name.split('.').collect();
+            if split_name.len() != 2 || !split_name[0].starts_with("dynamiclinked_") {
+                let required_import_names: BTreeSet<_> =
+                    module.imports.iter().map(full_import_name).collect();
+                return Err(VmError::static_validation_err(format!(
+                    "Wasm contract requires unsupported import: \"{}\". Required imports: {}. Available imports: {:?}.",
+                    full_name, required_import_names.to_string_limited(200), supported_imports
+                )));
+            }
         }
 
         match required_import.ty {
@@ -929,6 +938,39 @@ mod tests {
                 "Wasm contract requires unavailable capabilities: {\"nutrients\", \"sun\", \"water\"}"
             ),
             _ => panic!("Got unexpected error"),
+        }
+    }
+
+    #[test]
+    fn check_wasm_imports_fails_for_unsupported_import() {
+        let wasm = wat::parse_str(
+            r#"(module
+            (import "env" "db_read" (func (param i32 i32) (result i32)))
+            (import "env" "db_write" (func (param i32 i32) (result i32)))
+            (import "wasi_snapshot_preview1" "fd_filestat_get" (func (param i32) (result i32)))
+        )"#,
+        )
+        .unwrap();
+        let module = ParsedWasm::parse(&wasm).unwrap();
+        let supported_imports: &[&str] = &[
+            "env.db_read",
+            "env.db_write",
+            "env.db_remove",
+            "env.addr_canonicalize",
+            "env.addr_humanize",
+            "env.debug",
+            "env.query_chain",
+        ];
+        let result = check_wasm_imports(&module, supported_imports);
+        match result.unwrap_err() {
+            VmError::StaticValidationErr { msg, .. } => {
+                println!("{}", msg);
+                assert_eq!(
+                    msg,
+                    r#"Wasm contract requires unsupported import: "wasi_snapshot_preview1.fd_filestat_get". Required imports: {"env.db_read", "env.db_write", "wasi_snapshot_preview1.fd_filestat_get"}. Available imports: ["env.db_read", "env.db_write", "env.db_remove", "env.addr_canonicalize", "env.addr_humanize", "env.debug", "env.query_chain"]."#
+                );
+            }
+            err => panic!("Unexpected error: {:?}", err),
         }
     }
 }

@@ -109,6 +109,41 @@ docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="devcontract_cache_virus",target=/code/contracts/virus/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/rust-optimizer:0.12.13 ./contracts/virus
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_dynamic_callee_contract",target=/code/contracts/dynamic-callee-contract/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/dynamic-callee-contract
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_dynamic_caller_contract",target=/code/contracts/dynamic-caller-contract/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/dynamic-caller-contract
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_number",target=/code/contracts/number/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/number
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_call_number",target=/code/contracts/call-number/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/call-number
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_simple_callee",target=/code/contracts/simple-callee/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/simple-callee
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_events",target=/code/contracts/events/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/events
+
+docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="devcontract_cache_intermediate_number",target=/code/contracts/intermediate-number/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/rust-optimizer:0.12.13 ./contracts/intermediate-number
 ```
 
 ## Entry points
@@ -125,4 +160,11 @@ points in order to demonstrate and test the flexibility we have.
 | reflect          | yes         | no            |
 | staking          | yes         | no            |
 | voting-with-uuid | yes         | no            |
-| virus      　　　 | no          | no            |
+| virus             | no          | no            |
+| dynamic_callee_contract | no          | no            |
+| dynamic_caller_contract | no          | no            |
+| number                  | yes         | no            |
+| call-number             | yes         | no            |
+| simple-callee           | no          | no            |
+| events                  | no          | no            |
+| intermediate-number     | yes         | no            |

@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "change_address"
+      ],
+      "properties": {
+        "change_address": {
+          "type": "object",
+          "required": [
+            "queue_address"
+          ],
+          "properties": {
+            "queue_address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

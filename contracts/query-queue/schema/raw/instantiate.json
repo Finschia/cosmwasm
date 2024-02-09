@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "queue_address"
+  ],
+  "properties": {
+    "queue_address": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1114,7 +1114,7 @@ mod tests {
             Err(ConversionOverflowError::new(
                 "Uint256",
                 "Uint128",
-                Uint256::MAX.to_string()
+                Uint256::MAX
             ))
         );
     }
@@ -1811,13 +1811,11 @@ mod tests {
         let fraction = (21u128, 8u128);
         assert_eq!(
             Uint256::MAX.checked_mul_floor(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint512",
-                target_type: "Uint256",
-                value:
-                    "303954234247955012986873835647805758114833709747306480603576158020771965304829"
-                        .to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint512",
+                "Uint256",
+                "303954234247955012986873835647805758114833709747306480603576158020771965304829"
+            ))),
         );
     }
 
@@ -1906,13 +1904,11 @@ mod tests {
         let fraction = (21u128, 8u128);
         assert_eq!(
             Uint256::MAX.checked_mul_ceil(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint512",
-                target_type: "Uint256",
-                value:
-                    "303954234247955012986873835647805758114833709747306480603576158020771965304829" // raises prior to rounding up
-                        .to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint512",
+                "Uint256",
+                "303954234247955012986873835647805758114833709747306480603576158020771965304829" // raises prior to rounding up
+            ))),
         );
     }
 
@@ -2000,13 +1996,11 @@ mod tests {
         let fraction = (8u128, 21u128);
         assert_eq!(
             Uint256::MAX.checked_div_floor(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint512",
-                target_type: "Uint256",
-                value:
-                    "303954234247955012986873835647805758114833709747306480603576158020771965304829"
-                        .to_string()
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint512",
+                "Uint256",
+                "303954234247955012986873835647805758114833709747306480603576158020771965304829"
+            ))),
         );
     }
 
@@ -2076,13 +2070,11 @@ mod tests {
         let fraction = (8u128, 21u128);
         assert_eq!(
             Uint256::MAX.checked_div_ceil(fraction),
-            Err(ConversionOverflow(ConversionOverflowError {
-                source_type: "Uint512",
-                target_type: "Uint256",
-                value:
-                    "303954234247955012986873835647805758114833709747306480603576158020771965304829"
-                        .to_string() // raises prior to rounding up
-            })),
+            Err(ConversionOverflow(ConversionOverflowError::new(
+                "Uint512",
+                "Uint256",
+                "303954234247955012986873835647805758114833709747306480603576158020771965304829" // raises prior to rounding up
+            ))),
         );
     }
 }

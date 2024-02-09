@@ -3,11 +3,14 @@
 //! use cosmwasm_vm::testing::X
 use cosmwasm_std::Coin;
 use std::collections::HashSet;
+use wasmer::Value;
 
 use crate::capabilities::capabilities_from_csv;
 use crate::compatibility::check_wasm;
+use crate::environment::Environment;
 use crate::instance::{Instance, InstanceOptions};
 use crate::size::Size;
+use crate::VmResult;
 use crate::{Backend, BackendApi, Querier, Storage};
 
 use super::mock::{MockApi, MOCK_CONTRACT_ADDR};
@@ -201,4 +204,28 @@ where
                 .expect("Could not deallocate memory");
         }
     }
+}
+
+pub fn call_function<A, S, Q>(
+    instance: &mut Instance<A, S, Q>,
+    name: &str,
+    args: &[Value],
+) -> VmResult<Box<[Value]>>
+where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+{
+    instance.call_function(name, args)
+}
+
+pub fn get_fe_mut<A, S, Q>(
+    instance: &mut Instance<A, S, Q>,
+) -> wasmer::FunctionEnvMut<Environment<A, S, Q>>
+where
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+{
+    instance.get_fe_mut()
 }

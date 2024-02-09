@@ -10,6 +10,7 @@ use cosmwasm_crypto::{
 use cosmwasm_crypto::{
     ECDSA_PUBKEY_MAX_LEN, ECDSA_SIGNATURE_LEN, EDDSA_PUBKEY_LEN, MESSAGE_HASH_MAX_LEN,
 };
+use cosmwasm_std::{Attribute, Event};
 
 #[cfg(feature = "iterator")]
 use cosmwasm_std::Order;
@@ -25,7 +26,7 @@ use crate::memory::{read_region, write_region};
 use crate::sections::decode_sections;
 #[allow(unused_imports)]
 use crate::sections::encode_sections;
-use crate::serde::to_vec;
+use crate::serde::{from_slice, to_vec};
 use crate::GasInfo;
 
 /// A kibi (kilo binary)
@@ -68,6 +69,9 @@ const MAX_LENGTH_DEBUG: usize = 2 * MI;
 
 /// Max length for an abort message
 const MAX_LENGTH_ABORT: usize = 2 * MI;
+
+// Max length for event, events, key, value, attributes
+const MAX_LENGTH_EVENT_VALUES: usize = 2 * MI;
 
 // Import implementations
 //
@@ -495,6 +499,81 @@ pub fn do_sha1_calculate<A: BackendApi + 'static, S: Storage + 'static, Q: Queri
     }
 }
 
+pub fn do_add_event<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 'static>(
+    mut fe: FunctionEnvMut<Environment<A, S, Q>>,
+    event_ptr: u32,
+) -> VmResult<u32> {
+    let (env, mut store) = fe.data_and_store_mut();
+
+    let event_data = read_region(&env.memory(&store), event_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let event: Event = match from_slice(&event_data, MAX_LENGTH_EVENT_VALUES) {
+        Ok(event) => event,
+        Err(_) => return write_to_contract(env, &mut store, b"Input is not valid `Event`"),
+    };
+
+    env.add_event(event)?;
+    Ok(0)
+}
+
+pub fn do_add_events<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 'static>(
+    mut fe: FunctionEnvMut<Environment<A, S, Q>>,
+    events_ptr: u32,
+) -> VmResult<u32> {
+    let (env, mut store) = fe.data_and_store_mut();
+
+    let events_data = read_region(&env.memory(&store), events_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let events: Vec<Event> = match from_slice(&events_data, MAX_LENGTH_EVENT_VALUES) {
+        Ok(events) => events,
+        Err(_) => return write_to_contract(env, &mut store, b"Input is not valid `Vec<Event>`"),
+    };
+
+    env.add_events(events)?;
+    Ok(0)
+}
+
+pub fn do_add_attribute<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 'static>(
+    mut fe: FunctionEnvMut<Environment<A, S, Q>>,
+    key_ptr: u32,
+    value_ptr: u32,
+) -> VmResult<u32> {
+    let (env, mut store) = fe.data_and_store_mut();
+
+    let key_data = read_region(&env.memory(&store), key_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let value_data = read_region(&env.memory(&store), value_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let key: String = match from_slice(&key_data, MAX_LENGTH_EVENT_VALUES) {
+        Ok(key) => key,
+        Err(_) => {
+            return write_to_contract(env, &mut store, b"Input (key) is not valid utf8 string")
+        }
+    };
+    let value: String = match from_slice(&value_data, MAX_LENGTH_EVENT_VALUES) {
+        Ok(value) => value,
+        Err(_) => {
+            return write_to_contract(env, &mut store, b"Input (value) is not valid utf8 string")
+        }
+    };
+
+    env.add_attribute(key, value)?;
+    Ok(0)
+}
+
+pub fn do_add_attributes<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 'static>(
+    mut fe: FunctionEnvMut<Environment<A, S, Q>>,
+    attributes_ptr: u32,
+) -> VmResult<u32> {
+    let (env, mut store) = fe.data_and_store_mut();
+
+    let attributes_data =
+        read_region(&env.memory(&store), attributes_ptr, MAX_LENGTH_EVENT_VALUES)?;
+    let attributes: Vec<Attribute> = match from_slice(&attributes_data, MAX_LENGTH_EVENT_VALUES) {
+        Ok(attributes) => attributes,
+        Err(_) => return write_to_contract(env, &mut store, b"Input is not valid Vec<Attribute>"),
+    };
+
+    env.add_attributes(attributes)?;
+    Ok(0)
+}
+
 /// Prints a debug message to console.
 /// This does not charge gas, so debug printing should be disabled when used in a blockchain module.
 pub fn do_debug<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 'static>(
@@ -549,6 +628,24 @@ pub fn do_query_chain<A: BackendApi + 'static, S: Storage + 'static, Q: Querier 
     process_gas_info(data, &mut store, gas_info)?;
     let serialized = to_vec(&result?)?;
     write_to_contract(data, &mut store, &serialized)
+}
+
+pub fn do_get_caller_addr<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 'static>(
+    mut fe: FunctionEnvMut<Environment<A, S, Q>>,
+) -> VmResult<u32> {
+    let (env, mut store) = fe.data_and_store_mut();
+
+    // get dynamic callstack gets callstack including this contract
+    let callstack = env.get_dynamic_callstack()?;
+
+    // if callerstack's length < 2, it is a singleton of the self address
+    // and the contract is not a callee.
+    if callstack.len() < 2 {
+        return Ok(0);
+    }
+    let caller_addr_index = callstack.len() - 2;
+    let serialized = to_vec(&callstack[caller_addr_index])?;
+    write_to_contract::<A, S, Q>(env, &mut store, &serialized)
 }
 
 #[cfg(feature = "iterator")]
@@ -634,7 +731,11 @@ pub fn do_db_next_value<A: BackendApi + 'static, S: Storage + 'static, Q: Querie
 }
 
 /// Creates a Region in the contract, writes the given data to it and returns the memory location
-fn write_to_contract<A: BackendApi + 'static, S: Storage + 'static, Q: Querier + 'static>(
+pub(crate) fn write_to_contract<
+    A: BackendApi + 'static,
+    S: Storage + 'static,
+    Q: Querier + 'static,
+>(
     data: &Environment<A, S, Q>,
     store: &mut impl AsStoreMut,
     input: &[u8],
@@ -672,9 +773,10 @@ fn to_low_half(data: u32) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::{
-        coins, from_json, AllBalanceResponse, BankQuery, Binary, Empty, QueryRequest, SystemError,
-        SystemResult, WasmQuery,
+        coins, from_json, Addr, AllBalanceResponse, BankQuery, Binary, Empty, QueryRequest,
+        SystemError, SystemResult, WasmQuery,
     };
     use hex_literal::hex;
     use std::ptr::NonNull;
@@ -745,6 +847,7 @@ mod tests {
                 "ed25519_verify" => Function::new_typed(&mut store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
                 "ed25519_batch_verify" => Function::new_typed(&mut store, |_a: u32, _b: u32, _c: u32| -> u32 { 0 }),
                 "debug" => Function::new_typed(&mut store, |_a: u32| {}),
+                "validate_dynamic_link_interface" => Function::new_typed(&mut store, |_a: u32, _b: u32| -> u32 { 0 }),
                 "abort" => Function::new_typed(&mut store, |_a: u32| {}),
             },
         };
@@ -2012,6 +2115,39 @@ mod tests {
             }
             SystemResult::Err(err) => panic!("Unexpected error: {err:?}"),
         }
+    }
+
+    #[test]
+    fn do_get_caller_addr_works() {
+        let api = MockApi::default();
+        let (fe, mut store, _instance) = make_instance(api);
+        let mut fe_mut = fe.into_mut(&mut store);
+        let (env, _store) = fe_mut.data_and_store_mut();
+        let addr1 = Addr::unchecked("caller1");
+        let addr2 = Addr::unchecked("caller2");
+        let addr3 = Addr::unchecked("caller3");
+        let std_env_bin = to_vec(&mock_env()).unwrap();
+        env.set_serialized_env(&std_env_bin);
+        env.set_dynamic_callstack(vec![addr1, addr2, addr3.clone()])
+            .unwrap();
+
+        let caller_addr_ptr = do_get_caller_addr(fe_mut.as_mut()).unwrap();
+        let caller_addr_bin = force_read(&mut fe_mut, caller_addr_ptr);
+        let caller_addr: Addr = from_slice(&caller_addr_bin, usize::MAX).unwrap();
+        assert_eq!(caller_addr, addr3);
+    }
+
+    #[test]
+    fn do_get_caller_addr_returns_ok_0_when_it_is_not_a_caller() {
+        let api = MockApi::default();
+        let (fe, mut store, _instance) = make_instance(api);
+        let mut fe_mut = fe.into_mut(&mut store);
+        let (env, _store) = fe_mut.data_and_store_mut();
+        let std_env_bin = to_vec(&mock_env()).unwrap();
+        env.set_serialized_env(&std_env_bin);
+        env.set_dynamic_callstack(vec![]).unwrap();
+        let ptr = do_get_caller_addr(fe_mut.as_mut()).unwrap();
+        assert_eq!(ptr, 0);
     }
 
     #[test]

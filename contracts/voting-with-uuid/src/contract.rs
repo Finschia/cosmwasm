@@ -277,7 +277,7 @@ pub fn end_poll(
 
         let staked_weight = deps
             .querier
-            .query_balance(&env.contract.address, &state.denom)
+            .query_balance(&env.contract.address, state.denom)
             .unwrap()
             .amount
             .u128();
