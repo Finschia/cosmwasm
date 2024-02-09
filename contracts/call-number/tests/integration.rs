@@ -1,4 +1,5 @@
-use cosmwasm_vm::testing::{Contract, MockInstanceOptions};
+use cosmwasm_std::to_json_vec;
+use cosmwasm_vm::testing::{mock_env, Contract, MockInstanceOptions};
 use std::collections::HashMap;
 use wasmer::{FunctionType, Type};
 
@@ -34,10 +35,11 @@ fn required_imports() -> Vec<(String, String, FunctionType)> {
 #[test]
 fn dynamic_link_import_works() {
     let options = MockInstanceOptions::default();
-    let contract = Contract::from_code(CONTRACT_CALLER, &options, None).unwrap();
+    let env = to_json_vec(&mock_env()).unwrap();
+    let contract = Contract::from_code(CONTRACT_CALLER, &env, &options, None).unwrap();
 
     let import_function_map: HashMap<_, _> = contract
-        .module
+        .module()
         .imports()
         .functions()
         .map(|import| {

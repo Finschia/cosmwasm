@@ -1,4 +1,4 @@
-use cosmwasm_std::{to_vec, Attribute, Event, Response};
+use cosmwasm_std::{to_json_vec, Attribute, Event, Response};
 use cosmwasm_vm::testing::{
     execute, instantiate, mock_env, mock_info, Contract, MockApi, MockInstanceOptions, MockQuerier,
     MockStorage,
@@ -10,13 +10,11 @@ static CONTRACT: &[u8] = include_bytes!("../target/wasm32-unknown-unknown/releas
 
 fn instantiate_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
     let options = MockInstanceOptions::default();
+    let env = to_json_vec(&mock_env()).unwrap();
     let api = MockApi::default();
     let querier = MockQuerier::new(&[]);
-    let contract = Contract::from_code(CONTRACT, &options, None).unwrap();
+    let contract = Contract::from_code(CONTRACT, &env, &options, None).unwrap();
     let mut instance = contract.generate_instance(api, querier, &options).unwrap();
-    instance
-        .env
-        .set_serialized_env(&to_vec(&mock_env()).unwrap());
 
     let _res: Response = instantiate(
         &mut instance,

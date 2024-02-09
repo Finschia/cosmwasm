@@ -1,9 +1,9 @@
-use cosmwasm_std::to_vec;
+use cosmwasm_std::to_json_vec;
 use cosmwasm_vm::testing::{
-    mock_env, write_data_to_mock_env, Contract, MockApi, MockInstanceOptions, MockQuerier,
+    call_function, get_fe_mut, mock_env, Contract, MockApi, MockInstanceOptions, MockQuerier,
     MockStorage,
 };
-use cosmwasm_vm::Instance;
+use cosmwasm_vm::{write_value_to_env, Instance};
 use std::collections::HashMap;
 use wasmer::{FunctionType, Type};
 
@@ -25,12 +25,10 @@ fn required_exports() -> Vec<(String, FunctionType)> {
 fn make_number_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
     let options = MockInstanceOptions::default();
     let api = MockApi::default();
+    let env = to_json_vec(&mock_env()).unwrap();
     let querier = MockQuerier::new(&[]);
-    let contract = Contract::from_code(CONTRACT, &options, None).unwrap();
+    let contract = Contract::from_code(CONTRACT, &env, &options, None).unwrap();
     let instance = contract.generate_instance(api, querier, &options).unwrap();
-    instance
-        .env
-        .set_serialized_env(&to_vec(&mock_env()).unwrap());
 
     instance
 }
@@ -38,10 +36,11 @@ fn make_number_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
 #[test]
 fn callable_point_export_works() {
     let options = MockInstanceOptions::default();
-    let contract = Contract::from_code(CONTRACT, &options, None).unwrap();
+    let env = to_json_vec(&mock_env()).unwrap();
+    let contract = Contract::from_code(CONTRACT, &env, &options, None).unwrap();
 
     let export_function_map: HashMap<_, _> = contract
-        .module
+        .module()
         .exports()
         .functions()
         .map(|export| (export.name().to_string(), export.ty().clone()))
@@ -62,12 +61,14 @@ fn callable_point_export_works() {
 
 #[test]
 fn callable_point_add_works() {
-    let instance = make_number_instance();
-    let env = to_vec(&mock_env()).unwrap();
-    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
+    let mut instance = make_number_instance();
+    let mut fe = get_fe_mut(&mut instance);
+    let (vm_env, mut vm_store) = fe.data_and_store_mut();
+    let env = to_json_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &env).unwrap();
 
-    let serialized_param = to_vec(&10i32).unwrap();
-    let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
+    let serialized_param = to_json_vec(&10i32).unwrap();
+    let param_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &serialized_param).unwrap();
 
     let required_exports = required_exports();
     let export_index = 0;
@@ -75,9 +76,12 @@ fn callable_point_add_works() {
 
     // Before solving #213, it issues an error.
     // This is because `add` panics without number in deps.storage.
-    let call_result = instance
-        .call_function("add", &[env_region_ptr.into(), param_region_ptr.into()])
-        .unwrap_err();
+    let call_result = call_function(
+        &mut instance,
+        "add",
+        &[env_region_ptr.into(), param_region_ptr.into()],
+    )
+    .unwrap_err();
     assert!(call_result
         .to_string()
         .contains("RuntimeError: unreachable"))
@@ -85,12 +89,14 @@ fn callable_point_add_works() {
 
 #[test]
 fn callable_point_sub_works() {
-    let instance = make_number_instance();
-    let env = to_vec(&mock_env()).unwrap();
-    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
+    let mut instance = make_number_instance();
+    let mut fe = get_fe_mut(&mut instance);
+    let (vm_env, mut vm_store) = fe.data_and_store_mut();
+    let env = to_json_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &env).unwrap();
 
-    let serialized_param = to_vec(&10i32).unwrap();
-    let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
+    let serialized_param = to_json_vec(&10i32).unwrap();
+    let param_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &serialized_param).unwrap();
 
     let required_exports = required_exports();
     let export_index = 1;
@@ -98,9 +104,12 @@ fn callable_point_sub_works() {
 
     // Before solving #213, it issues an error.
     // This is because `sub` panics without number in deps.storage.
-    let call_result = instance
-        .call_function("sub", &[env_region_ptr.into(), param_region_ptr.into()])
-        .unwrap_err();
+    let call_result = call_function(
+        &mut instance,
+        "sub",
+        &[env_region_ptr.into(), param_region_ptr.into()],
+    )
+    .unwrap_err();
     assert!(call_result
         .to_string()
         .contains("RuntimeError: unreachable"))
@@ -108,12 +117,14 @@ fn callable_point_sub_works() {
 
 #[test]
 fn callable_point_mul_works() {
-    let instance = make_number_instance();
-    let env = to_vec(&mock_env()).unwrap();
-    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
+    let mut instance = make_number_instance();
+    let mut fe = get_fe_mut(&mut instance);
+    let (vm_env, mut vm_store) = fe.data_and_store_mut();
+    let env = to_json_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &env).unwrap();
 
-    let serialized_param = to_vec(&10i32).unwrap();
-    let param_region_ptr = write_data_to_mock_env(&instance.env, &serialized_param).unwrap();
+    let serialized_param = to_json_vec(&10i32).unwrap();
+    let param_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &serialized_param).unwrap();
 
     let required_exports = required_exports();
     let export_index = 2;
@@ -121,9 +132,12 @@ fn callable_point_mul_works() {
 
     // Before solving #213, it issues an error.
     // This is because `mul` panics without number in deps.storage.
-    let call_result = instance
-        .call_function("mul", &[env_region_ptr.into(), param_region_ptr.into()])
-        .unwrap_err();
+    let call_result = call_function(
+        &mut instance,
+        "mul",
+        &[env_region_ptr.into(), param_region_ptr.into()],
+    )
+    .unwrap_err();
     assert!(call_result
         .to_string()
         .contains("RuntimeError: unreachable"))
@@ -131,18 +145,18 @@ fn callable_point_mul_works() {
 
 #[test]
 fn callable_point_number_works() {
-    let instance = make_number_instance();
-    let env = to_vec(&mock_env()).unwrap();
-    let env_region_ptr = write_data_to_mock_env(&instance.env, &env).unwrap();
+    let mut instance = make_number_instance();
+    let mut fe = get_fe_mut(&mut instance);
+    let (vm_env, mut vm_store) = fe.data_and_store_mut();
+    let env = to_json_vec(&mock_env()).unwrap();
+    let env_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &env).unwrap();
 
     let required_exports = required_exports();
     let export_index = 3;
     assert_eq!("number".to_string(), required_exports[export_index].0);
     // Before solving #213, it issues an error.
     // This is because `number` panics without number in deps.storage.
-    let call_result = instance
-        .call_function("number", &[env_region_ptr.into()])
-        .unwrap_err();
+    let call_result = call_function(&mut instance, "number", &[env_region_ptr.into()]).unwrap_err();
     assert!(call_result
         .to_string()
         .contains("RuntimeError: unreachable"))
