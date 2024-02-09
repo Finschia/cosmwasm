@@ -641,7 +641,7 @@ fn happy_days_withdraw_voting_tokens() {
     };
 
     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-    let msg = execute_res.messages.get(0).expect("no message");
+    let msg = execute_res.messages.first().expect("no message");
 
     assert_eq!(
         msg.msg,

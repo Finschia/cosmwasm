@@ -28,9 +28,9 @@ fn make_number_instance() -> Instance<MockApi, MockStorage, MockQuerier> {
     let env = to_json_vec(&mock_env()).unwrap();
     let querier = MockQuerier::new(&[]);
     let contract = Contract::from_code(CONTRACT, &env, &options, None).unwrap();
-    let instance = contract.generate_instance(api, querier, &options).unwrap();
+    
 
-    instance
+    contract.generate_instance(api, querier, &options).unwrap()
 }
 
 #[test]
@@ -65,10 +65,10 @@ fn callable_point_add_works() {
     let mut fe = get_fe_mut(&mut instance);
     let (vm_env, mut vm_store) = fe.data_and_store_mut();
     let env = to_json_vec(&mock_env()).unwrap();
-    let env_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &env).unwrap();
+    let env_region_ptr = write_value_to_env(vm_env, &mut vm_store, &env).unwrap();
 
     let serialized_param = to_json_vec(&10i32).unwrap();
-    let param_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &serialized_param).unwrap();
+    let param_region_ptr = write_value_to_env(vm_env, &mut vm_store, &serialized_param).unwrap();
 
     let required_exports = required_exports();
     let export_index = 0;
@@ -79,7 +79,7 @@ fn callable_point_add_works() {
     let call_result = call_function(
         &mut instance,
         "add",
-        &[env_region_ptr.into(), param_region_ptr.into()],
+        &[env_region_ptr, param_region_ptr],
     )
     .unwrap_err();
     assert!(call_result
@@ -93,10 +93,10 @@ fn callable_point_sub_works() {
     let mut fe = get_fe_mut(&mut instance);
     let (vm_env, mut vm_store) = fe.data_and_store_mut();
     let env = to_json_vec(&mock_env()).unwrap();
-    let env_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &env).unwrap();
+    let env_region_ptr = write_value_to_env(vm_env, &mut vm_store, &env).unwrap();
 
     let serialized_param = to_json_vec(&10i32).unwrap();
-    let param_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &serialized_param).unwrap();
+    let param_region_ptr = write_value_to_env(vm_env, &mut vm_store, &serialized_param).unwrap();
 
     let required_exports = required_exports();
     let export_index = 1;
@@ -107,7 +107,7 @@ fn callable_point_sub_works() {
     let call_result = call_function(
         &mut instance,
         "sub",
-        &[env_region_ptr.into(), param_region_ptr.into()],
+        &[env_region_ptr, param_region_ptr],
     )
     .unwrap_err();
     assert!(call_result
@@ -121,10 +121,10 @@ fn callable_point_mul_works() {
     let mut fe = get_fe_mut(&mut instance);
     let (vm_env, mut vm_store) = fe.data_and_store_mut();
     let env = to_json_vec(&mock_env()).unwrap();
-    let env_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &env).unwrap();
+    let env_region_ptr = write_value_to_env(vm_env, &mut vm_store, &env).unwrap();
 
     let serialized_param = to_json_vec(&10i32).unwrap();
-    let param_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &serialized_param).unwrap();
+    let param_region_ptr = write_value_to_env(vm_env, &mut vm_store, &serialized_param).unwrap();
 
     let required_exports = required_exports();
     let export_index = 2;
@@ -135,7 +135,7 @@ fn callable_point_mul_works() {
     let call_result = call_function(
         &mut instance,
         "mul",
-        &[env_region_ptr.into(), param_region_ptr.into()],
+        &[env_region_ptr, param_region_ptr],
     )
     .unwrap_err();
     assert!(call_result
@@ -149,14 +149,14 @@ fn callable_point_number_works() {
     let mut fe = get_fe_mut(&mut instance);
     let (vm_env, mut vm_store) = fe.data_and_store_mut();
     let env = to_json_vec(&mock_env()).unwrap();
-    let env_region_ptr = write_value_to_env(&vm_env, &mut vm_store, &env).unwrap();
+    let env_region_ptr = write_value_to_env(vm_env, &mut vm_store, &env).unwrap();
 
     let required_exports = required_exports();
     let export_index = 3;
     assert_eq!("number".to_string(), required_exports[export_index].0);
     // Before solving #213, it issues an error.
     // This is because `number` panics without number in deps.storage.
-    let call_result = call_function(&mut instance, "number", &[env_region_ptr.into()]).unwrap_err();
+    let call_result = call_function(&mut instance, "number", &[env_region_ptr]).unwrap_err();
     assert!(call_result
         .to_string()
         .contains("RuntimeError: unreachable"))

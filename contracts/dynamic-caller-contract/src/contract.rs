@@ -141,7 +141,7 @@ pub fn execute(
 
 pub fn try_ping(deps: DepsMut, ping_num: Uint128) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        &deps
+        deps
             .storage
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
@@ -191,7 +191,7 @@ pub fn try_re_entrancy(deps: DepsMut, _env: Env) -> Result<Response, ContractErr
     // It will be tried to call the should_never_be_called function below.
     // But, should be blocked by VM host side normally because it's a reentrancy case.
     let address = from_json(
-        &deps
+        deps
             .storage
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
@@ -203,7 +203,7 @@ pub fn try_re_entrancy(deps: DepsMut, _env: Env) -> Result<Response, ContractErr
 
 pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
     let address = from_json(
-        &deps
+        deps
             .storage
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
@@ -215,7 +215,7 @@ pub fn try_do_panic(deps: DepsMut, _env: Env) -> Result<Response, ContractError>
 
 pub fn try_validate_interface(deps: Deps, _env: Env) -> Result<Response, ContractError> {
     let address = from_json(
-        &deps
+        deps
             .storage
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
@@ -228,7 +228,7 @@ pub fn try_validate_interface(deps: Deps, _env: Env) -> Result<Response, Contrac
 // should error
 pub fn try_validate_interface_err(deps: Deps, _env: Env) -> Result<Response, ContractError> {
     let address = from_json(
-        &deps
+        deps
             .storage
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
@@ -251,7 +251,7 @@ pub fn try_call_caller_address_of(
     target: Addr,
 ) -> Result<Response, ContractError> {
     let address: Addr = from_json(
-        &deps
+        deps
             .storage
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,
@@ -283,7 +283,7 @@ fn get_own_address_via_callees_get_caller_address(
     _env: Env,
 ) -> Result<Binary, ContractError> {
     let address: Addr = from_json(
-        &deps
+        deps
             .storage
             .get(b"dynamic_callee_contract")
             .ok_or_else(|| ContractError::Storage("cannot get callee address".to_string()))?,

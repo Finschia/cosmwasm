@@ -48,7 +48,7 @@ pub fn execute(
 }
 
 fn handle_add(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -66,7 +66,7 @@ fn handle_add(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_add_readonly(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -84,7 +84,7 @@ fn handle_add_readonly(deps: Deps, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_sub(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -102,7 +102,7 @@ fn handle_sub(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_mul(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -120,7 +120,7 @@ fn handle_mul(deps: DepsMut, by: i32) -> Result<Response, ContractError> {
 }
 
 fn handle_mul_readonly(deps: Deps, by: i32) -> Result<Response, ContractError> {
-    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract {
         address: address.clone(),
     };
@@ -146,7 +146,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
 
 fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
     let address: Addr = from_json(
-        &deps
+        deps
             .storage
             .get(ADDRESS_KEY)
             .ok_or(ContractError::StorageError)?,
@@ -159,7 +159,7 @@ fn query_number(deps: Deps) -> Result<NumberResponse, ContractError> {
 }
 
 fn handle_number(deps: Deps) -> Result<i32, ContractError> {
-    let address: Addr = from_json(&deps.storage.get(ADDRESS_KEY).unwrap())?;
+    let address: Addr = from_json(deps.storage.get(ADDRESS_KEY).unwrap())?;
     let contract = NumberContract { address };
     let value_dyn = contract.number();
     Ok(value_dyn)
