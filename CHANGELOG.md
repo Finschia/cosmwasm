@@ -122,9 +122,6 @@
 
 * fix github release action bug ([#199](https://github.com/line/cosmwasm/pull/199))
 
-### Docs
-
-
 ### Features
 
 * add integration tests for query-queue ([#197](https://github.com/line/cosmwasm/pull/197))
