@@ -1,6 +1,97 @@
 # Changelog
 
 
+## [[v1.1.9+0.9.0](https://github.com/Finschia/cosmwasm/compare/v1.1.9+0.8.1...v1.1.9+0.9.0)] - 2024-02-13
+
+### Changes
+
+* Set version: 1.1.9+0.9.0 ([#345](https://github.com/Finschia/cosmwasm/pull/345))
+
+### Docs
+
+* add the description of versioning rule ([#330](https://github.com/Finschia/cosmwasm/pull/330))
+
+### Features
+
+* enable sign ext for wasm generated with rust 1.70 ([#344](https://github.com/Finschia/cosmwasm/pull/344))
+
+### Fixes
+
+* patch CWA-2023-004 ([#343](https://github.com/Finschia/cosmwasm/pull/343))
+* update codeowner ([#333](https://github.com/Finschia/cosmwasm/pull/333))
+
+
+## [[v1.1.9+0.8.1](https://github.com/Finschia/cosmwasm/compare/v1.1.9+0.8.0...v1.1.9+0.8.1)] - 2023-09-21
+
+### Changes
+
+* set version to 1.1.9+0.8.1 and fix get_version.sh ([#329](https://github.com/Finschia/cosmwasm/pull/329))
+
+
+## [[v1.1.9+0.8.0](https://github.com/Finschia/cosmwasm/compare/v1.1.9-0.7.0...v1.1.9+0.8.0)] - 2023-09-13
+
+### Changes
+
+* set version to 1.1.9+0.8.0 ([#328](https://github.com/Finschia/cosmwasm/pull/328))
+
+### Docs
+
+* added query_queue docker command ([#322](https://github.com/Finschia/cosmwasm/pull/322))
+
+
+## [[v1.1.9-0.7.0](https://github.com/Finschia/cosmwasm/compare/v1.0.0-0.6.0...v1.1.9-0.7.0)] - 2023-04-27
+
+### Ci
+
+* renew how to check the WASM in release ([#298](https://github.com/Finschia/cosmwasm/pull/298))
+* update rust-optimizer version used in release ci ([#293](https://github.com/Finschia/cosmwasm/pull/293))
+* add ci tests for package derive ([#231](https://github.com/Finschia/cosmwasm/pull/231))
+* fix broken workflow for benchmarking ([#209](https://github.com/Finschia/cosmwasm/pull/209))
+* fix broken ci tests.yml ([#210](https://github.com/Finschia/cosmwasm/pull/210))
+
+### Docs
+
+* replace line with finschia in docs, comments, and scripts related docs ([#290](https://github.com/Finschia/cosmwasm/pull/290))
+* fix dead links ([#253](https://github.com/Finschia/cosmwasm/pull/253))
+
+### Features
+
+* add codeowners file ([#275](https://github.com/Finschia/cosmwasm/pull/275))
+
+### Fixes
+
+* release action ends with success without renew tag ([#206](https://github.com/Finschia/cosmwasm/pull/206))
+* re create README.md ([#201](https://github.com/Finschia/cosmwasm/pull/201))
+* fix keys of action caches for contracts ([#204](https://github.com/Finschia/cosmwasm/pull/204))
+* add voting_with_uuid to README and tests in actions ([#205](https://github.com/Finschia/cosmwasm/pull/205))
+* update query-queue to version 1.0.0 ([#203](https://github.com/Finschia/cosmwasm/pull/203))
+
+
+## [[v1.0.0-0.6.0](https://github.com/Finschia/cosmwasm/compare/v0.16.3-0.5.1...v1.0.0-0.6.0)] - 2022-06-03
+
+### Ci
+
+* fix github release action bug ([#199](https://github.com/Finschia/cosmwasm/pull/199))
+
+### Docs
+
+
+### Features
+
+* add integration tests for query-queue ([#197](https://github.com/Finschia/cosmwasm/pull/197))
+* add a contract query-queue ([#183](https://github.com/Finschia/cosmwasm/pull/183))
+* add memory_limit arg to some Contract's functions ([#179](https://github.com/Finschia/cosmwasm/pull/179))
+* simplify vm::testing::Contract ([#181](https://github.com/Finschia/cosmwasm/pull/181))
+* cherry pick upstream's commits about vm querier mock ([#180](https://github.com/Finschia/cosmwasm/pull/180))
+
+### Fixes
+
+* make query-queue's entry points using entry_points ([#198](https://github.com/Finschia/cosmwasm/pull/198))
+* fix author of query-queue contract ([#196](https://github.com/Finschia/cosmwasm/pull/196))
+* modify the chglog template to filter commits and correct PRs' URL ([#170](https://github.com/Finschia/cosmwasm/pull/170))
+* fix release.yml to trigger release only when PR is merged ([#172](https://github.com/Finschia/cosmwasm/pull/172))
+
+
 ## [[0.16.3-0.5.1](https://github.com/Finschia/cosmwasm/compare/v0.16.3-0.5.0...0.16.3-0.5.1)] - 2022-03-03
 
 ### Fixes
