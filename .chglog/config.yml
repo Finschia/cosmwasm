@@ -13,6 +13,8 @@ options:
         - perf
         - refactor
         - build
+        - ci
+        - docs
   commit_groups:
     title_maps:
       feat: Features
