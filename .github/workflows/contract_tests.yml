@@ -55,6 +55,9 @@ jobs:
       - name: Integration tests (singlepass backend)
         working-directory: ${{env.working-directory}}
         run: cargo integration-test --locked --no-default-features
+      - name: Documentation tests
+        working-directory: ${{env.working-directory}}
+        run: cargo doc-test --locked
       - name: Build and run schema generator
         working-directory: ${{env.working-directory}}
         run: cargo schema --locked
