@@ -43,7 +43,7 @@ jobs:
         working-directory: ${{env.working-directory}}
         run: cargo unit-test --locked
       # 
-      # If the contract needs other wasm file, please build currently
+      # If this contract requires other contracts for integration testing, please compile it here
       #
       - name: Build queue wasm binary for integration tests (query-queue)
         if: matrix.contract == 'query-queue' 
