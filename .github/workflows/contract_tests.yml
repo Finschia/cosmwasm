@@ -73,6 +73,6 @@ jobs:
       - name: Check formatting
         working-directory: ${{env.working-directory}}
         run: cargo fmt -- --check
-      - name: Clippy linting on burner
+      - name: Clippy linting
         working-directory: ${{env.working-directory}}
         run: cargo clippy --tests -- -D warnings
