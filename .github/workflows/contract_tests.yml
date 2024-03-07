@@ -28,7 +28,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: cargocache-v2-${{ matrix.contract }}-rust:1.60.0-${{ hashFiles(format('contracts/{0}/Cargo.lock', matrix.contract)) }}

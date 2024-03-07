@@ -24,7 +24,7 @@ jobs:
           profile: minimal
           override: true
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: cargocache-v2-package_crypto-rust:1.60.0-${{ hashFiles('Cargo.lock') }}
@@ -53,7 +53,7 @@ jobs:
           profile: minimal
           override: true
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: cargocache-v2-package_derive-rust:1.60.0-${{ hashFiles('Cargo.lock') }}
@@ -82,7 +82,7 @@ jobs:
           profile: minimal
           override: true
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: cargocache-v2-package_schema-rust:1.60.0-${{ hashFiles('Cargo.lock') }}
@@ -111,7 +111,7 @@ jobs:
           profile: minimal
           override: true
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: cargocache-v2-package_std-rust:1.60.0-${{ hashFiles('Cargo.lock') }}
@@ -165,7 +165,7 @@ jobs:
           profile: minimal
           override: true
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: cargocache-v2-package_storage-rust:1.60.0-${{ hashFiles('Cargo.lock') }}
@@ -197,7 +197,7 @@ jobs:
           profile: minimal
           override: true
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: cargocache-v2-package_vm-rust:1.60.0-${{ hashFiles('Cargo.lock') }}
@@ -234,7 +234,7 @@ jobs:
           override: true
           components: rustfmt, clippy
       - name: Cache cargo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cargo
           key: cargocache-v2-fmt-rust:1.60.0-${{ hashFiles('Cargo.lock', 'contracts/*/Cargo.lock') }}
