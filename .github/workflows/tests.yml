@@ -221,7 +221,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       packages: ./packages
-      contracts: ./contracts
     steps:
       - name: Checkout
         uses: actions/checkout@v4
