@@ -236,7 +236,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo
-          key: cargocache-v2-fmt-rust:1.60.0-${{ hashFiles('Cargo.lock', 'contracts/*/Cargo.lock') }}
+          key: cargocache-v2-fmt-rust:1.60.0-${{ hashFiles('Cargo.lock') }}
       - name: Version information
         run: rustc --version; cargo --version; rustup --version; rustup target list --installed
       - name: Check formatting of workspace
