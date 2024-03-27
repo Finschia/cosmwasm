@@ -4,7 +4,7 @@ info:
   title: CHANGELOG
   repository_url: https://github.com/line/cosmwasm
 options:
-  tag_filter_pattern: '^v\d+\.\d+\.\d+-\d+\.\d+\.\d+'
+  tag_filter_pattern: '^v\d+\.\d+\.\d[+-]\d+\.\d+\.\d+-dynamiclink.+$'
   commits:
     filters:
       Type:
@@ -13,6 +13,8 @@ options:
         - perf
         - refactor
         - build
+        - ci
+        - docs
   commit_groups:
     title_maps:
       feat: Features
